@@ -12,6 +12,7 @@ import Feed from "./pages/Feed";
 import Leaderboard from "./pages/Leaderboard";
 import WOD from "./pages/WOD";
 import Profile from "./pages/Profile";
+import Boxes from "./pages/Boxes";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
               <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
               <Route path="/wod" element={<ProtectedRoute><WOD /></ProtectedRoute>} />
+              <Route path="/boxes" element={<ProtectedRoute><Boxes /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

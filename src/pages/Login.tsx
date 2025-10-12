@@ -5,14 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const { login, register } = useAuth();
+  const { login, register, resetPassword } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
@@ -46,6 +49,28 @@ const Login = () => {
       toast({ 
         title: 'Registration failed', 
         description: error instanceof Error ? error.message : 'Could not create account',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      toast({ 
+        title: 'Email enviado!', 
+        description: 'Verifique sua caixa de entrada para redefinir a senha' 
+      });
+      setShowResetDialog(false);
+      setResetEmail('');
+    } catch (error) {
+      toast({ 
+        title: 'Erro', 
+        description: error instanceof Error ? error.message : 'Não foi possível enviar o email',
         variant: 'destructive' 
       });
     } finally {
@@ -101,6 +126,39 @@ const Login = () => {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Entrando...' : 'Entrar'}
                 </Button>
+                
+                <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="link" className="w-full text-sm text-muted-foreground">
+                      Esqueci minha senha
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Recuperar Senha</DialogTitle>
+                      <DialogDescription>
+                        Digite seu email e enviaremos instruções para redefinir sua senha.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">Email</Label>
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? 'Enviando...' : 'Enviar email'}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
                 <p className="text-xs text-muted-foreground text-center">
                   Demo: alex@crosscity.com / demo123
                 </p>

@@ -17,6 +17,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,8 +86,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    const users = JSON.parse(usersData);
+    
+    if (!users.find((u: any) => u.email === email)) {
+      throw new Error('Email não encontrado');
+    }
+    
+    // Mock: simulate sending reset email
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
