@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Home, Users, Trophy, Dumbbell, User, LogOut, Building2 } from 'lucide-react';
+import { Home, Users, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse } from 'lucide-react';
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const { user, logout } = useAuth();
@@ -18,6 +18,9 @@ const Layout = ({ children }: { children: ReactNode }) => {
     { icon: Home, label: 'Dashboard', path: '/' },
     { icon: Users, label: 'Feed', path: '/feed' },
     { icon: Dumbbell, label: 'WOD', path: '/wod' },
+    { icon: BarChart3, label: 'Benchmarks', path: '/benchmarks' },
+    { icon: Swords, label: 'Batalha', path: '/battle' },
+    { icon: Warehouse, label: 'Meu Box', path: '/mybox' },
     { icon: Building2, label: 'Boxes', path: '/boxes' },
     { icon: Trophy, label: 'Ranking', path: '/leaderboard' },
     { icon: User, label: 'Perfil', path: '/profile' },
