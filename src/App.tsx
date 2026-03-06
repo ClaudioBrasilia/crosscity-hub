@@ -13,6 +13,9 @@ import Leaderboard from "./pages/Leaderboard";
 import WOD from "./pages/WOD";
 import Profile from "./pages/Profile";
 import Boxes from "./pages/Boxes";
+import Benchmarks from "./pages/Benchmarks";
+import Battle from "./pages/Battle";
+import MyBox from "./pages/MyBox";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 
@@ -42,6 +45,9 @@ const App = () => {
               <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
               <Route path="/wod" element={<ProtectedRoute><WOD /></ProtectedRoute>} />
               <Route path="/boxes" element={<ProtectedRoute><Boxes /></ProtectedRoute>} />
+              <Route path="/benchmarks" element={<ProtectedRoute><Benchmarks /></ProtectedRoute>} />
+              <Route path="/battle" element={<ProtectedRoute><Battle /></ProtectedRoute>} />
+              <Route path="/mybox" element={<ProtectedRoute><MyBox /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

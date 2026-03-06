@@ -9,6 +9,8 @@ interface User {
   xp: number;
   level: number;
   streak: number;
+  wins?: number;
+  battles?: number;
 }
 
 interface AuthContextType {

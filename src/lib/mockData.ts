@@ -1,4 +1,15 @@
 export const initializeMockData = () => {
+  if (!localStorage.getItem('crosscity_benchmarks')) {
+    const mockBenchmarks: Record<string, Record<string, number>> = {
+      user_1: { back_squat: 120, deadlift: 150, clean_jerk: 90, snatch: 70, thruster: 80, max_pullups: 25, max_burpees_1min: 18, max_dubs_1min: 50 },
+      user_2: { back_squat: 100, deadlift: 130, clean_jerk: 75, snatch: 60, thruster: 70, max_pullups: 30, max_burpees_1min: 22, max_dubs_1min: 65 },
+      user_3: { back_squat: 90, deadlift: 110, clean_jerk: 60, snatch: 50, thruster: 60, max_pullups: 15, max_burpees_1min: 14, max_dubs_1min: 30 },
+      user_4: { back_squat: 110, deadlift: 140, clean_jerk: 85, snatch: 65, thruster: 75, max_pullups: 28, max_burpees_1min: 20, max_dubs_1min: 55 },
+      user_5: { back_squat: 105, deadlift: 125, clean_jerk: 70, snatch: 55, thruster: 65, max_pullups: 20, max_burpees_1min: 16, max_dubs_1min: 40 },
+    };
+    localStorage.setItem('crosscity_benchmarks', JSON.stringify(mockBenchmarks));
+  }
+
   if (!localStorage.getItem('crosscity_users')) {
     const mockUsers = [
       {

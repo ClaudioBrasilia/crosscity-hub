@@ -1,15 +1,22 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Trophy, Target, Flame, TrendingUp } from 'lucide-react';
+import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse } from 'lucide-react';
+import { equipmentCatalog } from '@/lib/equipmentData';
 
 const Dashboard = () => {
   const { user } = useAuth();
+
+  const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
+  const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
+  const unlockedCount = equipmentCatalog.filter(eq => userWins >= eq.winsRequired || userInventory.includes(eq.id)).length;
 
   const stats = [
     { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
     { icon: Target, label: 'XP', value: user?.xp || 0, color: 'text-secondary' },
     { icon: Flame, label: 'Sequência', value: `${user?.streak || 0} dias`, color: 'text-primary' },
+    { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-secondary' },
+    { icon: Warehouse, label: 'Equipamentos', value: `${unlockedCount}/24`, color: 'text-primary' },
     { icon: TrendingUp, label: 'WODs', value: '12', color: 'text-secondary' },
   ];
 
@@ -33,7 +40,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <Card key={i} className="border-primary/20">
             <CardHeader className="pb-2">
