@@ -196,8 +196,8 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
 
             {/* Branding */}
             <div className="flex items-center justify-center gap-2 pt-2 pb-1">
-              <img src={boxLogo} alt="B Cross" className="w-7 h-7 object-contain" />
-              <span className="text-xs text-muted-foreground font-medium">B Cross Uberlândia</span>
+              <img src={boxLogo} alt="CrossUberlandia" className="w-7 h-7 object-contain" />
+              <span className="text-xs text-muted-foreground font-medium">CrossUberlandia</span>
             </div>
           </div>
         </div>
