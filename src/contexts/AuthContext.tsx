@@ -53,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...userWithoutPassword,
         gender: userWithoutPassword.gender || 'male',
         category: userWithoutPassword.category || 'beginner',
+        role: userWithoutPassword.role || 'athlete',
       };
       setUser(normalizedUser);
       localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
