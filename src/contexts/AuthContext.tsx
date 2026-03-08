@@ -24,7 +24,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, gender: Gender, category: Category) => Promise<void>;
+  register: (name: string, email: string, password: string, gender: Gender, category: Category, role?: UserRole) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   resetPassword: (email: string) => Promise<void>;
