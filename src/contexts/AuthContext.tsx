@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string, gender: Gender, category: Category) => {
+  const register = async (name: string, email: string, password: string, gender: Gender, category: Category, role: UserRole = 'athlete') => {
     const usersData = localStorage.getItem('crosscity_users') || '[]';
     const users = JSON.parse(usersData);
 
