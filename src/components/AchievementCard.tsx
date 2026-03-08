@@ -131,7 +131,7 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
         if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'conquista.png')] })) {
           await navigator.share({
             title: `${badge.name} - Conquista Desbloqueada!`,
-            text: `Desbloqueei a conquista "${badge.name}" no B Cross Uberlândia! 💪`,
+            text: `Desbloqueei a conquista "${badge.name}" no CrossUberlandia! 💪`,
             files: [new File([blob], 'conquista.png', { type: 'image/png' })],
           });
         } else {
