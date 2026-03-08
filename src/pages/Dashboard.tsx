@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
-import { activeChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
+import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
 const toTimeValue = (value: string) => {
@@ -235,8 +235,8 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {activeChallenges.slice(0, 3).map(c => {
-            const progress = user ? getChallengeProgress(c, user.id) : 0;
+          {getActiveChallenges().slice(0, 3).map(c => {
+            const progress = user ? getChallengeProgress(c.id, user.id) : 0;
             const completed = user ? getCompletedChallenges(user.id) : [];
             const isClaimed = completed.includes(c.id);
             const pct = Math.min((progress / c.target) * 100, 100);
