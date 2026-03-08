@@ -38,6 +38,7 @@ const Profile = () => {
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   const handleSaveAvatar = () => {
     if (selectedAvatar) updateUser({ avatar: selectedAvatar });
