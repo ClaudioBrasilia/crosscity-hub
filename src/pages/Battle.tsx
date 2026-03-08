@@ -50,6 +50,13 @@ const Battle = () => {
   const [betItem, setBetItem] = useState('');
   const [submission, setSubmission] = useState<Record<string, string>>({});
 
+  // Custom WOD creation
+  const [createMode, setCreateMode] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customType, setCustomType] = useState<'For Time' | 'AMRAP' | 'EMOM'>('For Time');
+  const [customDescription, setCustomDescription] = useState('');
+  const [customWeight, setCustomWeight] = useState('');
+
   useEffect(() => {
     const loadedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     const loadedWods = JSON.parse(localStorage.getItem('crosscity_daily_wods') || '[]');
