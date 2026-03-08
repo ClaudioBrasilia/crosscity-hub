@@ -144,9 +144,9 @@ const Profile = () => {
             <p className="text-sm font-semibold mb-3">Badges de Frequência</p>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Bronze', min: 10, emoji: '🥉', color: 'border-amber-700/60 bg-amber-900/20' },
-                { label: 'Prata', min: 20, emoji: '🥈', color: 'border-slate-400/60 bg-slate-500/20' },
-                { label: 'Ouro', min: 25, emoji: '🥇', color: 'border-yellow-500/60 bg-yellow-500/20' },
+                { label: 'Bronze', min: 13, emoji: '🥉', color: 'border-amber-700/60 bg-amber-900/20' },
+                { label: 'Prata', min: 17, emoji: '🥈', color: 'border-slate-400/60 bg-slate-500/20' },
+                { label: 'Ouro', min: 20, emoji: '🥇', color: 'border-yellow-500/60 bg-yellow-500/20' },
               ].map((badge) => {
                 const achieved = monthCheckinCount >= badge.min;
                 return (
