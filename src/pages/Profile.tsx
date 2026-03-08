@@ -134,16 +134,18 @@ const Profile = () => {
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {catBadges.map(({ badge, unlocked }) => (
-                    <div
+                    <button
                       key={badge.id}
+                      onClick={() => unlocked && setSelectedBadge(badge)}
                       className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
-                        unlocked ? 'border-primary/40 bg-primary/10' : 'border-border opacity-40 grayscale'
+                        unlocked ? 'border-primary/40 bg-primary/10 cursor-pointer hover:scale-105 active:scale-95' : 'border-border opacity-40 grayscale cursor-default'
                       }`}
                     >
                       <span className="text-3xl">{badge.icon}</span>
                       <span className="text-xs font-semibold mt-1 leading-tight">{badge.name}</span>
                       <span className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</span>
-                    </div>
+                      {unlocked && <span className="text-[9px] text-primary mt-1">Toque para compartilhar</span>}
+                    </button>
                   ))}
                 </div>
               </div>
