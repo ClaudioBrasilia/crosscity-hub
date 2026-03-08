@@ -77,8 +77,35 @@ const Battle = () => {
   };
 
   const createDuel = () => {
-    const selectedWod = wods.find((item) => item.id === wodId);
-    if (!user || !opponentId || !selectedWod) return;
+    if (!user || !opponentId) return;
+
+    let selectedWod: DailyWod;
+
+    if (createMode) {
+      if (!customName || !customDescription) {
+        toast({ title: 'Preencha os campos', description: 'Nome e descrição do WOD são obrigatórios.', variant: 'destructive' });
+        return;
+      }
+      const newWod: DailyWod = {
+        id: `wod_custom_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        name: customName,
+        type: customType,
+        versions: {
+          rx: { description: customDescription, weight: customWeight || 'Rx' },
+          scaled: { description: customDescription, weight: customWeight ? `${Math.round(Number(customWeight) * 0.7)}` : 'Scaled' },
+          beginner: { description: customDescription, weight: customWeight ? `${Math.round(Number(customWeight) * 0.5)}` : 'Iniciante' },
+        },
+      };
+      const updatedWods = [newWod, ...wods];
+      setWods(updatedWods);
+      localStorage.setItem('crosscity_daily_wods', JSON.stringify(updatedWods));
+      selectedWod = newWod;
+    } else {
+      const found = wods.find((item) => item.id === wodId);
+      if (!found) return;
+      selectedWod = found;
+    }
 
     const duel: Duel = {
       id: `duel_${Date.now()}`,
@@ -97,9 +124,13 @@ const Battle = () => {
     };
 
     saveDuels([duel, ...duels]);
-    toast({ title: 'Duelo criado!', description: 'Agora os dois atletas podem submeter o resultado real.' });
+    toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. Agora os dois atletas podem submeter o resultado real.` });
     setBetMode(false);
     setBetItem('');
+    setCreateMode(false);
+    setCustomName('');
+    setCustomDescription('');
+    setCustomWeight('');
   };
 
   const submitResult = (duel: Duel) => {
