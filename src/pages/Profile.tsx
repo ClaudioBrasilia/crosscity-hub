@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
 import { CalendarCheck, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
+import AchievementCard from '@/components/AchievementCard';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -37,6 +38,7 @@ const Profile = () => {
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   const handleSaveAvatar = () => {
     if (selectedAvatar) updateUser({ avatar: selectedAvatar });
@@ -132,16 +134,18 @@ const Profile = () => {
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {catBadges.map(({ badge, unlocked }) => (
-                    <div
+                    <button
                       key={badge.id}
+                      onClick={() => unlocked && setSelectedBadge(badge)}
                       className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
-                        unlocked ? 'border-primary/40 bg-primary/10' : 'border-border opacity-40 grayscale'
+                        unlocked ? 'border-primary/40 bg-primary/10 cursor-pointer hover:scale-105 active:scale-95' : 'border-border opacity-40 grayscale cursor-default'
                       }`}
                     >
                       <span className="text-3xl">{badge.icon}</span>
                       <span className="text-xs font-semibold mt-1 leading-tight">{badge.name}</span>
                       <span className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</span>
-                    </div>
+                      {unlocked && <span className="text-[9px] text-primary mt-1">Toque para compartilhar</span>}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -164,6 +168,16 @@ const Profile = () => {
           <Button onClick={handleSaveAvatar} className="w-full">Salvar Avatar</Button>
         </CardContent>
       </Card>
+      {/* Achievement Share Card */}
+      {selectedBadge && user && (
+        <AchievementCard
+          badge={selectedBadge}
+          userName={user.name}
+          userLevel={user.level}
+          open={!!selectedBadge}
+          onOpenChange={(open) => !open && setSelectedBadge(null)}
+        />
+      )}
     </div>
   );
 };
