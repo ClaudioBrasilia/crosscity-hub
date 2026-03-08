@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,7 +19,13 @@ const Login = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
+  const [registerData, setRegisterData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    gender: 'male' as 'male' | 'female',
+    category: 'beginner' as 'rx' | 'scaled' | 'beginner',
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,10 +35,10 @@ const Login = () => {
       toast({ title: 'Welcome back!', description: 'Let\'s crush some WODs today 💪' });
       navigate('/');
     } catch (error) {
-      toast({ 
-        title: 'Login failed', 
+      toast({
+        title: 'Login failed',
         description: error instanceof Error ? error.message : 'Invalid credentials',
-        variant: 'destructive' 
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -42,14 +49,20 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await register(registerData.name, registerData.email, registerData.password);
+      await register(
+        registerData.name,
+        registerData.email,
+        registerData.password,
+        registerData.gender,
+        registerData.category
+      );
       toast({ title: 'Welcome to CrossCity!', description: 'Your journey starts now 🔥' });
       navigate('/');
     } catch (error) {
-      toast({ 
-        title: 'Registration failed', 
+      toast({
+        title: 'Registration failed',
         description: error instanceof Error ? error.message : 'Could not create account',
-        variant: 'destructive' 
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -61,17 +74,17 @@ const Login = () => {
     setIsLoading(true);
     try {
       await resetPassword(resetEmail);
-      toast({ 
-        title: 'Email enviado!', 
-        description: 'Verifique sua caixa de entrada para redefinir a senha' 
+      toast({
+        title: 'Email enviado!',
+        description: 'Verifique sua caixa de entrada para redefinir a senha',
       });
       setShowResetDialog(false);
       setResetEmail('');
     } catch (error) {
-      toast({ 
-        title: 'Erro', 
-        description: error instanceof Error ? error.message : 'Não foi possível enviar o email',
-        variant: 'destructive' 
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao enviar email',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -79,29 +92,22 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
-      
-      <Card className="w-full max-w-md relative z-10 border-primary/20 bg-card/95 backdrop-blur">
-        <CardHeader className="text-center space-y-2">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/20">
+      <Card className="w-full max-w-md border-primary/20">
+        <CardHeader className="text-center">
           <div className="text-6xl mb-4">🏋️</div>
-          <CardTitle className="text-4xl font-bold gradient-primary bg-clip-text text-transparent">
-            CrossCity
-          </CardTitle>
-          <CardDescription className="text-lg">
-            Cada treino constrói a sua cidade
-          </CardDescription>
+          <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">CrossCity</CardTitle>
+          <CardDescription>Seu app gamificado para CrossFit</CardDescription>
         </CardHeader>
-        
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
+            <TabsContent value="login" className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
                   <Input
@@ -123,35 +129,28 @@ const Login = () => {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Entrando...' : 'Entrar'}
-                </Button>
-                
+
                 <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="link" className="w-full text-sm text-muted-foreground">
-                      Esqueci minha senha
+                    <Button type="button" variant="link" className="p-0 h-auto text-sm">
+                      Esqueceu a senha?
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Recuperar Senha</DialogTitle>
+                      <DialogTitle>Redefinir Senha</DialogTitle>
                       <DialogDescription>
-                        Digite seu email e enviaremos instruções para redefinir sua senha.
+                        Digite seu email para receber instruções de recuperação
                       </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleResetPassword} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="reset-email">Email</Label>
-                        <Input
-                          id="reset-email"
-                          type="email"
-                          placeholder="seu@email.com"
-                          value={resetEmail}
-                          onChange={(e) => setResetEmail(e.target.value)}
-                          required
-                        />
-                      </div>
+                      <Input
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        required
+                      />
                       <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? 'Enviando...' : 'Enviar email'}
                       </Button>
@@ -159,19 +158,24 @@ const Login = () => {
                   </DialogContent>
                 </Dialog>
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Demo: alex@crosscity.com / demo123
-                </p>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Entrando...' : 'Entrar'}
+                </Button>
               </form>
+
+              <div className="p-3 bg-primary/10 rounded-lg text-sm">
+                <p className="font-semibold mb-1">Demo:</p>
+                <p>Email: alex@crosscity.com</p>
+                <p>Senha: demo123</p>
+              </div>
             </TabsContent>
 
-            <TabsContent value="register">
-              <form onSubmit={handleRegister} className="space-y-4">
+            <TabsContent value="register" className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="register-name">Nome</Label>
                   <Input
                     id="register-name"
-                    type="text"
                     placeholder="Seu nome"
                     value={registerData.name}
                     onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
@@ -198,6 +202,37 @@ const Login = () => {
                     onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gênero</Label>
+                  <Select
+                    value={registerData.gender}
+                    onValueChange={(value: 'male' | 'female') => setRegisterData({ ...registerData, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Masculino</SelectItem>
+                      <SelectItem value="female">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select
+                    value={registerData.category}
+                    onValueChange={(value: 'rx' | 'scaled' | 'beginner') => setRegisterData({ ...registerData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rx">RX</SelectItem>
+                      <SelectItem value="scaled">Scaled</SelectItem>
+                      <SelectItem value="beginner">Iniciante</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Criando conta...' : 'Criar conta'}
