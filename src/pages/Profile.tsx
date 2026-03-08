@@ -3,7 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award } from 'lucide-react';
+import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -22,25 +23,20 @@ const Profile = () => {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date().toISOString().split('T')[0];
-
     const days: { day: number; dateKey: string; isPresent: boolean; isToday: boolean; isPast: boolean }[] = [];
-
     for (let d = 1; d <= daysInMonth; d++) {
       const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        day: d,
-        dateKey,
-        isPresent: myCheckins.has(dateKey),
-        isToday: dateKey === today,
-        isPast: dateKey < today,
-      });
+      days.push({ day: d, dateKey, isPresent: myCheckins.has(dateKey), isToday: dateKey === today, isPast: dateKey < today });
     }
-
     return { days, firstDay, daysInMonth };
   }, [calendarMonth, myCheckins]);
 
   const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthCheckinCount = calendarDays.days.filter((d) => d.isPresent).length;
+
+  // Badges
+  const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
+  const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
 
   const handleSaveAvatar = () => {
     if (selectedAvatar) updateUser({ avatar: selectedAvatar });
@@ -54,9 +50,7 @@ const Profile = () => {
       <h1 className="text-3xl font-bold">Perfil</h1>
 
       <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Informações</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Informações</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Nome</p>
@@ -83,7 +77,7 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Calendário de Presenças */}
+      {/* Calendário */}
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -93,131 +87,81 @@ const Profile = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={prevMonth}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="h-5 w-5" /></Button>
             <span className="font-semibold capitalize">{monthLabel}</span>
-            <Button variant="ghost" size="icon" onClick={nextMonth}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="h-5 w-5" /></Button>
           </div>
-
           <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-2">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
               <div key={d} className="font-medium py-1">{d}</div>
             ))}
           </div>
-
           <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: calendarDays.firstDay }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
+            {Array.from({ length: calendarDays.firstDay }).map((_, i) => (<div key={`empty-${i}`} />))}
             {calendarDays.days.map((d) => (
-              <div
-                key={d.dateKey}
-                className={`aspect-square flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                  d.isPresent
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/40'
-                    : d.isPast
-                      ? 'bg-muted/30 text-muted-foreground'
-                      : 'text-foreground/60'
-                } ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
-              >
+              <div key={d.dateKey} className={`aspect-square flex items-center justify-center rounded-md text-sm font-medium transition-colors ${d.isPresent ? 'bg-green-500/20 text-green-400 border border-green-500/40' : d.isPast ? 'bg-muted/30 text-muted-foreground' : 'text-foreground/60'} ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}>
                 {d.day}
               </div>
             ))}
           </div>
-
           <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/40" />
-              Presente
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-muted/30" />
-              Ausente
-            </div>
-          </div>
-
-          {/* Badges de Frequência */}
-          <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-sm font-semibold mb-3">Badges de Frequência</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Bronze', min: 13, emoji: '🥉', color: 'border-amber-700/60 bg-amber-900/20' },
-                { label: 'Prata', min: 17, emoji: '🥈', color: 'border-slate-400/60 bg-slate-500/20' },
-                { label: 'Ouro', min: 20, emoji: '🥇', color: 'border-yellow-500/60 bg-yellow-500/20' },
-              ].map((badge) => {
-                const achieved = monthCheckinCount >= badge.min;
-                return (
-                  <div
-                    key={badge.label}
-                    className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
-                      achieved ? badge.color : 'border-border opacity-40'
-                    }`}
-                  >
-                    <span className="text-3xl">{badge.emoji}</span>
-                    <span className="text-xs font-semibold mt-1">{badge.label}</span>
-                    <span className="text-[10px] text-muted-foreground">{badge.min}+ check-ins</span>
-                  </div>
-                );
-              })}
-            </div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/40" />Presente</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-muted/30" />Ausente</div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Conquistas Completas */}
       <Card className="border-primary/20">
         <CardHeader>
-          <CardTitle>Personalizar Avatar</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5 text-secondary" />
+            Conquistas ({badgeResults.filter(b => b.unlocked).length}/{badgeResults.length})
+          </CardTitle>
         </CardHeader>
+        <CardContent className="space-y-6">
+          {categories.map(cat => {
+            const catBadges = badgeResults.filter(b => b.badge.category === cat);
+            const unlockedCount = catBadges.filter(b => b.unlocked).length;
+            return (
+              <div key={cat}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">{categoryIcons[cat]}</span>
+                  <h3 className="font-semibold text-sm">{categoryLabels[cat]}</h3>
+                  <span className="text-xs text-muted-foreground ml-auto">{unlockedCount}/{catBadges.length}</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {catBadges.map(({ badge, unlocked }) => (
+                    <div
+                      key={badge.id}
+                      className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
+                        unlocked ? 'border-primary/40 bg-primary/10' : 'border-border opacity-40 grayscale'
+                      }`}
+                    >
+                      <span className="text-3xl">{badge.icon}</span>
+                      <span className="text-xs font-semibold mt-1 leading-tight">{badge.name}</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5">{badge.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Avatar */}
+      <Card className="border-primary/20">
+        <CardHeader><CardTitle>Personalizar Avatar</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-5 gap-4 mb-6">
             {avatarEmojis.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => setSelectedAvatar(emoji)}
-                className={`text-6xl p-4 rounded-lg border-2 transition-all hover:scale-110 ${
-                  selectedAvatar === emoji
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border'
-                }`}
-              >
+              <button key={emoji} onClick={() => setSelectedAvatar(emoji)} className={`text-6xl p-4 rounded-lg border-2 transition-all hover:scale-110 ${selectedAvatar === emoji ? 'border-primary bg-primary/10' : 'border-border'}`}>
                 {emoji}
               </button>
             ))}
           </div>
-          <Button onClick={handleSaveAvatar} className="w-full">
-            Salvar Avatar
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Conquistas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { icon: '🔥', label: 'Primeira Semana', achieved: true },
-              { icon: '💪', label: 'PR Hunter', achieved: true },
-              { icon: '⚡', label: 'Velocista', achieved: false },
-              { icon: '🏆', label: 'Campeão', achieved: false },
-            ].map((achievement, i) => (
-              <div
-                key={i}
-                className={`p-4 rounded-lg border text-center ${
-                  achievement.achieved
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border opacity-50'
-                }`}
-              >
-                <div className="text-4xl mb-2">{achievement.icon}</div>
-                <p className="text-sm font-semibold">{achievement.label}</p>
-              </div>
-            ))}
-          </div>
+          <Button onClick={handleSaveAvatar} className="w-full">Salvar Avatar</Button>
         </CardContent>
       </Card>
     </div>
