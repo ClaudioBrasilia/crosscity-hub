@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Trophy } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Swords, Trophy, Plus } from 'lucide-react';
 import { equipmentCatalog, getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +50,13 @@ const Battle = () => {
   const [betItem, setBetItem] = useState('');
   const [submission, setSubmission] = useState<Record<string, string>>({});
 
+  // Custom WOD creation
+  const [createMode, setCreateMode] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customType, setCustomType] = useState<'For Time' | 'AMRAP' | 'EMOM'>('For Time');
+  const [customDescription, setCustomDescription] = useState('');
+  const [customWeight, setCustomWeight] = useState('');
+
   useEffect(() => {
     const loadedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     const loadedWods = JSON.parse(localStorage.getItem('crosscity_daily_wods') || '[]');
@@ -69,8 +77,35 @@ const Battle = () => {
   };
 
   const createDuel = () => {
-    const selectedWod = wods.find((item) => item.id === wodId);
-    if (!user || !opponentId || !selectedWod) return;
+    if (!user || !opponentId) return;
+
+    let selectedWod: DailyWod;
+
+    if (createMode) {
+      if (!customName || !customDescription) {
+        toast({ title: 'Preencha os campos', description: 'Nome e descrição do WOD são obrigatórios.', variant: 'destructive' });
+        return;
+      }
+      const newWod: DailyWod = {
+        id: `wod_custom_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        name: customName,
+        type: customType,
+        versions: {
+          rx: { description: customDescription, weight: customWeight || 'Rx' },
+          scaled: { description: customDescription, weight: customWeight ? `${Math.round(Number(customWeight) * 0.7)}` : 'Scaled' },
+          beginner: { description: customDescription, weight: customWeight ? `${Math.round(Number(customWeight) * 0.5)}` : 'Iniciante' },
+        },
+      };
+      const updatedWods = [newWod, ...wods];
+      setWods(updatedWods);
+      localStorage.setItem('crosscity_daily_wods', JSON.stringify(updatedWods));
+      selectedWod = newWod;
+    } else {
+      const found = wods.find((item) => item.id === wodId);
+      if (!found) return;
+      selectedWod = found;
+    }
 
     const duel: Duel = {
       id: `duel_${Date.now()}`,
@@ -89,9 +124,13 @@ const Battle = () => {
     };
 
     saveDuels([duel, ...duels]);
-    toast({ title: 'Duelo criado!', description: 'Agora os dois atletas podem submeter o resultado real.' });
+    toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. Agora os dois atletas podem submeter o resultado real.` });
     setBetMode(false);
     setBetItem('');
+    setCreateMode(false);
+    setCustomName('');
+    setCustomDescription('');
+    setCustomWeight('');
   };
 
   const submitResult = (duel: Duel) => {
@@ -187,16 +226,51 @@ const Battle = () => {
             </Select>
           </div>
 
-          <div>
-            <Label>WOD</Label>
-            <Select value={wodId} onValueChange={setWodId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar WOD" /></SelectTrigger>
-              <SelectContent>
-                {wods.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>{item.name} • {item.date}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>WOD</Label>
+              <Button variant="ghost" size="sm" onClick={() => setCreateMode(!createMode)} className="text-xs gap-1">
+                <Plus className="h-3 w-3" />
+                {createMode ? 'Selecionar existente' : 'Criar WOD'}
+              </Button>
+            </div>
+
+            {createMode ? (
+              <div className="grid md:grid-cols-2 gap-3 p-3 border rounded-lg bg-secondary/10">
+                <div>
+                  <Label className="text-xs">Nome do WOD</Label>
+                  <Input placeholder="Ex: Death by Thrusters" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={customType} onValueChange={(v) => setCustomType(v as 'For Time' | 'AMRAP' | 'EMOM')}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="For Time">For Time</SelectItem>
+                      <SelectItem value="AMRAP">AMRAP</SelectItem>
+                      <SelectItem value="EMOM">EMOM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Descrição / Movimentos</Label>
+                  <Textarea placeholder="Ex: 21-15-9 Thrusters e Pull-ups" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} rows={3} />
+                </div>
+                <div>
+                  <Label className="text-xs">Carga RX (kg, opcional)</Label>
+                  <Input placeholder="Ex: 43" value={customWeight} onChange={(e) => setCustomWeight(e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <Select value={wodId} onValueChange={setWodId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar WOD" /></SelectTrigger>
+                <SelectContent>
+                  {wods.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name} • {item.date}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div>
@@ -231,7 +305,7 @@ const Battle = () => {
             </div>
           )}
 
-          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || !wodId || (betMode && !betItem)}>
+          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && !betItem)}>
             Criar duelo
           </Button>
         </CardContent>
