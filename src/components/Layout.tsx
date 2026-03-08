@@ -31,6 +31,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const secondaryNavItems = [
     { icon: Users, label: 'Feed', path: '/feed' },
     { icon: BarChart3, label: 'Benchmarks', path: '/benchmarks' },
+    { icon: Flame, label: 'Desafios', path: '/challenges' },
     { icon: Warehouse, label: 'Meu Box', path: '/mybox' },
     { icon: Building2, label: 'Boxes', path: '/boxes' },
   ];
