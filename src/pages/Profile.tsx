@@ -138,6 +138,32 @@ const Profile = () => {
               Ausente
             </div>
           </div>
+
+          {/* Badges de Frequência */}
+          <div className="mt-6 pt-4 border-t border-border">
+            <p className="text-sm font-semibold mb-3">Badges de Frequência</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Bronze', min: 10, emoji: '🥉', color: 'border-amber-700/60 bg-amber-900/20' },
+                { label: 'Prata', min: 20, emoji: '🥈', color: 'border-slate-400/60 bg-slate-500/20' },
+                { label: 'Ouro', min: 25, emoji: '🥇', color: 'border-yellow-500/60 bg-yellow-500/20' },
+              ].map((badge) => {
+                const achieved = monthCheckinCount >= badge.min;
+                return (
+                  <div
+                    key={badge.label}
+                    className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
+                      achieved ? badge.color : 'border-border opacity-40'
+                    }`}
+                  >
+                    <span className="text-3xl">{badge.emoji}</span>
+                    <span className="text-xs font-semibold mt-1">{badge.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{badge.min}+ check-ins</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
