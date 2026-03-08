@@ -1,18 +1,53 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
+import { CalendarCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  const checkins: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
+  const myCheckins = user ? new Set(checkins[user.id] || []) : new Set<string>();
+
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date().toISOString().split('T')[0];
+
+    const days: { day: number; dateKey: string; isPresent: boolean; isToday: boolean; isPast: boolean }[] = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({
+        day: d,
+        dateKey,
+        isPresent: myCheckins.has(dateKey),
+        isToday: dateKey === today,
+        isPast: dateKey < today,
+      });
+    }
+
+    return { days, firstDay, daysInMonth };
+  }, [calendarMonth, myCheckins]);
+
+  const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const monthCheckinCount = calendarDays.days.filter((d) => d.isPresent).length;
 
   const handleSaveAvatar = () => {
-    if (selectedAvatar) {
-      updateUser({ avatar: selectedAvatar });
-    }
+    if (selectedAvatar) updateUser({ avatar: selectedAvatar });
   };
+
+  const prevMonth = () => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  const nextMonth = () => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -48,6 +83,64 @@ const Profile = () => {
         </CardContent>
       </Card>
 
+      {/* Calendário de Presenças */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarCheck className="h-5 w-5 text-primary" />
+            Presenças — {monthCheckinCount} check-ins
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="ghost" size="icon" onClick={prevMonth}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="font-semibold capitalize">{monthLabel}</span>
+            <Button variant="ghost" size="icon" onClick={nextMonth}>
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground mb-2">
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+              <div key={d} className="font-medium py-1">{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: calendarDays.firstDay }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+            {calendarDays.days.map((d) => (
+              <div
+                key={d.dateKey}
+                className={`aspect-square flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                  d.isPresent
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+                    : d.isPast
+                      ? 'bg-muted/30 text-muted-foreground'
+                      : 'text-foreground/60'
+                } ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
+              >
+                {d.day}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/40" />
+              Presente
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-muted/30" />
+              Ausente
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle>Personalizar Avatar</CardTitle>
@@ -59,8 +152,8 @@ const Profile = () => {
                 key={emoji}
                 onClick={() => setSelectedAvatar(emoji)}
                 className={`text-6xl p-4 rounded-lg border-2 transition-all hover:scale-110 ${
-                  selectedAvatar === emoji 
-                    ? 'border-primary bg-primary/10 box-shadow-glow' 
+                  selectedAvatar === emoji
+                    ? 'border-primary bg-primary/10'
                     : 'border-border'
                 }`}
               >
@@ -89,8 +182,8 @@ const Profile = () => {
               <div
                 key={i}
                 className={`p-4 rounded-lg border text-center ${
-                  achievement.achieved 
-                    ? 'border-primary bg-primary/10' 
+                  achievement.achieved
+                    ? 'border-primary bg-primary/10'
                     : 'border-border opacity-50'
                 }`}
               >
