@@ -305,7 +305,7 @@ const Battle = () => {
             </div>
           )}
 
-          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || !wodId || (betMode && !betItem)}>
+          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && !betItem)}>
             Criar duelo
           </Button>
         </CardContent>
