@@ -1,15 +1,39 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
+import type { DailyWod, DailyWodResult } from '@/lib/mockData';
+
+const toTimeValue = (value: string) => {
+  const [minutes, seconds] = value.split(':').map(Number);
+  if (Number.isNaN(minutes) || Number.isNaN(seconds)) return Number.POSITIVE_INFINITY;
+  return minutes * 60 + seconds;
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
 
   const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
   const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
-  const unlockedCount = equipmentCatalog.filter(eq => userWins >= eq.winsRequired || userInventory.includes(eq.id)).length;
+  const unlockedCount = equipmentCatalog.filter((eq) => userWins >= eq.winsRequired || userInventory.includes(eq.id)).length;
+
+  const dailyWod: DailyWod | null = JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null');
+  const dailyResults: DailyWodResult[] = JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]');
+  const myTodayResult = dailyResults.find((item) => item.wodId === dailyWod?.id && item.userId === user?.id);
+
+  const todayRanking = myTodayResult
+    ? dailyResults
+        .filter((item) => item.wodId === dailyWod?.id && item.category === myTodayResult.category)
+        .sort((a, b) => {
+          if (a.unit === 'time' && b.unit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
+          return Number(b.result) - Number(a.result);
+        })
+    : [];
+
+  const myPosition = myTodayResult ? todayRanking.findIndex((item) => item.id === myTodayResult.id) + 1 : null;
 
   const stats = [
     { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
@@ -40,6 +64,28 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {dailyWod && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle>WOD do Dia: {dailyWod.name}</CardTitle>
+            <CardDescription>{dailyWod.type} • {dailyWod.date}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">{dailyWod.versions.rx.description}</p>
+              {myTodayResult ? (
+                <p className="mt-2 font-semibold">Você já registrou: {myTodayResult.result} ({myTodayResult.category.toUpperCase()}) • Posição #{myPosition}</p>
+              ) : (
+                <p className="mt-2 font-semibold">Você ainda não registrou resultado hoje.</p>
+              )}
+            </div>
+            <Link to="/wod">
+              <Button>Registrar Resultado</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <Card key={i} className="border-primary/20">
@@ -55,32 +101,6 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Atividade Recente</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {[
-            { wod: 'Fran', time: '3:45', date: 'Hoje', pr: true },
-            { wod: 'Cindy', rounds: '20', date: 'Ontem' },
-            { wod: 'Helen', time: '8:32', date: '2 dias atrás' },
-          ].map((activity, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <div>
-                <p className="font-semibold flex items-center gap-2">
-                  {activity.wod}
-                  {activity.pr && <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">PR!</span>}
-                </p>
-                <p className="text-sm text-muted-foreground">{activity.date}</p>
-              </div>
-              <p className="text-lg font-bold text-primary">
-                {activity.time || `${activity.rounds} rounds`}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 };
