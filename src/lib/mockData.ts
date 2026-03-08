@@ -105,7 +105,7 @@ export const initializeMockData = () => {
 
   if (!localStorage.getItem('crosscity_boxes')) {
     const mockBoxes = [
-      { id: 'box_1', name: 'Thunder Box', code: 'THUNDER2024', points: 8550, members: 45 },
+      { id: 'box_1', name: 'CrossUberlandia', code: 'CROSS2024', points: 8550, members: 45 },
       { id: 'box_2', name: 'Iron Warriors', code: 'IRON2024', points: 6200, members: 32 },
     ];
     localStorage.setItem('crosscity_boxes', JSON.stringify(mockBoxes));

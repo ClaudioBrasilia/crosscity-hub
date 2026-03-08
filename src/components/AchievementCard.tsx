@@ -121,7 +121,7 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
       }
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.font = '13px system-ui, sans-serif';
-      ctx.fillText('B Cross Uberlândia', 220, 490);
+      ctx.fillText('CrossUberlandia', 220, 490);
 
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/png')
@@ -131,7 +131,7 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
         if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'conquista.png')] })) {
           await navigator.share({
             title: `${badge.name} - Conquista Desbloqueada!`,
-            text: `Desbloqueei a conquista "${badge.name}" no B Cross Uberlândia! 💪`,
+            text: `Desbloqueei a conquista "${badge.name}" no CrossUberlandia! 💪`,
             files: [new File([blob], 'conquista.png', { type: 'image/png' })],
           });
         } else {
@@ -196,8 +196,8 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
 
             {/* Branding */}
             <div className="flex items-center justify-center gap-2 pt-2 pb-1">
-              <img src={boxLogo} alt="B Cross" className="w-7 h-7 object-contain" />
-              <span className="text-xs text-muted-foreground font-medium">B Cross Uberlândia</span>
+              <img src={boxLogo} alt="CrossUberlandia" className="w-7 h-7 object-contain" />
+              <span className="text-xs text-muted-foreground font-medium">CrossUberlandia</span>
             </div>
           </div>
         </div>
