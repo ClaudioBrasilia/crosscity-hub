@@ -67,9 +67,11 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
               {isClaimed && (
                 <div className="flex-1 text-center text-xs font-semibold text-green-400">✓ Recompensa resgatada</div>
               )}
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => onDelete(challenge.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {isCoach && (
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => onDelete(challenge.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
