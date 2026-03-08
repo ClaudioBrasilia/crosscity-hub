@@ -240,7 +240,7 @@ const Challenges = () => {
             <p className="text-muted-foreground text-sm">{isCoach ? 'Crie até 4 desafios semanais + 1 mensal' : 'Complete desafios e ganhe XP'}</p>
           </div>
         </div>
-        {(canAddWeekly || canAddMonthly) && (
+        {isCoach && (canAddWeekly || canAddMonthly) && (
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">
