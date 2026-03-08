@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
-import { activeChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
+import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
 const toTimeValue = (value: string) => {
