@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
 import { CalendarCheck, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
+import AchievementCard from '@/components/AchievementCard';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
