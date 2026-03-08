@@ -3,15 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
- codex/implement-daily-wod-competition-system-jgs3cz
 import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse, CalendarCheck } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
 import { useToast } from '@/hooks/use-toast';
 import { useMemo, useState } from 'react';
-
-import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse } from 'lucide-react';
-import { equipmentCatalog } from '@/lib/equipmentData';
- main
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 
 const toTimeValue = (value: string) => {
@@ -19,11 +14,8 @@ const toTimeValue = (value: string) => {
   if (Number.isNaN(minutes) || Number.isNaN(seconds)) return Number.POSITIVE_INFINITY;
   return minutes * 60 + seconds;
 };
- codex/implement-daily-wod-competition-system-jgs3cz
 
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
-
- main
 
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
@@ -48,7 +40,6 @@ const Dashboard = () => {
     : [];
 
   const myPosition = myTodayResult ? todayRanking.findIndex((item) => item.id === myTodayResult.id) + 1 : null;
- codex/implement-daily-wod-competition-system-jgs3cz
 
   const today = formatDateKey();
   const checkinsData: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
@@ -80,8 +71,6 @@ const Dashboard = () => {
     toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in de hoje.' });
     setRefreshTick((prev) => prev + 1);
   };
-
- main
 
   const stats = [
     { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
@@ -124,7 +113,6 @@ const Dashboard = () => {
         </div>
       </div>
 
- codex/implement-daily-wod-competition-system-jgs3cz
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Presenças no mês</CardTitle>
@@ -135,8 +123,6 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-
- main
       {dailyWod && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
