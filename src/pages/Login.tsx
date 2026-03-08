@@ -96,8 +96,8 @@ const Login = () => {
       <Card className="w-full max-w-md border-primary/20">
         <CardHeader className="text-center">
           <div className="text-6xl mb-4">🏋️</div>
-          <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">CrossCity</CardTitle>
-          <CardDescription>Seu app gamificado para CrossFit</CardDescription>
+          <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">BoxLink</CardTitle>
+          <CardDescription>Conecte-se ao seu box e evolua junto</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
