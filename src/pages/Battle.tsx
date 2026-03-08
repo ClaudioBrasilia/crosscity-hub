@@ -226,16 +226,51 @@ const Battle = () => {
             </Select>
           </div>
 
-          <div>
-            <Label>WOD</Label>
-            <Select value={wodId} onValueChange={setWodId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar WOD" /></SelectTrigger>
-              <SelectContent>
-                {wods.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>{item.name} • {item.date}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>WOD</Label>
+              <Button variant="ghost" size="sm" onClick={() => setCreateMode(!createMode)} className="text-xs gap-1">
+                <Plus className="h-3 w-3" />
+                {createMode ? 'Selecionar existente' : 'Criar WOD'}
+              </Button>
+            </div>
+
+            {createMode ? (
+              <div className="grid md:grid-cols-2 gap-3 p-3 border rounded-lg bg-secondary/10">
+                <div>
+                  <Label className="text-xs">Nome do WOD</Label>
+                  <Input placeholder="Ex: Death by Thrusters" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={customType} onValueChange={(v) => setCustomType(v as 'For Time' | 'AMRAP' | 'EMOM')}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="For Time">For Time</SelectItem>
+                      <SelectItem value="AMRAP">AMRAP</SelectItem>
+                      <SelectItem value="EMOM">EMOM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Descrição / Movimentos</Label>
+                  <Textarea placeholder="Ex: 21-15-9 Thrusters e Pull-ups" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} rows={3} />
+                </div>
+                <div>
+                  <Label className="text-xs">Carga RX (kg, opcional)</Label>
+                  <Input placeholder="Ex: 43" value={customWeight} onChange={(e) => setCustomWeight(e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <Select value={wodId} onValueChange={setWodId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar WOD" /></SelectTrigger>
+                <SelectContent>
+                  {wods.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name} • {item.date}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div>
