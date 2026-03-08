@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
+type UserRole = 'athlete' | 'coach';
 
 interface User {
   id: string;
@@ -14,6 +15,7 @@ interface User {
   streak: number;
   gender: Gender;
   category: Category;
+  role: UserRole;
   checkins?: number;
   wins?: number;
   battles?: number;
@@ -22,7 +24,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, gender: Gender, category: Category) => Promise<void>;
+  register: (name: string, email: string, password: string, gender: Gender, category: Category, role?: UserRole) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   resetPassword: (email: string) => Promise<void>;
@@ -51,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...userWithoutPassword,
         gender: userWithoutPassword.gender || 'male',
         category: userWithoutPassword.category || 'beginner',
+        role: userWithoutPassword.role || 'athlete',
       };
       setUser(normalizedUser);
       localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
@@ -59,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string, gender: Gender, category: Category) => {
+  const register = async (name: string, email: string, password: string, gender: Gender, category: Category, role: UserRole = 'athlete') => {
     const usersData = localStorage.getItem('crosscity_users') || '[]';
     const users = JSON.parse(usersData);
 
@@ -78,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       streak: 0,
       gender,
       category,
+      role,
       checkins: 0,
     };
 

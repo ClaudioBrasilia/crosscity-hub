@@ -19,8 +19,8 @@ import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp } from 'lucide-r
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
-const ChallengeCard = ({ challenge, userId, onClaim, onIncrement, onDelete }: {
-  challenge: Challenge; userId: string;
+const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete }: {
+  challenge: Challenge; userId: string; isCoach: boolean;
   onClaim: (c: Challenge) => void;
   onIncrement: (c: Challenge) => void;
   onDelete: (id: string) => void;
@@ -67,9 +67,11 @@ const ChallengeCard = ({ challenge, userId, onClaim, onIncrement, onDelete }: {
               {isClaimed && (
                 <div className="flex-1 text-center text-xs font-semibold text-green-400">✓ Recompensa resgatada</div>
               )}
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => onDelete(challenge.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {isCoach && (
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => onDelete(challenge.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -187,6 +189,7 @@ const Challenges = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
+  const isCoach = user?.role === 'coach';
 
   const challenges = useMemo(() => getActiveChallenges(), [tick]);
   const weekly = challenges.filter(c => c.type === 'weekly');
@@ -234,10 +237,10 @@ const Challenges = () => {
           <Flame className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">Desafios</h1>
-            <p className="text-muted-foreground text-sm">Criados pelo professor • até 4 semanais + 1 mensal</p>
+            <p className="text-muted-foreground text-sm">{isCoach ? 'Crie até 4 desafios semanais + 1 mensal' : 'Complete desafios e ganhe XP'}</p>
           </div>
         </div>
-        {(canAddWeekly || canAddMonthly) && (
+        {isCoach && (canAddWeekly || canAddMonthly) && (
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">
@@ -302,7 +305,7 @@ const Challenges = () => {
             {weekly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio semanal criado.</p>
             ) : weekly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
 
@@ -310,7 +313,7 @@ const Challenges = () => {
             {monthly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio mensal criado.</p>
             ) : monthly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
         </Tabs>

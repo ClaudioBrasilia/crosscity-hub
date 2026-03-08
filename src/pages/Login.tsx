@@ -25,6 +25,7 @@ const Login = () => {
     password: '',
     gender: 'male' as 'male' | 'female',
     category: 'beginner' as 'rx' | 'scaled' | 'beginner',
+    role: 'athlete' as 'athlete' | 'coach',
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -54,7 +55,8 @@ const Login = () => {
         registerData.email,
         registerData.password,
         registerData.gender,
-        registerData.category
+        registerData.category,
+        registerData.role
       );
       toast({ title: 'Welcome to BoxLink!', description: 'Your journey starts now 🔥' });
       navigate('/');
@@ -164,8 +166,11 @@ const Login = () => {
               </form>
 
               <div className="p-3 bg-primary/10 rounded-lg text-sm">
-                <p className="font-semibold mb-1">Demo:</p>
+                <p className="font-semibold mb-1">Demo Professor:</p>
                 <p>Email: alex@crosscity.com</p>
+                <p>Senha: demo123</p>
+                <p className="mt-1 font-semibold">Demo Atleta:</p>
+                <p>Email: sarah@crosscity.com</p>
                 <p>Senha: demo123</p>
               </div>
             </TabsContent>
@@ -231,6 +236,21 @@ const Login = () => {
                       <SelectItem value="rx">RX</SelectItem>
                       <SelectItem value="scaled">Scaled</SelectItem>
                       <SelectItem value="beginner">Iniciante</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Perfil</Label>
+                  <Select
+                    value={registerData.role}
+                    onValueChange={(value: 'athlete' | 'coach') => setRegisterData({ ...registerData, role: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="athlete">Atleta</SelectItem>
+                      <SelectItem value="coach">Professor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

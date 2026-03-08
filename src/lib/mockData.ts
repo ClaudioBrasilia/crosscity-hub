@@ -94,9 +94,9 @@ export const initializeMockData = () => {
 
   if (!localStorage.getItem('crosscity_users')) {
     const mockUsers = [
-      { id: 'user_1', name: 'Alex Thunder', email: 'alex@crosscity.com', password: 'demo123', avatar: '💪', boxId: 'box_1', xp: 2450, level: 12, streak: 15, category: 'rx', gender: 'male' },
-      { id: 'user_2', name: 'Sarah Storm', email: 'sarah@crosscity.com', password: 'demo123', avatar: '🔥', boxId: 'box_1', xp: 3200, level: 15, streak: 22, category: 'rx', gender: 'female' },
-      { id: 'user_3', name: 'Mike Iron', email: 'mike@crosscity.com', password: 'demo123', avatar: '⚡', boxId: 'box_2', xp: 1800, level: 9, streak: 8, category: 'beginner', gender: 'male' },
+      { id: 'user_1', name: 'Alex Thunder', email: 'alex@crosscity.com', password: 'demo123', avatar: '💪', boxId: 'box_1', xp: 2450, level: 12, streak: 15, category: 'rx', gender: 'male', role: 'coach' },
+      { id: 'user_2', name: 'Sarah Storm', email: 'sarah@crosscity.com', password: 'demo123', avatar: '🔥', boxId: 'box_1', xp: 3200, level: 15, streak: 22, category: 'rx', gender: 'female', role: 'athlete' },
+      { id: 'user_3', name: 'Mike Iron', email: 'mike@crosscity.com', password: 'demo123', avatar: '⚡', boxId: 'box_2', xp: 1800, level: 9, streak: 8, category: 'beginner', gender: 'male', role: 'athlete' },
       { id: 'user_4', name: 'Luna Force', email: 'luna@crosscity.com', password: 'demo123', avatar: '🌟', boxId: 'box_1', xp: 2900, level: 14, streak: 19, category: 'scaled', gender: 'female' },
       { id: 'user_5', name: 'Jake Titan', email: 'jake@crosscity.com', password: 'demo123', avatar: '💥', boxId: 'box_2', xp: 2100, level: 11, streak: 12, category: 'scaled', gender: 'male' },
     ];
