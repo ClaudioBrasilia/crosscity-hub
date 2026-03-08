@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
+type UserRole = 'athlete' | 'coach';
 
 interface User {
   id: string;
@@ -14,6 +15,7 @@ interface User {
   streak: number;
   gender: Gender;
   category: Category;
+  role: UserRole;
   checkins?: number;
   wins?: number;
   battles?: number;
