@@ -56,7 +56,7 @@ const Login = () => {
         registerData.gender,
         registerData.category
       );
-      toast({ title: 'Welcome to CrossCity!', description: 'Your journey starts now 🔥' });
+      toast({ title: 'Welcome to BoxLink!', description: 'Your journey starts now 🔥' });
       navigate('/');
     } catch (error) {
       toast({
