@@ -235,7 +235,7 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {activeChallenges.slice(0, 3).map(c => {
+          {getActiveChallenges().slice(0, 3).map(c => {
             const progress = user ? getChallengeProgress(c, user.id) : 0;
             const completed = user ? getCompletedChallenges(user.id) : [];
             const isClaimed = completed.includes(c.id);
