@@ -16,6 +16,7 @@ import Boxes from "./pages/Boxes";
 import Benchmarks from "./pages/Benchmarks";
 import Battle from "./pages/Battle";
 import MyBox from "./pages/MyBox";
+import Challenges from "./pages/Challenges";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 
