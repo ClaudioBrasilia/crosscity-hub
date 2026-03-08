@@ -132,6 +132,10 @@ export const initializeMockData = () => {
         level: 12,
         streak: 15,
         category: 'rx',
+ codex/implement-daily-wod-competition-system-jgs3cz
+        gender: 'male',
+
+ main
       },
       {
         id: 'user_2',
@@ -144,6 +148,10 @@ export const initializeMockData = () => {
         level: 15,
         streak: 22,
         category: 'rx',
+ codex/implement-daily-wod-competition-system-jgs3cz
+        gender: 'female',
+
+ main
       },
       {
         id: 'user_3',
@@ -156,6 +164,10 @@ export const initializeMockData = () => {
         level: 9,
         streak: 8,
         category: 'beginner',
+ codex/implement-daily-wod-competition-system-jgs3cz
+        gender: 'male',
+
+ main
       },
       {
         id: 'user_4',
@@ -168,6 +180,10 @@ export const initializeMockData = () => {
         level: 14,
         streak: 19,
         category: 'scaled',
+ codex/implement-daily-wod-competition-system-jgs3cz
+        gender: 'female',
+
+        main
       },
       {
         id: 'user_5',
@@ -180,6 +196,10 @@ export const initializeMockData = () => {
         level: 11,
         streak: 12,
         category: 'scaled',
+ codex/implement-daily-wod-competition-system-jgs3cz
+        gender: 'male',
+
+ main
       },
     ];
     localStorage.setItem('crosscity_users', JSON.stringify(mockUsers));
@@ -245,6 +265,7 @@ export const initializeMockData = () => {
 
   if (!localStorage.getItem('crosscity_wod_results')) {
     const mockResults: DailyWodResult[] = [
+ codex/implement-daily-wod-competition-system-jgs3cz
       {
         id: 'res_1',
         wodId: mockDailyWods[0].id,
@@ -257,6 +278,20 @@ export const initializeMockData = () => {
         submittedAt: Date.now() - 5400000,
       },
       {
+
+      {
+        id: 'res_1',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_2',
+        userName: 'Sarah Storm',
+        avatar: '🔥',
+        category: 'rx',
+        result: '11:42',
+        unit: 'time',
+        submittedAt: Date.now() - 5400000,
+      },
+      {
+ main
         id: 'res_2',
         wodId: mockDailyWods[0].id,
         userId: 'user_1',
@@ -348,6 +383,21 @@ export const initializeMockData = () => {
     localStorage.setItem('crosscity_wod_results', JSON.stringify(mockResults));
   }
 
+ codex/implement-daily-wod-competition-system-jgs3cz
+
+  if (!localStorage.getItem('crosscity_checkins')) {
+    const mockCheckins: Record<string, string[]> = {
+      user_1: ['2026-03-01', '2026-03-03', '2026-03-05', '2026-03-07', '2026-03-10'],
+      user_2: ['2026-03-01', '2026-03-02', '2026-03-04', '2026-03-06', '2026-03-08', '2026-03-10'],
+      user_3: ['2026-03-02', '2026-03-05', '2026-03-09'],
+      user_4: ['2026-03-01', '2026-03-03', '2026-03-04', '2026-03-07'],
+      user_5: ['2026-03-02', '2026-03-06', '2026-03-08', '2026-03-10'],
+    };
+    localStorage.setItem('crosscity_checkins', JSON.stringify(mockCheckins));
+  }
+
+
+ main
   if (!localStorage.getItem('crosscity_duels')) {
     const mockDuels: Duel[] = [
       {

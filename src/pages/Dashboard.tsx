@@ -3,8 +3,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+ codex/implement-daily-wod-competition-system-jgs3cz
+import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse, CalendarCheck } from 'lucide-react';
+import { equipmentCatalog } from '@/lib/equipmentData';
+import { useToast } from '@/hooks/use-toast';
+import { useMemo, useState } from 'react';
+
 import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
+ main
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 
 const toTimeValue = (value: string) => {
@@ -12,9 +19,16 @@ const toTimeValue = (value: string) => {
   if (Number.isNaN(minutes) || Number.isNaN(seconds)) return Number.POSITIVE_INFINITY;
   return minutes * 60 + seconds;
 };
+ codex/implement-daily-wod-competition-system-jgs3cz
+
+const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
+
+ main
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { toast } = useToast();
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
   const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
@@ -34,6 +48,40 @@ const Dashboard = () => {
     : [];
 
   const myPosition = myTodayResult ? todayRanking.findIndex((item) => item.id === myTodayResult.id) + 1 : null;
+ codex/implement-daily-wod-competition-system-jgs3cz
+
+  const today = formatDateKey();
+  const checkinsData: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
+  const myCheckins = user ? checkinsData[user.id] || [] : [];
+  const monthPrefix = today.slice(0, 7);
+
+  const hasCheckedInToday = myCheckins.includes(today);
+  const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
+
+  const handleCheckIn = () => {
+    if (!user || hasCheckedInToday) return;
+
+    const updatedCheckins = {
+      ...checkinsData,
+      [user.id]: [...myCheckins, today],
+    };
+    localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
+
+    const newXp = (user.xp || 0) + 25;
+    const newLevel = Math.floor(newXp / 500) + 1;
+    updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
+
+    const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    const updatedUsers = users.map((item: any) =>
+      item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
+    );
+    localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
+
+    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in de hoje.' });
+    setRefreshTick((prev) => prev + 1);
+  };
+
+ main
 
   const stats = [
     { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
@@ -49,6 +97,18 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      <Card className="border-primary/30 bg-primary/10">
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="font-semibold">Check-in de presença</p>
+            <p className="text-sm text-muted-foreground">Confirme sua presença diária e ganhe +25 XP.</p>
+          </div>
+          <Button onClick={handleCheckIn} disabled={hasCheckedInToday}>
+            {hasCheckedInToday ? 'Presença confirmada ✓' : 'Confirmar presença hoje'}
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-lg border border-primary/20">
         <div className="text-6xl">{user?.avatar}</div>
         <div className="flex-1">
@@ -64,6 +124,19 @@ const Dashboard = () => {
         </div>
       </div>
 
+ codex/implement-daily-wod-competition-system-jgs3cz
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><CalendarCheck className="h-5 w-5 text-primary" /> Presenças no mês</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold text-primary">{monthCheckins}</p>
+          <p className="text-sm text-muted-foreground">Check-ins registrados em {monthPrefix}</p>
+        </CardContent>
+      </Card>
+
+
+ main
       {dailyWod && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>

@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+type Gender = 'male' | 'female';
+type Category = 'rx' | 'scaled' | 'beginner';
+
 interface User {
   id: string;
   name: string;
@@ -9,6 +12,9 @@ interface User {
   xp: number;
   level: number;
   streak: number;
+  gender: Gender;
+  category: Category;
+  checkins?: number;
   wins?: number;
   battles?: number;
 }
@@ -16,7 +22,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, gender: Gender, category: Category) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   resetPassword: (email: string) => Promise<void>;
@@ -35,24 +41,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - check against stored users
     const usersData = localStorage.getItem('crosscity_users') || '[]';
     const users = JSON.parse(usersData);
     const foundUser = users.find((u: any) => u.email === email && u.password === password);
-    
+
     if (foundUser) {
       const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('crosscity_user', JSON.stringify(userWithoutPassword));
+      const normalizedUser: User = {
+        ...userWithoutPassword,
+        gender: userWithoutPassword.gender || 'male',
+        category: userWithoutPassword.category || 'beginner',
+      };
+      setUser(normalizedUser);
+      localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
     } else {
       throw new Error('Invalid credentials');
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, gender: Gender, category: Category) => {
     const usersData = localStorage.getItem('crosscity_users') || '[]';
     const users = JSON.parse(usersData);
-    
+
     if (users.find((u: any) => u.email === email)) {
       throw new Error('Email already registered');
     }
@@ -61,16 +71,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `user_${Date.now()}`,
       name,
       email,
-      avatar: `👤`,
+      avatar: '👤',
       boxId: 'box_1',
       xp: 0,
       level: 1,
       streak: 0,
+      gender,
+      category,
+      checkins: 0,
     };
 
     users.push({ ...newUser, password });
     localStorage.setItem('crosscity_users', JSON.stringify(users));
-    
+
     setUser(newUser);
     localStorage.setItem('crosscity_user', JSON.stringify(newUser));
   };
@@ -91,13 +104,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     const usersData = localStorage.getItem('crosscity_users') || '[]';
     const users = JSON.parse(usersData);
-    
+
     if (!users.find((u: any) => u.email === email)) {
       throw new Error('Email não encontrado');
     }
-    
-    // Mock: simulate sending reset email
-    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
   return (
