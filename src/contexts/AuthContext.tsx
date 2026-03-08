@@ -81,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       streak: 0,
       gender,
       category,
+      role,
       checkins: 0,
     };
 
