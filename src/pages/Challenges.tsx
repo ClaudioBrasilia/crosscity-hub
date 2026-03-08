@@ -189,6 +189,7 @@ const Challenges = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
+  const isCoach = user?.role === 'coach';
 
   const challenges = useMemo(() => getActiveChallenges(), [tick]);
   const weekly = challenges.filter(c => c.type === 'weekly');
