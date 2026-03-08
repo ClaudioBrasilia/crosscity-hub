@@ -121,7 +121,7 @@ const AchievementCard = ({ badge, userName, userLevel, open, onOpenChange }: Ach
       }
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.font = '13px system-ui, sans-serif';
-      ctx.fillText('B Cross Uberlândia', 220, 490);
+      ctx.fillText('CrossUberlandia', 220, 490);
 
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/png')
