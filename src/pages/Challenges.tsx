@@ -237,7 +237,7 @@ const Challenges = () => {
           <Flame className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">Desafios</h1>
-            <p className="text-muted-foreground text-sm">Criados pelo professor • até 4 semanais + 1 mensal</p>
+            <p className="text-muted-foreground text-sm">{isCoach ? 'Crie até 4 desafios semanais + 1 mensal' : 'Complete desafios e ganhe XP'}</p>
           </div>
         </div>
         {(canAddWeekly || canAddMonthly) && (
