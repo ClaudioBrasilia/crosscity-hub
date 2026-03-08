@@ -19,6 +19,7 @@ import MyBox from "./pages/MyBox";
 import Challenges from "./pages/Challenges";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
