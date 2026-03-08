@@ -55,7 +55,8 @@ const Login = () => {
         registerData.email,
         registerData.password,
         registerData.gender,
-        registerData.category
+        registerData.category,
+        registerData.role
       );
       toast({ title: 'Welcome to BoxLink!', description: 'Your journey starts now 🔥' });
       navigate('/');
