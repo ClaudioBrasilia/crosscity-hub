@@ -19,8 +19,8 @@ import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp } from 'lucide-r
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
-const ChallengeCard = ({ challenge, userId, onClaim, onIncrement, onDelete }: {
-  challenge: Challenge; userId: string;
+const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete }: {
+  challenge: Challenge; userId: string; isCoach: boolean;
   onClaim: (c: Challenge) => void;
   onIncrement: (c: Challenge) => void;
   onDelete: (id: string) => void;
