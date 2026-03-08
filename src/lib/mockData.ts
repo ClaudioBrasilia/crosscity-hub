@@ -1,3 +1,112 @@
+export type WodCategory = 'rx' | 'scaled' | 'beginner';
+export type WodScoreUnit = 'time' | 'rounds';
+
+export interface DailyWodVersion {
+  description: string;
+  weight: string;
+}
+
+export interface DailyWod {
+  id: string;
+  date: string;
+  name: string;
+  type: 'For Time' | 'AMRAP' | 'EMOM';
+  versions: Record<WodCategory, DailyWodVersion>;
+}
+
+export interface DailyWodResult {
+  id: string;
+  wodId: string;
+  userId: string;
+  userName: string;
+  avatar: string;
+  category: WodCategory;
+  result: string;
+  unit: WodScoreUnit;
+  submittedAt: number;
+}
+
+export interface Duel {
+  id: string;
+  wodId: string;
+  wodName: string;
+  category: WodCategory;
+  challengerId: string;
+  opponentId: string;
+  challengerResult: string | null;
+  opponentResult: string | null;
+  status: 'pending' | 'active' | 'finished';
+  winnerId: string | null;
+  betMode: boolean;
+  betItems: string[];
+  createdAt: number;
+}
+
+const buildDateKey = (date = new Date()) => date.toISOString().split('T')[0];
+
+export const mockDailyWods: DailyWod[] = [
+  {
+    id: 'wod_2026_01',
+    date: buildDateKey(),
+    name: 'Engine Blast',
+    type: 'For Time',
+    versions: {
+      rx: {
+        description: '5 rounds: 400m run, 15 thrusters, 12 chest-to-bar pull-ups',
+        weight: 'Thruster 43/30kg',
+      },
+      scaled: {
+        description: '5 rounds: 400m run, 15 thrusters, 10 pull-ups com banda',
+        weight: 'Thruster 30/20kg',
+      },
+      beginner: {
+        description: '4 rounds: 300m run, 12 dumbbell thrusters, 10 ring rows',
+        weight: 'Dumbbell 10/7.5kg',
+      },
+    },
+  },
+  {
+    id: 'wod_2026_02',
+    date: '2026-03-07',
+    name: 'Core Grinder',
+    type: 'AMRAP',
+    versions: {
+      rx: {
+        description: '14 min AMRAP: 12 toes-to-bar, 10 box jumps, 8 power cleans',
+        weight: 'Power clean 70/50kg',
+      },
+      scaled: {
+        description: '14 min AMRAP: 12 knee raises, 10 box step-overs, 8 power cleans',
+        weight: 'Power clean 50/35kg',
+      },
+      beginner: {
+        description: '12 min AMRAP: 10 sit-ups, 10 step-ups, 8 deadlifts',
+        weight: 'Deadlift 35/25kg',
+      },
+    },
+  },
+  {
+    id: 'wod_2026_03',
+    date: '2026-03-06',
+    name: 'Pace Builder',
+    type: 'EMOM',
+    versions: {
+      rx: {
+        description: 'EMOM 18: min 1) 14/11 cals bike min 2) 12 burpees over bar min 3) 10 front squats',
+        weight: 'Front squat 60/42kg',
+      },
+      scaled: {
+        description: 'EMOM 18: min 1) 12/9 cals bike min 2) 10 burpees min 3) 10 front squats',
+        weight: 'Front squat 45/30kg',
+      },
+      beginner: {
+        description: 'EMOM 15: min 1) 10/8 cals bike min 2) 8 burpees min 3) 10 goblet squats',
+        weight: 'Goblet 12/8kg',
+      },
+    },
+  },
+];
+
 export const initializeMockData = () => {
   if (!localStorage.getItem('crosscity_benchmarks')) {
     const mockBenchmarks: Record<string, Record<string, number>> = {
@@ -22,6 +131,7 @@ export const initializeMockData = () => {
         xp: 2450,
         level: 12,
         streak: 15,
+        category: 'rx',
       },
       {
         id: 'user_2',
@@ -33,6 +143,7 @@ export const initializeMockData = () => {
         xp: 3200,
         level: 15,
         streak: 22,
+        category: 'rx',
       },
       {
         id: 'user_3',
@@ -44,6 +155,7 @@ export const initializeMockData = () => {
         xp: 1800,
         level: 9,
         streak: 8,
+        category: 'beginner',
       },
       {
         id: 'user_4',
@@ -55,6 +167,7 @@ export const initializeMockData = () => {
         xp: 2900,
         level: 14,
         streak: 19,
+        category: 'scaled',
       },
       {
         id: 'user_5',
@@ -66,6 +179,7 @@ export const initializeMockData = () => {
         xp: 2100,
         level: 11,
         streak: 12,
+        category: 'scaled',
       },
     ];
     localStorage.setItem('crosscity_users', JSON.stringify(mockUsers));
@@ -98,9 +212,9 @@ export const initializeMockData = () => {
         userId: 'user_2',
         userName: 'Sarah Storm',
         userAvatar: '🔥',
-        content: 'Just crushed Fran in 3:45! New PR! 💪',
-        wodName: 'Fran',
-        time: '3:45',
+        content: 'Acabei de mandar o RX no WOD do dia! 🏁',
+        wodName: 'Engine Blast',
+        time: '11:42',
         reactions: { fire: 12, clap: 8, muscle: 15 },
         comments: 5,
         timestamp: Date.now() - 3600000,
@@ -110,61 +224,150 @@ export const initializeMockData = () => {
         userId: 'user_4',
         userName: 'Luna Force',
         userAvatar: '🌟',
-        content: '100 burpees for time. Legs are dead but feeling alive! 🔥',
-        wodName: 'Death by Burpees',
-        time: '12:30',
+        content: 'Ganhei meu duelo direto hoje. Bora próxima! ⚔️',
+        wodName: 'Duelos',
+        time: 'Vitória',
         reactions: { fire: 8, clap: 10, muscle: 6 },
         comments: 3,
         timestamp: Date.now() - 7200000,
       },
-      {
-        id: 'post_3',
-        userId: 'user_1',
-        userName: 'Alex Thunder',
-        userAvatar: '💪',
-        content: 'Morning grind complete! Who else is training today?',
-        wodName: 'Cindy',
-        time: '20:00',
-        reactions: { fire: 15, clap: 12, muscle: 18 },
-        comments: 8,
-        timestamp: Date.now() - 10800000,
-      },
     ];
     localStorage.setItem('crosscity_feed', JSON.stringify(mockPosts));
+  }
+
+  if (!localStorage.getItem('crosscity_daily_wods')) {
+    localStorage.setItem('crosscity_daily_wods', JSON.stringify(mockDailyWods));
+  }
+
+  if (!localStorage.getItem('crosscity_daily_wod')) {
+    localStorage.setItem('crosscity_daily_wod', JSON.stringify(mockDailyWods[0]));
+  }
+
+  if (!localStorage.getItem('crosscity_wod_results')) {
+    const mockResults: DailyWodResult[] = [
+      {
+        id: 'res_1',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_2',
+        userName: 'Sarah Storm',
+        avatar: '🔥',
+        category: 'rx',
+        result: '11:42',
+        unit: 'time',
+        submittedAt: Date.now() - 5400000,
+      },
+      {
+        id: 'res_2',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_1',
+        userName: 'Alex Thunder',
+        avatar: '💪',
+        category: 'rx',
+        result: '12:01',
+        unit: 'time',
+        submittedAt: Date.now() - 5100000,
+      },
+      {
+        id: 'res_3',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_4',
+        userName: 'Luna Force',
+        avatar: '🌟',
+        category: 'scaled',
+        result: '12:30',
+        unit: 'time',
+        submittedAt: Date.now() - 3600000,
+      },
+      {
+        id: 'res_4',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_5',
+        userName: 'Jake Titan',
+        avatar: '💥',
+        category: 'scaled',
+        result: '12:58',
+        unit: 'time',
+        submittedAt: Date.now() - 3400000,
+      },
+      {
+        id: 'res_5',
+        wodId: mockDailyWods[0].id,
+        userId: 'user_3',
+        userName: 'Mike Iron',
+        avatar: '⚡',
+        category: 'beginner',
+        result: '10:08',
+        unit: 'time',
+        submittedAt: Date.now() - 1800000,
+      },
+      {
+        id: 'res_6',
+        wodId: mockDailyWods[1].id,
+        userId: 'user_2',
+        userName: 'Sarah Storm',
+        avatar: '🔥',
+        category: 'rx',
+        result: '7',
+        unit: 'rounds',
+        submittedAt: Date.now() - 86400000,
+      },
+      {
+        id: 'res_7',
+        wodId: mockDailyWods[1].id,
+        userId: 'user_1',
+        userName: 'Alex Thunder',
+        avatar: '💪',
+        category: 'rx',
+        result: '6',
+        unit: 'rounds',
+        submittedAt: Date.now() - 86400000 + 300000,
+      },
+      {
+        id: 'res_8',
+        wodId: mockDailyWods[1].id,
+        userId: 'user_4',
+        userName: 'Luna Force',
+        avatar: '🌟',
+        category: 'scaled',
+        result: '6',
+        unit: 'rounds',
+        submittedAt: Date.now() - 86400000 + 500000,
+      },
+      {
+        id: 'res_9',
+        wodId: mockDailyWods[2].id,
+        userId: 'user_3',
+        userName: 'Mike Iron',
+        avatar: '⚡',
+        category: 'beginner',
+        result: '5',
+        unit: 'rounds',
+        submittedAt: Date.now() - 172800000,
+      },
+    ];
+    localStorage.setItem('crosscity_wod_results', JSON.stringify(mockResults));
+  }
+
+  if (!localStorage.getItem('crosscity_duels')) {
+    const mockDuels: Duel[] = [
+      {
+        id: 'duel_1',
+        wodId: mockDailyWods[0].id,
+        wodName: mockDailyWods[0].name,
+        category: 'rx',
+        challengerId: 'user_1',
+        opponentId: 'user_2',
+        challengerResult: null,
+        opponentResult: null,
+        status: 'active',
+        winnerId: null,
+        betMode: false,
+        betItems: [],
+        createdAt: Date.now() - 1200000,
+      },
+    ];
+    localStorage.setItem('crosscity_duels', JSON.stringify(mockDuels));
   }
 };
 
 export const avatarEmojis = ['💪', '🔥', '⚡', '🌟', '💥', '🏋️', '⚔️', '🎯', '🚀', '👊'];
-
-export const wodTemplates = [
-  {
-    name: 'Fran',
-    description: '21-15-9 reps for time of: Thrusters (95/65 lb), Pull-ups',
-    type: 'For Time',
-    difficulty: 'Advanced',
-  },
-  {
-    name: 'Cindy',
-    description: '20 min AMRAP: 5 Pull-ups, 10 Push-ups, 15 Air Squats',
-    type: 'AMRAP',
-    difficulty: 'Beginner',
-  },
-  {
-    name: 'Murph',
-    description: '1 mile run, 100 pull-ups, 200 push-ups, 300 air squats, 1 mile run',
-    type: 'For Time',
-    difficulty: 'Hero',
-  },
-  {
-    name: 'Helen',
-    description: '3 rounds for time: 400m run, 21 KB swings (53/35), 12 Pull-ups',
-    type: 'For Time',
-    difficulty: 'Intermediate',
-  },
-  {
-    name: 'Annie',
-    description: '50-40-30-20-10 reps for time: Double-unders, Sit-ups',
-    type: 'For Time',
-    difficulty: 'Intermediate',
-  },
-];
