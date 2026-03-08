@@ -168,6 +168,16 @@ const Profile = () => {
           <Button onClick={handleSaveAvatar} className="w-full">Salvar Avatar</Button>
         </CardContent>
       </Card>
+      {/* Achievement Share Card */}
+      {selectedBadge && user && (
+        <AchievementCard
+          badge={selectedBadge}
+          userName={user.name}
+          userLevel={user.level}
+          open={!!selectedBadge}
+          onOpenChange={(open) => !open && setSelectedBadge(null)}
+        />
+      )}
     </div>
   );
 };
