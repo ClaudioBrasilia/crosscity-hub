@@ -103,7 +103,7 @@ const Dashboard = () => {
           <div className="text-6xl">{user?.avatar}</div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
-            <p className="text-muted-foreground">Thunder Box • Nível {user?.level}</p>
+            <p className="text-muted-foreground">CrossUberlandia • Nível {user?.level}</p>
             <div className="mt-2 space-y-1 max-w-sm">
               <div className="flex justify-between text-sm">
                 <span>Nível {user?.level}</span>

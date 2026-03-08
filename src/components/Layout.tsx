@@ -45,7 +45,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <span className="text-2xl">🏋️</span>
               <div>
                 <h1 className="text-lg font-bold gradient-primary bg-clip-text text-transparent leading-none">BoxLink</h1>
-                <p className="text-[10px] text-muted-foreground">Thunder Box</p>
+                <p className="text-[10px] text-muted-foreground">CrossUberlandia</p>
               </div>
             </Link>
 
