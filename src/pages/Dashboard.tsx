@@ -236,7 +236,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {getActiveChallenges().slice(0, 3).map(c => {
-            const progress = user ? getChallengeProgress(c, user.id) : 0;
+            const progress = user ? getChallengeProgress(c.id, user.id) : 0;
             const completed = user ? getCompletedChallenges(user.id) : [];
             const isClaimed = completed.includes(c.id);
             const pct = Math.min((progress / c.target) * 100, 100);
