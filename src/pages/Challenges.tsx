@@ -313,7 +313,7 @@ const Challenges = () => {
             {monthly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio mensal criado.</p>
             ) : monthly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
         </Tabs>
