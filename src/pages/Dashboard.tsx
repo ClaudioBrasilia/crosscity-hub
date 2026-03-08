@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
+import { activeChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
 const toTimeValue = (value: string) => {
@@ -224,6 +225,42 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Active Challenges */}
+      <Card className="border-primary/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Flame className="h-5 w-5 text-primary" />
+            Desafios Ativos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {activeChallenges.slice(0, 3).map(c => {
+            const progress = user ? getChallengeProgress(c, user.id) : 0;
+            const completed = user ? getCompletedChallenges(user.id) : [];
+            const isClaimed = completed.includes(c.id);
+            const pct = Math.min((progress / c.target) * 100, 100);
+            return (
+              <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                <span className="text-2xl">{c.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{c.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Progress value={pct} className="h-1.5 flex-1" />
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      {isClaimed ? '✓' : `${progress}/${c.target}`}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-secondary">+{c.xpReward}</span>
+              </div>
+            );
+          })}
+          <Link to="/challenges">
+            <Button variant="ghost" size="sm" className="w-full text-xs">Ver todos os desafios →</Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Community Feed */}
       {communityFeed.length > 0 && (
