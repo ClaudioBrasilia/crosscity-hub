@@ -226,7 +226,7 @@ const WOD = () => {
             </div>
           )}
 
-          <Button onClick={submitResult} className="w-full">Salvar resultado</Button>
+          <Button onClick={submitResult} className="w-full">{existingResult ? 'Atualizar resultado' : 'Salvar resultado'}</Button>
         </CardContent>
       </Card>
 
