@@ -25,7 +25,7 @@ const Login = () => {
     password: '',
     gender: 'male' as 'male' | 'female',
     category: 'beginner' as 'rx' | 'scaled' | 'beginner',
-    role: 'athlete' as 'athlete' | 'coach',
+    role: 'athlete' as const,
   });
 
   const handleLogin = async (e: React.FormEvent) => {
