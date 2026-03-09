@@ -38,7 +38,9 @@ export interface Duel {
   status: 'pending' | 'active' | 'finished';
   winnerId: string | null;
   betMode: boolean;
+  betType: 'equipment' | 'xp' | null;
   betItems: string[];
+  betXpAmount: number | null;
   createdAt: number;
 }
 
