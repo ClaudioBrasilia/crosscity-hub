@@ -38,7 +38,9 @@ export interface Duel {
   status: 'pending' | 'active' | 'finished';
   winnerId: string | null;
   betMode: boolean;
+  betType: 'equipment' | 'xp' | null;
   betItems: string[];
+  betXpAmount: number | null;
   createdAt: number;
 }
 
@@ -167,7 +169,9 @@ export const initializeMockData = () => {
         status: 'active',
         winnerId: null,
         betMode: false,
+        betType: null,
         betItems: [],
+        betXpAmount: null,
         createdAt: Date.now() - 1200000,
       },
     ];

@@ -47,7 +47,9 @@ const Battle = () => {
   const [wodId, setWodId] = useState('');
   const [category, setCategory] = useState<WodCategory>('rx');
   const [betMode, setBetMode] = useState(false);
+  const [betType, setBetType] = useState<'equipment' | 'xp'>('equipment');
   const [betItem, setBetItem] = useState('');
+  const [betXpAmount, setBetXpAmount] = useState(100);
   const [submission, setSubmission] = useState<Record<string, string>>({});
 
   // Custom WOD creation
@@ -119,7 +121,9 @@ const Battle = () => {
       status: 'active',
       winnerId: null,
       betMode,
-      betItems: betMode && betItem ? [betItem] : [],
+      betType: betMode ? betType : null,
+      betItems: betMode && betType === 'equipment' && betItem ? [betItem] : [],
+      betXpAmount: betMode && betType === 'xp' ? betXpAmount : null,
       createdAt: Date.now(),
     };
 
@@ -127,6 +131,8 @@ const Battle = () => {
     toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. Agora os dois atletas podem submeter o resultado real.` });
     setBetMode(false);
     setBetItem('');
+    setBetType('equipment');
+    setBetXpAmount(100);
     setCreateMode(false);
     setCustomName('');
     setCustomDescription('');
@@ -156,24 +162,41 @@ const Battle = () => {
       );
 
       const winner = users.find((item) => item.id === winnerId);
+      const loserId = winnerId === changed.challengerId ? changed.opponentId : changed.challengerId;
+
       if (winnerId === user.id && user) {
         const currentWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
         localStorage.setItem(`crosscity_wins_${user.id}`, String(currentWins));
 
         let inventory = [...currentUserInventory];
-        if (changed.betMode && changed.betItems.length > 0) {
+        if (changed.betMode && changed.betType === 'equipment' && changed.betItems.length > 0) {
           inventory = [...new Set([...inventory, ...changed.betItems])];
-        } else {
+          // Remove items from loser
+          const loserInv: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${loserId}`) || '[]');
+          const updatedLoserInv = loserInv.filter((i) => !changed.betItems.includes(i));
+          localStorage.setItem(`crosscity_inventory_${loserId}`, JSON.stringify(updatedLoserInv));
+        } else if (!changed.betMode) {
           const reward = getNextEquipment(currentWins);
           if (reward) inventory = [...new Set([...inventory, reward.id])];
         }
         localStorage.setItem(`crosscity_inventory_${user.id}`, JSON.stringify(inventory));
 
-        const newXp = (user.xp || 0) + 150;
+        let xpGain = 150;
+        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
+          xpGain += changed.betXpAmount;
+        }
+        const newXp = (user.xp || 0) + xpGain;
         updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
-        toast({ title: 'Vitória no duelo! 🏆', description: '+150 XP e recompensa adicionada no Meu Box.' });
+        toast({ title: 'Vitória no duelo! 🏆', description: `+${xpGain} XP${changed.betType === 'equipment' ? ' e equipamento ganho' : ''}.` });
       } else {
-        toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
+        // Loser loses XP if bet type is xp
+        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount && user) {
+          const newXp = Math.max(0, (user.xp || 0) - changed.betXpAmount);
+          updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
+          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu. Você perdeu ${changed.betXpAmount} XP.` });
+        } else {
+          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
+        }
       }
 
       const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
@@ -286,26 +309,52 @@ const Battle = () => {
           </div>
 
           {canBet && (
-            <div className="space-y-2 p-3 border rounded-lg bg-secondary/10">
+            <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
               <div className="flex items-center justify-between">
                 <Label>Modo aposta (nível 10+)</Label>
                 <Switch checked={betMode} onCheckedChange={setBetMode} />
               </div>
               {betMode && (
-                <Select value={betItem} onValueChange={setBetItem}>
-                  <SelectTrigger><SelectValue placeholder="Escolha equipamento da aposta" /></SelectTrigger>
-                  <SelectContent>
-                    {currentUserInventory.map((eqId) => {
-                      const equipment = equipmentCatalog.find((item) => item.id === eqId);
-                      return equipment ? <SelectItem key={equipment.id} value={equipment.id}>{equipment.emoji} {equipment.name}</SelectItem> : null;
-                    })}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Tipo de aposta</Label>
+                    <Select value={betType} onValueChange={(v) => setBetType(v as 'equipment' | 'xp')}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equipment">🎰 Equipamento</SelectItem>
+                        <SelectItem value="xp">⚡ XP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {betType === 'equipment' && (
+                    <Select value={betItem} onValueChange={setBetItem}>
+                      <SelectTrigger><SelectValue placeholder="Escolha equipamento da aposta" /></SelectTrigger>
+                      <SelectContent>
+                        {currentUserInventory.map((eqId) => {
+                          const equipment = equipmentCatalog.find((item) => item.id === eqId);
+                          return equipment ? <SelectItem key={equipment.id} value={equipment.id}>{equipment.emoji} {equipment.name}</SelectItem> : null;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {betType === 'xp' && (
+                    <div>
+                      <Label className="text-xs">Quantidade de XP (mín. 50, máx. {user?.xp || 0})</Label>
+                      <Input
+                        type="number"
+                        min={50}
+                        max={user?.xp || 0}
+                        value={betXpAmount}
+                        onChange={(e) => setBetXpAmount(Math.max(50, Math.min(user?.xp || 0, Number(e.target.value))))}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
 
-          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && !betItem)}>
+          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && betType === 'equipment' && !betItem) || (betMode && betType === 'xp' && betXpAmount < 50)}>
             Criar duelo
           </Button>
         </CardContent>
@@ -329,7 +378,11 @@ const Battle = () => {
                 <div key={duel.id} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">{duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge></p>
+                      <p className="font-semibold">
+                        {duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
+                        {duel.betMode && duel.betType === 'xp' && <Badge variant="outline" className="ml-1">⚡ {duel.betXpAmount} XP</Badge>}
+                        {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline" className="ml-1">🎰 Equipamento</Badge>}
+                      </p>
                       <p className="text-sm text-muted-foreground">{getUserName(duel.challengerId)} vs {getUserName(duel.opponentId)}</p>
                     </div>
                     {duel.winnerId && <p className="font-bold text-primary flex items-center gap-1"><Trophy className="h-4 w-4" /> {getUserName(duel.winnerId)}</p>}
