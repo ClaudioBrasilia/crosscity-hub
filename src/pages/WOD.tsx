@@ -92,8 +92,9 @@ const WOD = () => {
     }
 
     const existing = results.find(
-      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
+      (item) => item.wodId === dailyWod.id && item.userId === user.id
     );
+    const isEdit = !!existing;
 
     const payload: DailyWodResult = {
       id: existing?.id || `res_${Date.now()}`,
