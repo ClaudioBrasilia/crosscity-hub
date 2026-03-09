@@ -70,6 +70,21 @@ const WOD = () => {
   const userEntry = categoryRanking.find((item) => item.userId === user?.id);
   const userPosition = userEntry ? categoryRanking.findIndex((item) => item.id === userEntry.id) + 1 : null;
 
+  // Check if user already submitted for this WOD (any category)
+  const existingResult = useMemo(() => {
+    if (!dailyWod || !user) return null;
+    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id) || null;
+  }, [dailyWod, results, user]);
+
+  // Pre-fill form when existing result is found
+  useEffect(() => {
+    if (existingResult) {
+      setResultValue(existingResult.result);
+      setScoreUnit(existingResult.unit);
+      setSelectedCategory(existingResult.category);
+    }
+  }, [existingResult]);
+
   const submitResult = () => {
     if (!dailyWod || !user || !resultValue.trim()) {
       toast({ title: 'Resultado inválido', description: 'Preencha seu resultado para registrar.', variant: 'destructive' });
