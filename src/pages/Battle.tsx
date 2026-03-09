@@ -121,7 +121,9 @@ const Battle = () => {
       status: 'active',
       winnerId: null,
       betMode,
-      betItems: betMode && betItem ? [betItem] : [],
+      betType: betMode ? betType : null,
+      betItems: betMode && betType === 'equipment' && betItem ? [betItem] : [],
+      betXpAmount: betMode && betType === 'xp' ? betXpAmount : null,
       createdAt: Date.now(),
     };
 
