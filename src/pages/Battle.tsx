@@ -47,7 +47,9 @@ const Battle = () => {
   const [wodId, setWodId] = useState('');
   const [category, setCategory] = useState<WodCategory>('rx');
   const [betMode, setBetMode] = useState(false);
+  const [betType, setBetType] = useState<'equipment' | 'xp'>('equipment');
   const [betItem, setBetItem] = useState('');
+  const [betXpAmount, setBetXpAmount] = useState(100);
   const [submission, setSubmission] = useState<Record<string, string>>({});
 
   // Custom WOD creation
