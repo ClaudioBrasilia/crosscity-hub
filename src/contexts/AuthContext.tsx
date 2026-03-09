@@ -38,8 +38,10 @@ const ADMIN_EMAILS = new Set(['alex@crosscity.com']);
 
 const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
   const email = raw.email?.toLowerCase() || '';
+  if (ADMIN_EMAILS.has(email)) return 'admin';
   if (COACH_EMAILS.has(email)) return 'coach';
-  return raw.role === 'coach' ? 'coach' : 'athlete';
+  if (raw.role === 'coach' || raw.role === 'admin') return raw.role as UserRole;
+  return 'athlete';
 };
 
 const normalizeUser = (raw: any): User => ({
