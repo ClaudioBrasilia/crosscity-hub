@@ -28,6 +28,8 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   resetPassword: (email: string) => Promise<void>;
+  getAllUsers: () => any[];
+  setUserRole: (userId: string, role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
