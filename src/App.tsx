@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Boxes from "./pages/Boxes";
 import Benchmarks from "./pages/Benchmarks";
 import Battle from "./pages/Battle";
+import CoachDashboard from "./pages/CoachDashboard";
 import MyBox from "./pages/MyBox";
 import Challenges from "./pages/Challenges";
 import Layout from "./components/Layout";
@@ -52,6 +53,7 @@ const App = () => {
               <Route path="/battle" element={<ProtectedRoute><Battle /></ProtectedRoute>} />
               <Route path="/mybox" element={<ProtectedRoute><MyBox /></ProtectedRoute>} />
               <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
+              <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

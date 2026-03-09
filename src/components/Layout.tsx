@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame } from 'lucide-react';
+import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame, GraduationCap } from 'lucide-react';
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const { user, logout } = useAuth();
@@ -34,6 +34,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
     { icon: Flame, label: 'Desafios', path: '/challenges' },
     { icon: Warehouse, label: 'Meu Box', path: '/mybox' },
     { icon: Building2, label: 'Boxes', path: '/boxes' },
+    ...(user?.role === 'coach' ? [{ icon: GraduationCap, label: 'Painel do Coach', path: '/coach' }] : []),
   ];
 
   return (
