@@ -157,8 +157,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
+  const getAllUsers = () => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    return JSON.parse(usersData).map((u: any) => {
+      const { password: _, ...rest } = u;
+      return normalizeUser(rest);
+    });
+  };
+
+  const setUserRole = (userId: string, role: UserRole) => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    const users = JSON.parse(usersData);
+    const updated = users.map((u: any) => u.id === userId ? { ...u, role } : u);
+    localStorage.setItem('crosscity_users', JSON.stringify(updated));
+
+    // If changing current user's role
+    if (user && user.id === userId) {
+      const updatedUser = { ...user, role };
+      setUser(updatedUser);
+      localStorage.setItem('crosscity_user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, resetPassword }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, resetPassword, getAllUsers, setUserRole }}>
       {children}
     </AuthContext.Provider>
   );
