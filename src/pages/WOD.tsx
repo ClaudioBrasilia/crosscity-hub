@@ -162,8 +162,8 @@ const WOD = () => {
     });
     localStorage.setItem('crosscity_feed', JSON.stringify(feed));
 
-    toast({ title: 'Resultado registrado!', description: `+${xpGained} XP e posição #${rank} na categoria.` });
-    setResultValue('');
+    toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: isEdit ? `Posição #${rank} na categoria.` : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.` });
+    if (!isEdit) setResultValue('');
   };
 
   if (!dailyWod) {
