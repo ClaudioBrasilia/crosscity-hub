@@ -162,24 +162,41 @@ const Battle = () => {
       );
 
       const winner = users.find((item) => item.id === winnerId);
+      const loserId = winnerId === changed.challengerId ? changed.opponentId : changed.challengerId;
+
       if (winnerId === user.id && user) {
         const currentWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
         localStorage.setItem(`crosscity_wins_${user.id}`, String(currentWins));
 
         let inventory = [...currentUserInventory];
-        if (changed.betMode && changed.betItems.length > 0) {
+        if (changed.betMode && changed.betType === 'equipment' && changed.betItems.length > 0) {
           inventory = [...new Set([...inventory, ...changed.betItems])];
-        } else {
+          // Remove items from loser
+          const loserInv: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${loserId}`) || '[]');
+          const updatedLoserInv = loserInv.filter((i) => !changed.betItems.includes(i));
+          localStorage.setItem(`crosscity_inventory_${loserId}`, JSON.stringify(updatedLoserInv));
+        } else if (!changed.betMode) {
           const reward = getNextEquipment(currentWins);
           if (reward) inventory = [...new Set([...inventory, reward.id])];
         }
         localStorage.setItem(`crosscity_inventory_${user.id}`, JSON.stringify(inventory));
 
-        const newXp = (user.xp || 0) + 150;
+        let xpGain = 150;
+        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
+          xpGain += changed.betXpAmount;
+        }
+        const newXp = (user.xp || 0) + xpGain;
         updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
-        toast({ title: 'Vitória no duelo! 🏆', description: '+150 XP e recompensa adicionada no Meu Box.' });
+        toast({ title: 'Vitória no duelo! 🏆', description: `+${xpGain} XP${changed.betType === 'equipment' ? ' e equipamento ganho' : ''}.` });
       } else {
-        toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
+        // Loser loses XP if bet type is xp
+        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount && user) {
+          const newXp = Math.max(0, (user.xp || 0) - changed.betXpAmount);
+          updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
+          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu. Você perdeu ${changed.betXpAmount} XP.` });
+        } else {
+          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
+        }
       }
 
       const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
