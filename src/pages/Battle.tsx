@@ -309,21 +309,47 @@ const Battle = () => {
           </div>
 
           {canBet && (
-            <div className="space-y-2 p-3 border rounded-lg bg-secondary/10">
+            <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
               <div className="flex items-center justify-between">
                 <Label>Modo aposta (nível 10+)</Label>
                 <Switch checked={betMode} onCheckedChange={setBetMode} />
               </div>
               {betMode && (
-                <Select value={betItem} onValueChange={setBetItem}>
-                  <SelectTrigger><SelectValue placeholder="Escolha equipamento da aposta" /></SelectTrigger>
-                  <SelectContent>
-                    {currentUserInventory.map((eqId) => {
-                      const equipment = equipmentCatalog.find((item) => item.id === eqId);
-                      return equipment ? <SelectItem key={equipment.id} value={equipment.id}>{equipment.emoji} {equipment.name}</SelectItem> : null;
-                    })}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Tipo de aposta</Label>
+                    <Select value={betType} onValueChange={(v) => setBetType(v as 'equipment' | 'xp')}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equipment">🎰 Equipamento</SelectItem>
+                        <SelectItem value="xp">⚡ XP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {betType === 'equipment' && (
+                    <Select value={betItem} onValueChange={setBetItem}>
+                      <SelectTrigger><SelectValue placeholder="Escolha equipamento da aposta" /></SelectTrigger>
+                      <SelectContent>
+                        {currentUserInventory.map((eqId) => {
+                          const equipment = equipmentCatalog.find((item) => item.id === eqId);
+                          return equipment ? <SelectItem key={equipment.id} value={equipment.id}>{equipment.emoji} {equipment.name}</SelectItem> : null;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {betType === 'xp' && (
+                    <div>
+                      <Label className="text-xs">Quantidade de XP (mín. 50, máx. {user?.xp || 0})</Label>
+                      <Input
+                        type="number"
+                        min={50}
+                        max={user?.xp || 0}
+                        value={betXpAmount}
+                        onChange={(e) => setBetXpAmount(Math.max(50, Math.min(user?.xp || 0, Number(e.target.value))))}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
