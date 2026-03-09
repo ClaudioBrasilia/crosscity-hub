@@ -31,30 +31,66 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const COACH_EMAILS = new Set(['alex@crosscity.com']);
+
+const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
+  const email = raw.email?.toLowerCase() || '';
+  if (COACH_EMAILS.has(email)) return 'coach';
+  return raw.role === 'coach' ? 'coach' : 'athlete';
+};
+
+const normalizeUser = (raw: any): User => ({
+  ...raw,
+  gender: raw.gender || 'male',
+  category: raw.category || 'beginner',
+  role: resolveRole(raw),
+});
+
+const migrateStoredUsers = () => {
+  const usersData = localStorage.getItem('crosscity_users') || '[]';
+  const users = JSON.parse(usersData);
+
+  if (!Array.isArray(users)) return [];
+
+  let changed = false;
+  const migratedUsers = users.map((storedUser: any) => {
+    const resolvedRole = resolveRole(storedUser);
+    if (storedUser.role !== resolvedRole) {
+      changed = true;
+      return { ...storedUser, role: resolvedRole };
+    }
+
+    return storedUser;
+  });
+
+  if (changed) {
+    localStorage.setItem('crosscity_users', JSON.stringify(migratedUsers));
+  }
+
+  return migratedUsers;
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    migrateStoredUsers();
+
     const storedUser = localStorage.getItem('crosscity_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const normalizedUser = normalizeUser(JSON.parse(storedUser));
+      setUser(normalizedUser);
+      localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    const usersData = localStorage.getItem('crosscity_users') || '[]';
-    const users = JSON.parse(usersData);
+    const users = migrateStoredUsers();
     const foundUser = users.find((u: any) => u.email === email && u.password === password);
 
     if (foundUser) {
       const { password: _, ...userWithoutPassword } = foundUser;
-      const normalizedUser: User = {
-        ...userWithoutPassword,
-        gender: userWithoutPassword.gender || 'male',
-        category: userWithoutPassword.category || 'beginner',
-        role: userWithoutPassword.role || 'athlete',
-      };
+      const normalizedUser = normalizeUser(userWithoutPassword);
       setUser(normalizedUser);
       localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
     } else {
