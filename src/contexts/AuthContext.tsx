@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
-type UserRole = 'athlete' | 'coach';
+type UserRole = 'athlete' | 'coach' | 'admin';
 
 interface User {
   id: string;
