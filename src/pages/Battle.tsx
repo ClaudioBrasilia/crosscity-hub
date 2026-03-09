@@ -131,6 +131,8 @@ const Battle = () => {
     toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. Agora os dois atletas podem submeter o resultado real.` });
     setBetMode(false);
     setBetItem('');
+    setBetType('equipment');
+    setBetXpAmount(100);
     setCreateMode(false);
     setCustomName('');
     setCustomDescription('');
