@@ -70,6 +70,21 @@ const WOD = () => {
   const userEntry = categoryRanking.find((item) => item.userId === user?.id);
   const userPosition = userEntry ? categoryRanking.findIndex((item) => item.id === userEntry.id) + 1 : null;
 
+  // Check if user already submitted for this WOD (any category)
+  const existingResult = useMemo(() => {
+    if (!dailyWod || !user) return null;
+    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id) || null;
+  }, [dailyWod, results, user]);
+
+  // Pre-fill form when existing result is found
+  useEffect(() => {
+    if (existingResult) {
+      setResultValue(existingResult.result);
+      setScoreUnit(existingResult.unit);
+      setSelectedCategory(existingResult.category);
+    }
+  }, [existingResult]);
+
   const submitResult = () => {
     if (!dailyWod || !user || !resultValue.trim()) {
       toast({ title: 'Resultado inválido', description: 'Preencha seu resultado para registrar.', variant: 'destructive' });
@@ -77,8 +92,9 @@ const WOD = () => {
     }
 
     const existing = results.find(
-      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
+      (item) => item.wodId === dailyWod.id && item.userId === user.id
     );
+    const isEdit = !!existing;
 
     const payload: DailyWodResult = {
       id: existing?.id || `res_${Date.now()}`,
@@ -107,14 +123,17 @@ const WOD = () => {
       });
 
     const rank = currentCategoryResults.findIndex((item) => item.userId === user.id) + 1;
-    const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
-    const xpGained = 50 + xpBonus;
-    const newXp = (user.xp || 0) + xpGained;
-    updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
 
-    if (rank === 1) {
-      const userWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
-      localStorage.setItem(`crosscity_wins_${user.id}`, String(userWins));
+    if (!isEdit) {
+      const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
+      const xpGained = 50 + xpBonus;
+      const newXp = (user.xp || 0) + xpGained;
+      updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
+
+      if (rank === 1) {
+        const userWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
+        localStorage.setItem(`crosscity_wins_${user.id}`, String(userWins));
+      }
     }
 
     if (activeDuel && submitToDuel) {
@@ -143,8 +162,8 @@ const WOD = () => {
     });
     localStorage.setItem('crosscity_feed', JSON.stringify(feed));
 
-    toast({ title: 'Resultado registrado!', description: `+${xpGained} XP e posição #${rank} na categoria.` });
-    setResultValue('');
+    toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: isEdit ? `Posição #${rank} na categoria.` : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.` });
+    if (!isEdit) setResultValue('');
   };
 
   if (!dailyWod) {
@@ -207,7 +226,7 @@ const WOD = () => {
             </div>
           )}
 
-          <Button onClick={submitResult} className="w-full">Salvar resultado</Button>
+          <Button onClick={submitResult} className="w-full">{existingResult ? 'Atualizar resultado' : 'Salvar resultado'}</Button>
         </CardContent>
       </Card>
 
