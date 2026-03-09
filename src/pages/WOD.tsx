@@ -123,14 +123,17 @@ const WOD = () => {
       });
 
     const rank = currentCategoryResults.findIndex((item) => item.userId === user.id) + 1;
-    const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
-    const xpGained = 50 + xpBonus;
-    const newXp = (user.xp || 0) + xpGained;
-    updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
 
-    if (rank === 1) {
-      const userWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
-      localStorage.setItem(`crosscity_wins_${user.id}`, String(userWins));
+    if (!isEdit) {
+      const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
+      const xpGained = 50 + xpBonus;
+      const newXp = (user.xp || 0) + xpGained;
+      updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
+
+      if (rank === 1) {
+        const userWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
+        localStorage.setItem(`crosscity_wins_${user.id}`, String(userWins));
+      }
     }
 
     if (activeDuel && submitToDuel) {
