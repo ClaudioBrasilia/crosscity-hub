@@ -169,7 +169,9 @@ export const initializeMockData = () => {
         status: 'active',
         winnerId: null,
         betMode: false,
+        betType: null,
         betItems: [],
+        betXpAmount: null,
         createdAt: Date.now() - 1200000,
       },
     ];
