@@ -378,7 +378,11 @@ const Battle = () => {
                 <div key={duel.id} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">{duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge></p>
+                      <p className="font-semibold">
+                        {duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
+                        {duel.betMode && duel.betType === 'xp' && <Badge variant="outline" className="ml-1">⚡ {duel.betXpAmount} XP</Badge>}
+                        {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline" className="ml-1">🎰 Equipamento</Badge>}
+                      </p>
                       <p className="text-sm text-muted-foreground">{getUserName(duel.challengerId)} vs {getUserName(duel.opponentId)}</p>
                     </div>
                     {duel.winnerId && <p className="font-bold text-primary flex items-center gap-1"><Trophy className="h-4 w-4" /> {getUserName(duel.winnerId)}</p>}
