@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
-type UserRole = 'athlete' | 'coach';
+type UserRole = 'athlete' | 'coach' | 'admin';
 
 interface User {
   id: string;
@@ -28,15 +28,20 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   resetPassword: (email: string) => Promise<void>;
+  getAllUsers: () => any[];
+  setUserRole: (userId: string, role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const COACH_EMAILS = new Set(['alex@crosscity.com']);
+const ADMIN_EMAILS = new Set(['alex@crosscity.com']);
 
 const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
   const email = raw.email?.toLowerCase() || '';
+  if (ADMIN_EMAILS.has(email)) return 'admin';
   if (COACH_EMAILS.has(email)) return 'coach';
-  return raw.role === 'coach' ? 'coach' : 'athlete';
+  if (raw.role === 'coach' || raw.role === 'admin') return raw.role as UserRole;
+  return 'athlete';
 };
 
 const normalizeUser = (raw: any): User => ({
@@ -152,8 +157,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
+  const getAllUsers = () => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    return JSON.parse(usersData).map((u: any) => {
+      const { password: _, ...rest } = u;
+      return normalizeUser(rest);
+    });
+  };
+
+  const setUserRole = (userId: string, role: UserRole) => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    const users = JSON.parse(usersData);
+    const updated = users.map((u: any) => u.id === userId ? { ...u, role } : u);
+    localStorage.setItem('crosscity_users', JSON.stringify(updated));
+
+    // If changing current user's role
+    if (user && user.id === userId) {
+      const updatedUser = { ...user, role };
+      setUser(updatedUser);
+      localStorage.setItem('crosscity_user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, resetPassword }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, resetPassword, getAllUsers, setUserRole }}>
       {children}
     </AuthContext.Provider>
   );

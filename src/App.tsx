@@ -20,6 +20,7 @@ import MyBox from "./pages/MyBox";
 import Challenges from "./pages/Challenges";
 import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
 import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => {
               <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
               <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>

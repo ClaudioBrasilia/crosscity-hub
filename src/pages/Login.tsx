@@ -25,7 +25,7 @@ const Login = () => {
     password: '',
     gender: 'male' as 'male' | 'female',
     category: 'beginner' as 'rx' | 'scaled' | 'beginner',
-    role: 'athlete' as 'athlete' | 'coach',
+    role: 'athlete' as const,
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -239,21 +239,7 @@ const Login = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Perfil</Label>
-                  <Select
-                    value={registerData.role}
-                    onValueChange={(value: 'athlete' | 'coach') => setRegisterData({ ...registerData, role: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="athlete">Atleta</SelectItem>
-                      <SelectItem value="coach">Professor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Criando conta...' : 'Criar conta'}
                 </Button>
