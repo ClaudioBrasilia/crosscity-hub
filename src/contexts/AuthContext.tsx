@@ -146,6 +146,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       localStorage.setItem('crosscity_user', JSON.stringify(updatedUser));
+
+      // Também atualiza na lista global de usuários
+      const usersData = localStorage.getItem('crosscity_users') || '[]';
+      const users = JSON.parse(usersData);
+      const updatedUsers = users.map((u: any) => u.id === user.id ? { ...u, ...updates } : u);
+      localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
     }
   };
 

@@ -2,15 +2,26 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
+  const { toast } = useToast();
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    name: user?.name || '',
+    gender: user?.gender || 'male' as 'male' | 'female',
+    category: user?.category || 'beginner' as 'rx' | 'scaled' | 'beginner',
+  });
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -42,7 +53,16 @@ const Profile = () => {
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   const handleSaveAvatar = () => {
-    if (selectedAvatar) updateUser({ avatar: selectedAvatar });
+    if (selectedAvatar) {
+      updateUser({ avatar: selectedAvatar });
+      toast({ title: 'Avatar atualizado!' });
+    }
+  };
+
+  const handleSaveProfile = () => {
+    updateUser(editData);
+    setIsEditing(false);
+    toast({ title: 'Perfil atualizado!' });
   };
 
   const prevMonth = () => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
@@ -53,23 +73,91 @@ const Profile = () => {
       <h1 className="text-3xl font-bold">Perfil</h1>
 
       <Card className="border-primary/20">
-        <CardHeader><CardTitle>Informações</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle>Informações</CardTitle>
+          {!isEditing ? (
+            <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+              <Edit2 className="h-4 w-4 mr-2" /> Editar
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+              <Button variant="default" size="sm" onClick={handleSaveProfile}>
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Nome</p>
-            <p className="text-xl font-semibold">{user?.name}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="text-xl font-semibold truncate">{user?.email}</p>
+          {!isEditing ? (
+            <>
+              <div>
+                <p className="text-sm text-muted-foreground">Nome</p>
+                <p className="text-xl font-semibold">{user?.name}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="text-xl font-semibold truncate">{user?.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Gênero</p>
+                  <p className="text-xl font-semibold capitalize">{user?.gender === 'male' ? 'Masculino' : 'Feminino'}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Categoria</p>
+                <p className="text-xl font-semibold uppercase">{user?.category}</p>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  value={editData.name}
+                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Gênero</Label>
+                  <Select
+                    value={editData.gender}
+                    onValueChange={(value: 'male' | 'female') => setEditData({ ...editData, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Masculino</SelectItem>
+                      <SelectItem value="female">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select
+                    value={editData.category}
+                    onValueChange={(value: 'rx' | 'scaled' | 'beginner') => setEditData({ ...editData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rx">RX</SelectItem>
+                      <SelectItem value="scaled">Scaled</SelectItem>
+                      <SelectItem value="beginner">Iniciante</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Gênero</p>
-              <p className="text-xl font-semibold capitalize">{user?.gender === 'male' ? 'Masculino' : 'Feminino'}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
+          )}
+          <div className="grid grid-cols-3 gap-4 pt-2">
             <div>
               <p className="text-sm text-muted-foreground">Nível</p>
               <p className="text-2xl font-bold text-primary">{user?.level}</p>
