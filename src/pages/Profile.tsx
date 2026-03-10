@@ -3,9 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight, Award } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette } from 'lucide-react';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
+import { THEME_PRESETS, applyTheme } from '@/components/Layout';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
