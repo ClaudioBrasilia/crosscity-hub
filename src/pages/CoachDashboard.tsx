@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Dumbbell, Flame, Users, Trash2, Plus, Save } from 'lucide-react';
+import { Dumbbell, Flame, Users, Trash2, Plus, Save, ChevronRight } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { getChallengeProgress } from '@/lib/challenges';
 
 interface WodData {
   id: string;
@@ -61,6 +63,7 @@ const CoachDashboard = () => {
   });
 
   const [athletes, setAthletes] = useState<any[]>([]);
+  const [selectedAthlete, setSelectedAthlete] = useState<any | null>(null);
 
   useEffect(() => {
     // Load existing challenges
@@ -390,43 +393,79 @@ const CoachDashboard = () => {
         </TabsContent>
 
         <TabsContent value="athletes" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Atletas do Box</CardTitle>
-              <CardDescription>Acompanhe o progresso dos seus atletas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {athletes.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Nenhum atleta cadastrado</p>
-              ) : (
-                <div className="space-y-3">
-                  {athletes.map((athlete) => (
-                    <div
-                      key={athlete.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{athlete.avatar || '👤'}</span>
-                        <div>
-                          <p className="font-medium">{athlete.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Nível {athlete.level || 1} • {athlete.xp || 0} XP
-                          </p>
+          {!selectedAthlete ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Atletas do Box</CardTitle>
+                <CardDescription>Clique em um atleta para ver o progresso detalhado</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {athletes.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Nenhum atleta cadastrado</p>
+                ) : (
+                  <div className="space-y-3">
+                    {athletes.map((athlete) => (
+                      <div
+                        key={athlete.id}
+                        onClick={() => setSelectedAthlete(athlete)}
+                        className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{athlete.avatar || '👤'}</span>
+                          <div>
+                            <p className="font-medium">{athlete.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Nível {athlete.level || 1} • {athlete.xp || 0} XP
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {athlete.category === 'rx' ? 'RX' : athlete.category === 'scaled' ? 'Scaled' : 'Iniciante'}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
-                      <Badge variant="outline">
-                        {athlete.category === 'rx'
-                          ? 'RX'
-                          : athlete.category === 'scaled'
-                          ? 'Scaled'
-                          : 'Iniciante'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedAthlete(null)}>
+                ← Voltar para lista
+              </Button>
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <span className="text-4xl">{selectedAthlete.avatar}</span>
+                  <div>
+                    <CardTitle>{selectedAthlete.name}</CardTitle>
+                    <CardDescription>Progresso nos Desafios Ativos</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {challenges.length === 0 ? (
+                    <p className="text-muted-foreground text-center">Nenhum desafio ativo para acompanhar.</p>
+                  ) : (
+                    challenges.map(challenge => {
+                      const progress = getChallengeProgress(challenge.id, selectedAthlete.id);
+                      const pct = Math.min((progress / challenge.targetValue) * 100, 100);
+                      return (
+                        <div key={challenge.id} className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{challenge.title}</span>
+                            <span className="text-muted-foreground">{progress} / {challenge.targetValue} {challenge.unit}</span>
+                          </div>
+                          <Progress value={pct} className="h-2" />
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

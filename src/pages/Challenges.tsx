@@ -90,12 +90,6 @@ const CreateChallengeForm = ({ onCreated }: { onCreated: () => void }) => {
   const [xpReward, setXpReward] = useState('150');
   const { toast } = useToast();
 
-  const challenges = getActiveChallenges();
-  const weeklyCount = challenges.filter(c => c.type === 'weekly').length;
-  const monthlyCount = challenges.filter(c => c.type === 'monthly').length;
-  const canAddWeekly = weeklyCount < 4;
-  const canAddMonthly = monthlyCount < 1;
-
   const handleSubmit = () => {
     if (!name.trim()) return;
 
@@ -115,16 +109,11 @@ const CreateChallengeForm = ({ onCreated }: { onCreated: () => void }) => {
       endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${lastDay}`;
     }
 
-    const result = addChallenge({
+    addChallenge({
       name: name.trim(), description: description.trim(), icon, type,
       xpReward: Number(xpReward) || 100, target: Number(target) || 1, unit: unit.trim() || 'vezes',
       startDate, endDate,
     });
-
-    if (!result) {
-      toast({ title: 'Limite atingido', description: type === 'weekly' ? 'Máximo de 4 desafios semanais.' : 'Máximo de 1 desafio mensal.', variant: 'destructive' });
-      return;
-    }
 
     toast({ title: '✅ Desafio criado!', description: `"${name}" adicionado com sucesso.` });
     setName(''); setDescription(''); setTarget('5'); setUnit('vezes'); setXpReward('150');
@@ -147,8 +136,8 @@ const CreateChallengeForm = ({ onCreated }: { onCreated: () => void }) => {
           <Select value={type} onValueChange={(v) => setType(v as ChallengeType)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="weekly" disabled={!canAddWeekly}>Semanal ({weeklyCount}/4)</SelectItem>
-              <SelectItem value="monthly" disabled={!canAddMonthly}>Mensal ({monthlyCount}/1)</SelectItem>
+              <SelectItem value="weekly">Semanal</SelectItem>
+              <SelectItem value="monthly">Mensal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -189,7 +178,7 @@ const Challenges = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
-  const isCoach = user?.role === 'coach';
+  const isCoach = user?.role === 'coach' || user?.role === 'admin';
 
   const challenges = useMemo(() => getActiveChallenges(), [tick]);
   const weekly = challenges.filter(c => c.type === 'weekly');
@@ -237,10 +226,10 @@ const Challenges = () => {
           <Flame className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold">Desafios</h1>
-            <p className="text-muted-foreground text-sm">{isCoach ? 'Crie até 4 desafios semanais + 1 mensal' : 'Complete desafios e ganhe XP'}</p>
+            <p className="text-muted-foreground text-sm">{isCoach ? 'Crie desafios semanais ou mensais' : 'Complete desafios e ganhe XP'}</p>
           </div>
         </div>
-        {isCoach && (canAddWeekly || canAddMonthly) && (
+        {isCoach && (
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">

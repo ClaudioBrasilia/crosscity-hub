@@ -25,12 +25,7 @@ export function saveChallenges(challenges: Challenge[]): void {
 
 export function addChallenge(challenge: Omit<Challenge, 'id'>): Challenge | null {
   const existing = getActiveChallenges();
-  const weeklyCount = existing.filter(c => c.type === 'weekly').length;
-  const monthlyCount = existing.filter(c => c.type === 'monthly').length;
-
-  if (challenge.type === 'weekly' && weeklyCount >= 4) return null;
-  if (challenge.type === 'monthly' && monthlyCount >= 1) return null;
-
+  // Limites removidos conforme solicitação do usuário
   const newChallenge: Challenge = { ...challenge, id: `ch_${Date.now()}` };
   existing.push(newChallenge);
   saveChallenges(existing);
