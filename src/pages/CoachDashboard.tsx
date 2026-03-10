@@ -81,8 +81,8 @@ const CoachDashboard = () => {
     }
   }, []);
 
-  // Redirect if not a coach
-  if (user?.role !== 'coach') {
+  // Redirect if not a coach or admin
+  if (user?.role !== 'coach' && user?.role !== 'admin') {
     return <Navigate to="/" />;
   }
 
