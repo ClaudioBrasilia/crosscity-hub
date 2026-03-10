@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ChallengeLeaderboard } from '@/components/ChallengeLeaderboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -189,6 +190,13 @@ const Challenges = () => {
     return challenges.filter(c => completedIds.includes(c.id)).reduce((sum, c) => sum + c.xpReward, 0);
   }, [challenges, completedIds]);
 
+  // Obter todos os usuários para estatísticas coletivas
+  const allUsers = useMemo(() => {
+    const usersData = localStorage.getItem('crosscity_users') || '[]';
+    return JSON.parse(usersData);
+  }, [tick]);
+  const allUserIds = useMemo(() => allUsers.map((u: any) => u.id), [allUsers]);
+
   const handleClaim = (challenge: Challenge) => {
     if (!user) return;
     markChallengeComplete(user.id, challenge.id);
@@ -294,7 +302,10 @@ const Challenges = () => {
             {weekly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio semanal criado.</p>
             ) : weekly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <div key={c.id}>
+                <ChallengeCard challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+                <ChallengeLeaderboard challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
+              </div>
             ))}
           </TabsContent>
 
@@ -302,7 +313,10 @@ const Challenges = () => {
             {monthly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio mensal criado.</p>
             ) : monthly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <div key={c.id}>
+                <ChallengeCard challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+                <ChallengeLeaderboard challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
+              </div>
             ))}
           </TabsContent>
         </Tabs>

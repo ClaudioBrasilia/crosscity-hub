@@ -73,3 +73,53 @@ export function markChallengeComplete(userId: string, challengeId: string): void
     localStorage.setItem(`crosscity_completed_challenges_${userId}`, JSON.stringify(completed));
   }
 }
+
+
+/** Obter estatísticas coletivas de um desafio */
+export function getChallengeCommunityStats(challengeId: string, allUserIds: string[]) {
+  const progressData: Record<string, number> = {};
+  const completedCount = { total: 0, completed: 0 };
+
+  allUserIds.forEach(userId => {
+    const progress = getChallengeProgress(challengeId, userId);
+    progressData[userId] = progress;
+    completedCount.total++;
+    if (getCompletedChallenges(userId).includes(challengeId)) {
+      completedCount.completed++;
+    }
+  });
+
+  return {
+    progressData,
+    completedCount,
+    participationRate: allUserIds.length > 0 ? (completedCount.completed / completedCount.total) * 100 : 0,
+  };
+}
+
+/** Obter ranking dos usuários em um desafio específico */
+export function getChallengeRanking(challengeId: string, allUserIds: string[], allUsers: any[]) {
+  const ranking = allUserIds
+    .map(userId => {
+      const progress = getChallengeProgress(challengeId, userId);
+      const user = allUsers.find(u => u.id === userId);
+      return {
+        userId,
+        userName: user?.name || 'Desconhecido',
+        avatar: user?.avatar || '👤',
+        progress,
+        completed: getCompletedChallenges(userId).includes(challengeId),
+      };
+    })
+    .sort((a, b) => {
+      if (a.completed !== b.completed) return b.completed ? 1 : -1;
+      return b.progress - a.progress;
+    });
+
+  return ranking;
+}
+
+/** Obter usuários que fizeram progresso recentemente */
+export function getRecentParticipants(challengeId: string, allUserIds: string[], allUsers: any[], limit: number = 5) {
+  const ranking = getChallengeRanking(challengeId, allUserIds, allUsers);
+  return ranking.filter(r => r.progress > 0).slice(0, limit);
+}
