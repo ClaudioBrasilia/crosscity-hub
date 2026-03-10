@@ -166,7 +166,7 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3" style={{ animationDelay: '0.1s' }}>
         {[
           { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
           { icon: Target, label: 'XP', value: user?.xp || 0, color: 'text-secondary' },
