@@ -165,14 +165,6 @@ const Login = () => {
                 </Button>
               </form>
 
-              <div className="p-3 bg-primary/10 rounded-lg text-sm">
-                <p className="font-semibold mb-1">Demo Professor:</p>
-                <p>Email: alex@crosscity.com</p>
-                <p>Senha: demo123</p>
-                <p className="mt-1 font-semibold">Demo Atleta:</p>
-                <p>Email: sarah@crosscity.com</p>
-                <p>Senha: demo123</p>
-              </div>
             </TabsContent>
 
             <TabsContent value="register" className="space-y-4">
