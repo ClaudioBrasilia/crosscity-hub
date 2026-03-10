@@ -3,9 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight, Award } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette } from 'lucide-react';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
+import { THEME_PRESETS, applyTheme } from '@/components/Layout';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -151,6 +152,45 @@ const Profile = () => {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* Theme Selector */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-primary" />
+            Tema
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-3">
+            {Object.entries(THEME_PRESETS).map(([id, theme]) => {
+              const savedTheme = localStorage.getItem(`crosscity_theme_${user?.id}`) || 'blue';
+              const isActive = savedTheme === id;
+              const label = { blue: 'Azul', green: 'Verde', purple: 'Roxo', orange: 'Laranja' }[id] || id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => {
+                    if (user) {
+                      localStorage.setItem(`crosscity_theme_${user.id}`, id);
+                      applyTheme(id);
+                    }
+                  }}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
+                    isActive ? 'border-primary bg-primary/10 scale-105' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full"
+                    style={{ backgroundColor: `hsl(${theme.primary})` }}
+                  />
+                  <span className="text-xs font-medium">{label}</span>
+                </button>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

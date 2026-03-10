@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,67 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame, GraduationCap, Shield } from 'lucide-react';
+import OnboardingTour from '@/components/OnboardingTour';
+import GoalsQuestionnaire from '@/components/GoalsQuestionnaire';
+
+const THEME_PRESETS: Record<string, { primary: string; secondary: string; accent: string; ring: string }> = {
+  blue: { primary: '217 91% 60%', secondary: '199 89% 48%', accent: '217 91% 60%', ring: '217 91% 60%' },
+  green: { primary: '142 76% 46%', secondary: '160 84% 39%', accent: '142 76% 46%', ring: '142 76% 46%' },
+  purple: { primary: '270 70% 60%', secondary: '280 65% 50%', accent: '270 70% 60%', ring: '270 70% 60%' },
+  orange: { primary: '25 95% 53%', secondary: '35 92% 50%', accent: '25 95% 53%', ring: '25 95% 53%' },
+};
+
+const applyTheme = (themeId: string) => {
+  const theme = THEME_PRESETS[themeId];
+  if (!theme) return;
+  const root = document.documentElement;
+  root.style.setProperty('--primary', theme.primary);
+  root.style.setProperty('--secondary', theme.secondary);
+  root.style.setProperty('--accent', theme.accent);
+  root.style.setProperty('--ring', theme.ring);
+  root.style.setProperty('--sidebar-primary', theme.primary);
+  root.style.setProperty('--sidebar-ring', theme.ring);
+};
+
+export { THEME_PRESETS, applyTheme };
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showGoals, setShowGoals] = useState(false);
+
+  useEffect(() => {
+    // Apply saved theme
+    if (user) {
+      const savedTheme = localStorage.getItem(`crosscity_theme_${user.id}`) || 'blue';
+      applyTheme(savedTheme);
+
+      // Check onboarding
+      const onboardingStatus = localStorage.getItem(`crosscity_onboarding_${user.id}`);
+      if (onboardingStatus === 'pending') {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    if (user) {
+      localStorage.setItem(`crosscity_onboarding_${user.id}`, 'done');
+      // Show goals if not set yet
+      const goals = localStorage.getItem(`crosscity_goals_${user.id}`);
+      if (!goals) {
+        setShowGoals(true);
+      }
+    }
+  };
+
+  const handleGoalsComplete = () => {
+    setShowGoals(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -106,6 +162,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
           </div>
         </div>
       </nav>
+
+      {/* Onboarding Tour */}
+      {showOnboarding && <OnboardingTour onComplete={handleOnboardingComplete} />}
+
+      {/* Goals Questionnaire */}
+      {showGoals && user && <GoalsQuestionnaire userId={user.id} onComplete={handleGoalsComplete} />}
     </div>
   );
 };

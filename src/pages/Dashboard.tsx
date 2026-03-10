@@ -6,12 +6,43 @@ import { Button } from '@/components/ui/button';
 import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse, CalendarCheck, Award, BarChart3 } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
 import { useToast } from '@/hooks/use-toast';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+
+const useAnimatedCounter = (end: number, duration = 800) => {
+  const [count, setCount] = useState(0);
+  const rafRef = useRef<number>();
+  useEffect(() => {
+    const start = 0;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setCount(Math.floor(start + (end - start) * progress));
+      if (progress < 1) rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [end, duration]);
+  return count;
+};
+
+const objectiveLabels: Record<string, string> = {
+  strength: '💪 Ganhar Força',
+  weight: '🏃 Perder Peso',
+  conditioning: '❤️‍🔥 Condicionamento',
+  compete: '🏆 Competir',
+};
+const frequencyLabels: Record<string, string> = {
+  '3x': '3x/semana', '4x': '4x/semana', '5x': '5x/semana', '6x': '6x+/semana',
+};
+const levelLabels: Record<string, string> = {
+  beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado',
+};
 
 const toTimeValue = (value: string) => {
   const [minutes, seconds] = value.split(':').map(Number);
@@ -94,11 +125,24 @@ const Dashboard = () => {
 
   const xpToNextLevel = (user?.level || 1) * 500;
   const xpProgress = ((user?.xp || 0) % 500) / 5;
+  const [xpAnimated, setXpAnimated] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setXpAnimated(xpProgress), 300);
+    return () => clearTimeout(t);
+  }, [xpProgress]);
+
+  // Goals
+  const userGoals = useMemo(() => {
+    if (!user) return null;
+    const raw = localStorage.getItem(`crosscity_goals_${user.id}`);
+    return raw ? JSON.parse(raw) : null;
+  }, [user]);
 
   return (
     <div className="space-y-6">
       {/* Hero + Check-in */}
-      <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6">
+      <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6 animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="text-6xl">{user?.avatar}</div>
           <div className="flex-1">
@@ -109,7 +153,7 @@ const Dashboard = () => {
                 <span>Nível {user?.level}</span>
                 <span>{user?.xp} / {xpToNextLevel} XP</span>
               </div>
-              <Progress value={xpProgress} className="h-2" />
+              <Progress value={xpAnimated} className="h-2 transition-all duration-1000" />
             </div>
           </div>
         </div>
@@ -122,7 +166,7 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3" style={{ animationDelay: '0.1s' }}>
         {[
           { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
           { icon: Target, label: 'XP', value: user?.xp || 0, color: 'text-secondary' },
@@ -131,7 +175,7 @@ const Dashboard = () => {
           { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-primary' },
           { icon: Warehouse, label: 'Equip.', value: `${unlockedCount}/24`, color: 'text-secondary' },
         ].map((stat, i) => (
-          <Card key={i} className="border-primary/20">
+          <Card key={i} className="border-primary/20 animate-fade-in" style={{ animationDelay: `${0.05 * i}s`, animationFillMode: 'backwards' }}>
             <CardContent className="p-3 text-center">
               <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
               <p className="text-xl font-bold">{stat.value}</p>
@@ -140,6 +184,37 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Goals Summary */}
+      {userGoals && (
+        <Card className="border-primary/20 animate-fade-in" style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-secondary" />
+              Minhas Metas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {userGoals.objective && (
+                <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-xs font-medium">
+                  {objectiveLabels[userGoals.objective] || userGoals.objective}
+                </span>
+              )}
+              {userGoals.frequency && (
+                <span className="px-3 py-1.5 rounded-full bg-secondary/10 border border-secondary/30 text-xs font-medium">
+                  {frequencyLabels[userGoals.frequency] || userGoals.frequency}
+                </span>
+              )}
+              {userGoals.level && (
+                <span className="px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
+                  {levelLabels[userGoals.level] || userGoals.level}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* WOD do Dia */}
       {dailyWod && (

@@ -129,6 +129,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     users.push({ ...newUser, password });
     localStorage.setItem('crosscity_users', JSON.stringify(users));
 
+    // Flag onboarding for new user
+    localStorage.setItem(`crosscity_onboarding_${newUser.id}`, 'pending');
+
     setUser(newUser);
     localStorage.setItem('crosscity_user', JSON.stringify(newUser));
   };
