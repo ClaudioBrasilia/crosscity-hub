@@ -153,7 +153,7 @@ const Dashboard = () => {
                 <span>Nível {user?.level}</span>
                 <span>{user?.xp} / {xpToNextLevel} XP</span>
               </div>
-              <Progress value={xpProgress} className="h-2" />
+              <Progress value={xpAnimated} className="h-2 transition-all duration-1000" />
             </div>
           </div>
         </div>
