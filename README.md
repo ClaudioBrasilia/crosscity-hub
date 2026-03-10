@@ -29,12 +29,16 @@ git clone <YOUR_GIT_URL>
 # Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Step 3: Install dependencies (recommended helper if your network uses private npm registry/proxy).
+./scripts/install-deps.sh
+# se usa registry privado: NPM_REGISTRY_URL e NPM_TOKEN
+# NPM_REGISTRY_URL="https://seu-registry/" NPM_TOKEN="***" ./scripts/install-deps.sh
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
+
+If you see `403` during install or `vite: not found`, follow `docs/dependency-registry-troubleshooting.md`.
 
 **Edit a file directly in GitHub**
 
