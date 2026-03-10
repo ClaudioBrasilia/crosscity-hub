@@ -59,9 +59,15 @@ const Profile = () => {
             <p className="text-sm text-muted-foreground">Nome</p>
             <p className="text-xl font-semibold">{user?.name}</p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Email</p>
-            <p className="text-xl font-semibold">{user?.email}</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Email</p>
+              <p className="text-xl font-semibold truncate">{user?.email}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Gênero</p>
+              <p className="text-xl font-semibold capitalize">{user?.gender === 'male' ? 'Masculino' : 'Feminino'}</p>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>

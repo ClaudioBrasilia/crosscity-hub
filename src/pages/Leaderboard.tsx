@@ -48,10 +48,11 @@ const Leaderboard = () => {
     return <span className="text-xs font-bold text-muted-foreground">#{index + 1}</span>;
   };
 
-  const rankingFor = (category: Category, gender: Gender) =>
-    users
+  const rankingFor = (category: Category, gender: Gender) => {
+    return [...users]
       .filter((user) => user.category === category && user.gender === gender)
-      .sort((a, b) => b.xp - a.xp);
+      .sort((a, b) => (Number(b.xp) || 0) - (Number(a.xp) || 0));
+  };
 
   const frequencyRanking = useMemo(() => {
     const now = new Date();
