@@ -175,7 +175,7 @@ const Dashboard = () => {
           { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-primary' },
           { icon: Warehouse, label: 'Equip.', value: `${unlockedCount}/24`, color: 'text-secondary' },
         ].map((stat, i) => (
-          <Card key={i} className="border-primary/20">
+          <Card key={i} className="border-primary/20 animate-fade-in" style={{ animationDelay: `${0.05 * i}s`, animationFillMode: 'backwards' }}>
             <CardContent className="p-3 text-center">
               <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
               <p className="text-xl font-bold">{stat.value}</p>
@@ -184,6 +184,37 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Goals Summary */}
+      {userGoals && (
+        <Card className="border-primary/20 animate-fade-in" style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-secondary" />
+              Minhas Metas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {userGoals.objective && (
+                <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 text-xs font-medium">
+                  {objectiveLabels[userGoals.objective] || userGoals.objective}
+                </span>
+              )}
+              {userGoals.frequency && (
+                <span className="px-3 py-1.5 rounded-full bg-secondary/10 border border-secondary/30 text-xs font-medium">
+                  {frequencyLabels[userGoals.frequency] || userGoals.frequency}
+                </span>
+              )}
+              {userGoals.level && (
+                <span className="px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
+                  {levelLabels[userGoals.level] || userGoals.level}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* WOD do Dia */}
       {dailyWod && (
