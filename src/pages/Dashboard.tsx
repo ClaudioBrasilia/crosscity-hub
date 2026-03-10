@@ -6,12 +6,43 @@ import { Button } from '@/components/ui/button';
 import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse, CalendarCheck, Award, BarChart3 } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
 import { useToast } from '@/hooks/use-toast';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+
+const useAnimatedCounter = (end: number, duration = 800) => {
+  const [count, setCount] = useState(0);
+  const rafRef = useRef<number>();
+  useEffect(() => {
+    const start = 0;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setCount(Math.floor(start + (end - start) * progress));
+      if (progress < 1) rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [end, duration]);
+  return count;
+};
+
+const objectiveLabels: Record<string, string> = {
+  strength: '💪 Ganhar Força',
+  weight: '🏃 Perder Peso',
+  conditioning: '❤️‍🔥 Condicionamento',
+  compete: '🏆 Competir',
+};
+const frequencyLabels: Record<string, string> = {
+  '3x': '3x/semana', '4x': '4x/semana', '5x': '5x/semana', '6x': '6x+/semana',
+};
+const levelLabels: Record<string, string> = {
+  beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado',
+};
 
 const toTimeValue = (value: string) => {
   const [minutes, seconds] = value.split(':').map(Number);
