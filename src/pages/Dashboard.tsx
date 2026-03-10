@@ -125,11 +125,24 @@ const Dashboard = () => {
 
   const xpToNextLevel = (user?.level || 1) * 500;
   const xpProgress = ((user?.xp || 0) % 500) / 5;
+  const [xpAnimated, setXpAnimated] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setXpAnimated(xpProgress), 300);
+    return () => clearTimeout(t);
+  }, [xpProgress]);
+
+  // Goals
+  const userGoals = useMemo(() => {
+    if (!user) return null;
+    const raw = localStorage.getItem(`crosscity_goals_${user.id}`);
+    return raw ? JSON.parse(raw) : null;
+  }, [user]);
 
   return (
     <div className="space-y-6">
       {/* Hero + Check-in */}
-      <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6">
+      <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6 animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="text-6xl">{user?.avatar}</div>
           <div className="flex-1">
