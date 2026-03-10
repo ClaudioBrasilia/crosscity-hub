@@ -43,6 +43,13 @@ const WOD = () => {
     setDailyWod(JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null'));
     setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
     setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]'));
+
+    // Listen for storage changes (updates from other tabs/windows)
+    const handleStorageChange = () => {
+      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const activeDuel = useMemo(() => {
@@ -54,7 +61,7 @@ const WOD = () => {
         duel.status === 'active' &&
         (duel.challengerId === user.id || duel.opponentId === user.id)
     );
-  }, [dailyWod, duels, selectedCategory, user]);
+  }, [dailyWod, duels, selectedCategory, user, results]);
 
   const categoryRanking = useMemo(() => {
     if (!dailyWod) return [];
@@ -65,25 +72,27 @@ const WOD = () => {
       return a.submittedAt - b.submittedAt;
     });
     return sorted;
-  }, [dailyWod, results, selectedCategory]);
+  }, [dailyWod, results, selectedCategory, user]);
 
   const userEntry = categoryRanking.find((item) => item.userId === user?.id);
   const userPosition = userEntry ? categoryRanking.findIndex((item) => item.id === userEntry.id) + 1 : null;
 
-  // Check if user already submitted for this WOD (any category)
+  // Check if user already submitted for this WOD in the selected category
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
-    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id) || null;
-  }, [dailyWod, results, user]);
+    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && r.category === selectedCategory) || null;
+  }, [dailyWod, results, user, selectedCategory, selectedCategory]);
 
-  // Pre-fill form when existing result is found
+  // Pre-fill form when existing result is found for the selected category
   useEffect(() => {
     if (existingResult) {
       setResultValue(existingResult.result);
       setScoreUnit(existingResult.unit);
-      setSelectedCategory(existingResult.category);
+    } else {
+      // Clear form if no result for this category
+      setResultValue('');
     }
-  }, [existingResult]);
+  }, [existingResult, selectedCategory]);
 
   const submitResult = () => {
     if (!dailyWod || !user || !resultValue.trim()) {
@@ -92,7 +101,7 @@ const WOD = () => {
     }
 
     const existing = results.find(
-      (item) => item.wodId === dailyWod.id && item.userId === user.id
+      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
     );
     const isEdit = !!existing;
 
@@ -114,6 +123,8 @@ const WOD = () => {
 
     localStorage.setItem('crosscity_wod_results', JSON.stringify(updatedResults));
     setResults(updatedResults);
+    // Force a re-render to update the ranking immediately
+    window.dispatchEvent(new Event('storage'));
 
     const currentCategoryResults = updatedResults
       .filter((item) => item.wodId === dailyWod.id && item.category === selectedCategory)
@@ -145,6 +156,8 @@ const WOD = () => {
       });
       localStorage.setItem('crosscity_duels', JSON.stringify(updatedDuels));
       setDuels(updatedDuels);
+      // Force a re-render
+      window.dispatchEvent(new Event('storage'));
     }
 
     const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
@@ -161,9 +174,15 @@ const WOD = () => {
       timestamp: Date.now(),
     });
     localStorage.setItem('crosscity_feed', JSON.stringify(feed));
+    // Force a re-render
+    window.dispatchEvent(new Event('storage'));
 
     toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: isEdit ? `Posição #${rank} na categoria.` : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.` });
     if (!isEdit) setResultValue('');
+    // Reload results from storage to ensure UI updates
+    setTimeout(() => {
+      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
+    }, 100);
   };
 
   if (!dailyWod) {
