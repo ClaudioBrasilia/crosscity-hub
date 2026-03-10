@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ChallengeLeaderboard } from '@/components/ChallengeLeaderboard';
+import { ChallengeRankingFull } from '@/components/ChallengeRankingFull';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -302,9 +303,10 @@ const Challenges = () => {
             {weekly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio semanal criado.</p>
             ) : weekly.map(c => (
-              <div key={c.id}>
+              <div key={c.id} className="space-y-4">
                 <ChallengeCard challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
                 <ChallengeLeaderboard challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
+                <ChallengeRankingFull challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
               </div>
             ))}
           </TabsContent>
@@ -313,9 +315,10 @@ const Challenges = () => {
             {monthly.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio mensal criado.</p>
             ) : monthly.map(c => (
-              <div key={c.id}>
+              <div key={c.id} className="space-y-4">
                 <ChallengeCard challenge={c} userId={user?.id || ''} isCoach={isCoach} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
                 <ChallengeLeaderboard challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
+                <ChallengeRankingFull challenge={c} allUserIds={allUserIds} allUsers={allUsers} />
               </div>
             ))}
           </TabsContent>
