@@ -36,6 +36,23 @@ const pickWinner = (a: string, b: string, aId: string, bId: string) => {
   return av.value >= bv.value ? aId : bId;
 };
 
+const getVisibleResult = (duel: Duel, role: 'challenger' | 'opponent') => {
+  if (duel.status === 'finished') {
+    return role === 'challenger' ? duel.challengerResult || 'aguardando' : duel.opponentResult || 'aguardando';
+  }
+
+  const challengerSubmitted = Boolean(duel.challengerResult);
+  const opponentSubmitted = Boolean(duel.opponentResult);
+  const bothSubmitted = challengerSubmitted && opponentSubmitted;
+
+  if (bothSubmitted) {
+    return role === 'challenger' ? duel.challengerResult || 'aguardando' : duel.opponentResult || 'aguardando';
+  }
+
+  if (role === 'challenger') return challengerSubmitted ? '✓ Enviado' : 'aguardando';
+  return opponentSubmitted ? '✓ Enviado' : 'aguardando';
+};
+
 const Battle = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
@@ -389,8 +406,11 @@ const Battle = () => {
                   </div>
 
                   <div className="text-sm">
-                    <p>Desafiante: {duel.challengerResult || 'aguardando'}</p>
-                    <p>Oponente: {duel.opponentResult || 'aguardando'}</p>
+                    <p>Desafiante: {getVisibleResult(duel, 'challenger')}</p>
+                    <p>Oponente: {getVisibleResult(duel, 'opponent')}</p>
+                    {statusKey === 'active' && (
+                      <p className="italic text-muted-foreground text-xs mt-1">Os resultados serão revelados quando ambos enviarem.</p>
+                    )}
                   </div>
 
                   {statusKey === 'active' && mine && (
