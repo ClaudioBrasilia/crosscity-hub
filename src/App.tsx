@@ -22,6 +22,7 @@ import Layout from "./components/Layout";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Install from "./pages/Install";
+import Clans from "./pages/Clans";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => {
               <Route path="/battle" element={<ProtectedRoute><Battle /></ProtectedRoute>} />
               <Route path="/mybox" element={<ProtectedRoute><MyBox /></ProtectedRoute>} />
               <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
+              <Route path="/clans" element={<ProtectedRoute><Clans /></ProtectedRoute>} />
               <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

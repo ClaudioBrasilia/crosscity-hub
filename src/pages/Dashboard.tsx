@@ -11,6 +11,7 @@ import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
+import { addClanEnergyFromCheckIn, ensureClanData } from '@/lib/clanSystem';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
@@ -56,6 +57,11 @@ const Dashboard = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    ensureClanData(users);
+  }, []);
 
   const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
   const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
@@ -119,7 +125,8 @@ const Dashboard = () => {
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
     );
     localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
-    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in de hoje.' });
+    addClanEnergyFromCheckIn(user.id, 20);
+    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in e +20 energia para seu clã.' });
     setRefreshTick((prev) => prev + 1);
   };
 
@@ -333,6 +340,22 @@ const Dashboard = () => {
           })}
           <Link to="/challenges">
             <Button variant="ghost" size="sm" className="w-full text-xs">Ver todos os desafios →</Button>
+          </Link>
+        </CardContent>
+      </Card>
+
+
+      <Card className="border-primary/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Swords className="h-5 w-5 text-primary" />
+            Guerra de Clãs
+          </CardTitle>
+          <CardDescription>Seu check-in fortalece o domínio territorial do seu clã.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link to="/clans">
+            <Button variant="outline" size="sm" className="w-full">Ver Clãs & Territórios →</Button>
           </Link>
         </CardContent>
       </Card>
