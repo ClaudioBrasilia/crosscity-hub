@@ -12,7 +12,7 @@
 ## Endpoints sugeridos
 
 - `GET /v1/clans` — lista clãs e métricas agregadas.
-- `POST /v1/clans/auto-balance` — distribui alunos em clãs com equilíbrio de nível/categoria.
+- `POST /v1/clans/auto-balance` — distribui alunos em clãs (sem validação de equilíbrio de nível/categoria nesta etapa).
 - `GET /v1/clans/:clanId` — detalhes do clã, membros e histórico.
 - `GET /v1/territories` — territórios e ocupação atual.
 - `POST /v1/checkins` — registra check-in e cria `DominationEvent`.
