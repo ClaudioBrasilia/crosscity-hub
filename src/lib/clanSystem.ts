@@ -9,7 +9,9 @@ export interface Clan {
   name: string;
   motto: string;
   banner: string;
+  color: string;
   colors: string;
+  createdAt: string;
 }
 
 export interface Territory {
@@ -17,6 +19,7 @@ export interface Territory {
   name: string;
   icon: string;
   focus: string;
+  rotationOrder: number;
 }
 
 export interface TerritoryState {
@@ -68,17 +71,17 @@ export interface ClanRewardGrant {
 }
 
 export const clans: Clan[] = [
-  { id: 'clan_forge', name: 'Guerreiros da Forja', motto: 'Disciplina constrói campeões.', banner: '⚒️', colors: 'from-orange-500 to-red-500' },
-  { id: 'clan_arena', name: 'Titãs da Arena', motto: 'Cada round conta para todos.', banner: '🛡️', colors: 'from-blue-500 to-cyan-500' },
-  { id: 'clan_courtyard', name: 'Legião do Pátio', motto: 'Consistência vence talento.', banner: '🏟️', colors: 'from-emerald-500 to-lime-500' },
-  { id: 'clan_temple', name: 'Guardas do Templo', motto: 'Honra, foco e comunidade.', banner: '🏛️', colors: 'from-violet-500 to-fuchsia-500' },
+  { id: 'clan_forge', name: 'Guerreiros da Forja', motto: 'Disciplina constrói campeões.', banner: '⚒️', color: 'orange', colors: 'from-orange-500 to-red-500', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'clan_arena', name: 'Titãs da Arena', motto: 'Cada round conta para todos.', banner: '🛡️', color: 'blue', colors: 'from-blue-500 to-cyan-500', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'clan_courtyard', name: 'Legião do Pátio', motto: 'Consistência vence talento.', banner: '🏟️', color: 'emerald', colors: 'from-emerald-500 to-lime-500', createdAt: '2025-01-01T00:00:00.000Z' },
+  { id: 'clan_temple', name: 'Guardas do Templo', motto: 'Honra, foco e comunidade.', banner: '🏛️', color: 'violet', colors: 'from-violet-500 to-fuchsia-500', createdAt: '2025-01-01T00:00:00.000Z' },
 ];
 
 export const territories: Territory[] = [
-  { id: 'territory_forge', name: 'A Forja', icon: '🔥', focus: 'força e PRs' },
-  { id: 'territory_arena', name: 'A Arena', icon: '⚔️', focus: 'duelos e liderança' },
-  { id: 'territory_courtyard', name: 'O Pátio', icon: '🏋️', focus: 'presença e volume' },
-  { id: 'territory_temple', name: 'O Templo', icon: '🧠', focus: 'técnica e consistência' },
+  { id: 'territory_forge', name: 'A Forja', icon: '🔥', focus: 'força e PRs', rotationOrder: 1 },
+  { id: 'territory_arena', name: 'A Arena', icon: '⚔️', focus: 'duelos e liderança', rotationOrder: 2 },
+  { id: 'territory_courtyard', name: 'O Pátio', icon: '🏋️', focus: 'presença e volume', rotationOrder: 3 },
+  { id: 'territory_temple', name: 'O Templo', icon: '🧠', focus: 'técnica e consistência', rotationOrder: 4 },
 ];
 
 export const clanRewards: ClanReward[] = [
