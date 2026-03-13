@@ -100,7 +100,6 @@ const STORAGE_KEYS = {
   activityEnergyClaims: 'crosscity_activity_energy_claims',
 } as const;
 
-
 const getStoredClans = () => {
   const stored = safeParse<Clan[]>(localStorage.getItem(STORAGE_KEYS.clans), []);
   return stored.length > 0 ? stored : clans;
@@ -461,7 +460,6 @@ export const distributeRewardsApi = () => {
   setRewardGrants([...current, ...grants]);
   return grants;
 };
-
 
 export interface ActivityEnergyClaim {
   id: string;
