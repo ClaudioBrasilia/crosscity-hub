@@ -100,6 +100,58 @@ const STORAGE_KEYS = {
   activityEnergyClaims: 'crosscity_activity_energy_claims',
 } as const;
 
+
+const getStoredClans = () => {
+  const stored = safeParse<Clan[]>(localStorage.getItem(STORAGE_KEYS.clans), []);
+  return stored.length > 0 ? stored : clans;
+};
+
+export const getAvailableClans = () => getStoredClans();
+
+export const createClan = (input: { name: string; motto: string; color: string; banner?: string }) => {
+  const storedClans = getStoredClans();
+  const clan: Clan = {
+    id: `clan_custom_${Date.now()}`,
+    name: input.name.trim(),
+    motto: input.motto.trim(),
+    banner: input.banner?.trim() || '🛡️',
+    color: input.color.trim(),
+    colors: 'from-slate-500 to-slate-700',
+    createdAt: new Date().toISOString(),
+  };
+
+  const updated = [...storedClans, clan];
+  localStorage.setItem(STORAGE_KEYS.clans, JSON.stringify(updated));
+
+  const state = getTerritoryState();
+  if (state && !state.energyByClan[clan.id]) {
+    localStorage.setItem(
+      STORAGE_KEYS.territoryState,
+      JSON.stringify({
+        ...state,
+        energyByClan: {
+          ...state.energyByClan,
+          [clan.id]: 0,
+        },
+      } satisfies TerritoryState),
+    );
+  }
+
+  return clan;
+};
+
+export const assignUserToClan = (userId: string, clanId: string) => {
+  const storedClans = getStoredClans();
+  if (!storedClans.some((clan) => clan.id === clanId)) {
+    return false;
+  }
+
+  const memberships = getClanMemberships();
+  memberships[userId] = clanId;
+  localStorage.setItem(STORAGE_KEYS.memberships, JSON.stringify(memberships));
+  return true;
+};
+
 const getDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
 export const getTerritoryOfDay = (date = new Date()) => {
@@ -125,11 +177,12 @@ export const ensureClanData = (users: UserProfile[]) => {
 
   const memberships = safeParse<Record<string, string>>(localStorage.getItem(STORAGE_KEYS.memberships), {});
   let changed = false;
+  const availableClans = getStoredClans();
 
   for (const user of users) {
     if (!memberships[user.id]) {
-      const index = hashId(user.id + user.category) % clans.length;
-      memberships[user.id] = clans[index].id;
+      const index = hashId(user.id + user.category) % availableClans.length;
+      memberships[user.id] = availableClans[index].id;
       changed = true;
     }
   }
@@ -141,8 +194,9 @@ export const ensureClanData = (users: UserProfile[]) => {
   const todayKey = getDateKey();
   const state = safeParse<TerritoryState | null>(localStorage.getItem(STORAGE_KEYS.territoryState), null);
   if (!state || state.dayKey !== todayKey) {
+    const availableClans = getStoredClans();
     const seededEnergy = Object.fromEntries(
-      clans.map((clan, index) => [clan.id, 80 + index * 15]),
+      availableClans.map((clan, index) => [clan.id, 80 + index * 15]),
     ) as Record<string, number>;
 
     localStorage.setItem(
@@ -162,7 +216,8 @@ export const getClanMemberships = () => safeParse<Record<string, string>>(localS
 export const getUserClan = (userId: string) => {
   const memberships = getClanMemberships();
   const clanId = memberships[userId];
-  return clans.find((clan) => clan.id === clanId) ?? clans[0];
+  const availableClans = getStoredClans();
+  return availableClans.find((clan) => clan.id === clanId) ?? availableClans[0] ?? clans[0];
 };
 
 export const getTerritoryState = () => safeParse<TerritoryState | null>(localStorage.getItem(STORAGE_KEYS.territoryState), null);
@@ -191,7 +246,9 @@ export const getClanLeaderboard = (users: UserProfile[]) => {
   const memberships = getClanMemberships();
   const state = getTerritoryState();
 
-  return clans
+  const availableClans = getStoredClans();
+
+  return availableClans
     .map((clan) => {
       const members = users.filter((user) => memberships[user.id] === clan.id);
       const avgLevel = members.length ? members.reduce((sum, item) => sum + item.level, 0) / members.length : 0;
@@ -211,10 +268,11 @@ const makeId = (prefix: string) => `${prefix}_${Date.now()}_${Math.floor(Math.ra
 
 export const autoBalanceClans = (users: UserProfile[]) => {
   const memberships: Record<string, string> = {};
+  const availableClans = getStoredClans();
 
   for (const user of users) {
-    const index = hashId(user.id + user.category) % clans.length;
-    memberships[user.id] = clans[index].id;
+    const index = hashId(user.id + user.category) % availableClans.length;
+    memberships[user.id] = availableClans[index].id;
   }
 
   localStorage.setItem(STORAGE_KEYS.memberships, JSON.stringify(memberships));
@@ -285,7 +343,7 @@ export const getClansApi = (users: UserProfile[]) => {
 export const getClanDetailsApi = (clanId: string, users: UserProfile[]) => {
   ensureClanData(users);
   const memberships = getClanMemberships();
-  const clan = clans.find((item) => item.id === clanId);
+  const clan = getStoredClans().find((item) => item.id === clanId);
   if (!clan) return null;
 
   const members = users.filter((user) => memberships[user.id] === clan.id);
@@ -358,7 +416,7 @@ export const closeTerritoryPeriodApi = (users: UserProfile[]) => {
   const events = getDominationEvents().filter((event) => event.battleId === battle.id);
   const memberships = getClanMemberships();
 
-  const leaderboard = clans.map((clan) => {
+  const leaderboard = getStoredClans().map((clan) => {
     const energy = state.energyByClan[clan.id] || 0;
     const uniqueUsers = new Set(events.filter((event) => event.clanId === clan.id).map((event) => event.userId)).size;
     const members = users.filter((user) => memberships[user.id] === clan.id);
