@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Trophy, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
 
 const categoryLabels: Record<WodCategory, string> = {
@@ -246,6 +247,18 @@ const WOD = () => {
           )}
 
           <Button onClick={submitResult} className="w-full">{existingResult ? 'Atualizar resultado' : 'Salvar resultado'}</Button>
+
+          {user && dailyWod && (
+            <DominationEnergyButton
+              userId={user.id}
+              activityId={dailyWod.id}
+              activityType="wod"
+              energy={20}
+              participationValid={Boolean(existingResult)}
+              blockedText="Registre seu resultado para liberar energia"
+              className="w-full"
+            />
+          )}
         </CardContent>
       </Card>
 

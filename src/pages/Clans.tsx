@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Swords, Map, Users, Sparkles, Crown } from 'lucide-react';
+import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import {
-  addClanEnergyFromCheckIn,
   clanRewards,
   ensureClanData,
   getClanLeaderboard,
@@ -33,11 +32,6 @@ const Clans = () => {
 
   const maxEnergy = Math.max(...leaderboard.map((item) => item.energy), 1);
 
-  const handleGenerateEnergy = () => {
-    if (!user) return;
-    addClanEnergyFromCheckIn(user.id, 25);
-    setTick((value) => value + 1);
-  };
 
   return (
     <div className="space-y-6">
@@ -57,7 +51,17 @@ const Clans = () => {
               <p className="text-2xl font-bold">{myClan.banner} {myClan.name}</p>
               <p className="text-sm text-muted-foreground">{myClan.motto}</p>
             </div>
-            <Button onClick={handleGenerateEnergy}>Gerar Energia de Dominação (+25)</Button>
+            {user && (
+              <DominationEnergyButton
+                userId={user.id}
+                activityId={`territory:${territoryState?.dayKey || new Date().toISOString().split('T')[0]}`}
+                activityType="event"
+                energy={25}
+                participationValid
+                className="w-full sm:w-auto"
+                onSuccess={() => setTick((value) => value + 1)}
+              />
+            )}
           </CardContent>
         </Card>
       )}

@@ -18,6 +18,7 @@ import {
 } from '@/lib/challenges';
 import { useToast } from '@/hooks/use-toast';
 import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp } from 'lucide-react';
+import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
@@ -75,6 +76,19 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
                 </Button>
               )}
             </div>
+
+
+            {!isCoach && !!userId && (
+              <DominationEnergyButton
+                userId={userId}
+                activityId={challenge.id}
+                activityType="challenge"
+                energy={15}
+                participationValid={isComplete || isClaimed}
+                blockedText="Conclua o desafio para gerar energia"
+                className="w-full mt-2"
+              />
+            )}
           </div>
         </div>
       </CardContent>

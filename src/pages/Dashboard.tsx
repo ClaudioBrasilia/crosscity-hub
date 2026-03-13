@@ -11,7 +11,8 @@ import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
-import { addClanEnergyFromCheckIn, ensureClanData } from '@/lib/clanSystem';
+import { ensureClanData } from '@/lib/clanSystem';
+import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
@@ -125,8 +126,7 @@ const Dashboard = () => {
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
     );
     localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
-    addClanEnergyFromCheckIn(user.id, 20);
-    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in e +20 energia para seu clã.' });
+    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in.' });
     setRefreshTick((prev) => prev + 1);
   };
 
@@ -164,11 +164,22 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
           <Button onClick={handleCheckIn} disabled={hasCheckedInToday} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
             {hasCheckedInToday ? 'Presença confirmada ✓' : 'Confirmar presença hoje (+25 XP)'}
           </Button>
+          {user && (
+            <DominationEnergyButton
+              userId={user.id}
+              activityId={`checkin:${today}`}
+              activityType="checkin"
+              energy={20}
+              participationValid={hasCheckedInToday}
+              blockedText="Faça check-in para gerar energia"
+              className="w-full sm:w-auto"
+            />
+          )}
         </div>
       </div>
 
