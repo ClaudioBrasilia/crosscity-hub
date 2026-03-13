@@ -86,10 +86,24 @@ export const territories: Territory[] = [
 ];
 
 export const clanRewards: ClanReward[] = [
-  { id: 'reward_workshop', title: 'Workshop Exclusivo', description: 'Aula técnica avançada para o clã vencedor do mês.', type: 'real' },
+  {
+    id: 'reward_workshop',
+    title: 'Brinde Surpresa',
+    description: 'Um item exclusivo para o clã que dominar o território. O brinde será revelado no final do mês!',
+    type: 'real',
+  },
   { id: 'reward_badges', title: 'Badges de Honra', description: 'Medalha digital para guerreiros de consistência.', type: 'digital' },
-  { id: 'reward_xp', title: 'Bônus de XP', description: 'Multiplicador de XP em horários de pico.', type: 'power' },
+  {
+    id: 'reward_xp',
+    title: 'Bônus de XP - Sábados',
+    description: 'Multiplicador de XP para quem treinar aos sábados, incentivando a presença no dia mais desafiador da semana!',
+    type: 'power',
+  },
 ];
+
+const isSaturday = (date: Date) => date.getDay() === 6;
+
+export const getCheckInXpReward = (date = new Date(), baseXp = 25) => (isSaturday(date) ? baseXp * 2 : baseXp);
 
 const STORAGE_KEYS = {
   clans: 'crosscity_clans',
@@ -364,10 +378,12 @@ export const getTerritoriesApi = () => {
 
 export const postCheckInApi = (
   userId: string,
-  options?: { source?: 'checkin' | 'challenge' | 'bonus'; peakBonus?: boolean; streakBonus?: boolean },
+  options?: { source?: 'checkin' | 'challenge' | 'bonus'; streakBonus?: boolean; occurredAt?: string },
 ) => {
   const source = options?.source ?? 'checkin';
-  const energy = 20 + (options?.peakBonus ? 5 : 0) + (options?.streakBonus ? 10 : 0);
+  const activityDate = options?.occurredAt ? new Date(options.occurredAt) : new Date();
+  const saturdayBonus = isSaturday(activityDate) ? 5 : 0;
+  const energy = 20 + saturdayBonus + (options?.streakBonus ? 10 : 0);
   const state = addClanEnergyFromCheckIn(userId, energy);
   if (!state) return null;
 
