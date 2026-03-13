@@ -11,6 +11,7 @@ interface User {
   avatar: string;
   boxId: string;
   xp: number;
+  individualEnergy?: number;
   level: number;
   streak: number;
   gender: Gender;
@@ -46,6 +47,7 @@ const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
 
 const normalizeUser = (raw: any): User => ({
   ...raw,
+  individualEnergy: Number(raw.individualEnergy ?? raw.xp ?? 0),
   gender: raw.gender || 'male',
   category: raw.category || 'beginner',
   role: resolveRole(raw),
@@ -118,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       avatar: '👤',
       boxId: 'box_1',
       xp: 0,
+      individualEnergy: 0,
       level: 1,
       streak: 0,
       gender,

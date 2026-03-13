@@ -2,6 +2,7 @@ export interface UserProfile {
   id: string;
   level: number;
   category: 'rx' | 'scaled' | 'beginner';
+  individualEnergy?: number;
 }
 
 export interface Clan {
@@ -175,27 +176,20 @@ export const ensureClanData = (users: UserProfile[]) => {
   }
 
   const memberships = safeParse<Record<string, string>>(localStorage.getItem(STORAGE_KEYS.memberships), {});
-  let changed = false;
   const availableClans = getStoredClans();
-
-  for (const user of users) {
-    if (!memberships[user.id]) {
-      const index = hashId(user.id + user.category) % availableClans.length;
-      memberships[user.id] = availableClans[index].id;
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    localStorage.setItem(STORAGE_KEYS.memberships, JSON.stringify(memberships));
+  const availableClanIds = new Set(availableClans.map((clan) => clan.id));
+  const sanitizedMemberships = Object.fromEntries(
+    Object.entries(memberships).filter(([, clanId]) => availableClanIds.has(clanId)),
+  );
+  if (Object.keys(sanitizedMemberships).length !== Object.keys(memberships).length) {
+    localStorage.setItem(STORAGE_KEYS.memberships, JSON.stringify(sanitizedMemberships));
   }
 
   const todayKey = getDateKey();
   const state = safeParse<TerritoryState | null>(localStorage.getItem(STORAGE_KEYS.territoryState), null);
   if (!state || state.dayKey !== todayKey) {
-    const availableClans = getStoredClans();
     const seededEnergy = Object.fromEntries(
-      availableClans.map((clan, index) => [clan.id, 80 + index * 15]),
+      availableClans.map((clan) => [clan.id, 0]),
     ) as Record<string, number>;
 
     localStorage.setItem(
@@ -216,7 +210,7 @@ export const getUserClan = (userId: string) => {
   const memberships = getClanMemberships();
   const clanId = memberships[userId];
   const availableClans = getStoredClans();
-  return availableClans.find((clan) => clan.id === clanId) ?? availableClans[0] ?? clans[0];
+  return availableClans.find((clan) => clan.id === clanId) ?? null;
 };
 
 export const getTerritoryState = () => safeParse<TerritoryState | null>(localStorage.getItem(STORAGE_KEYS.territoryState), null);
@@ -226,6 +220,8 @@ export const addClanEnergyFromCheckIn = (userId: string, amount = 20) => {
   if (!state) return null;
 
   const clan = getUserClan(userId);
+  if (!clan) return state;
+
   const updated = {
     ...state,
     energyByClan: {
@@ -268,6 +264,7 @@ const makeId = (prefix: string) => `${prefix}_${Date.now()}_${Math.floor(Math.ra
 export const autoBalanceClans = (users: UserProfile[]) => {
   const memberships: Record<string, string> = {};
   const availableClans = getStoredClans();
+  if (!availableClans.length) return [];
 
   for (const user of users) {
     const index = hashId(user.id + user.category) % availableClans.length;
@@ -375,6 +372,19 @@ export const postCheckInApi = (
   if (!state) return null;
 
   const clan = getUserClan(userId);
+  if (!clan) {
+    return {
+      id: makeId('event_individual_only'),
+      battleId: getDateKey(),
+      userId,
+      clanId: null,
+      source,
+      energy,
+      createdAt: nowIso(),
+      individualOnly: true as const,
+    };
+  }
+
   const battle = ensureCurrentBattle();
   if (!battle) return null;
 
@@ -464,10 +474,11 @@ export const distributeRewardsApi = () => {
 export interface ActivityEnergyClaim {
   id: string;
   userId: string;
-  clanId: string;
+  clanId: string | null;
   activityId: string;
   activityType: 'checkin' | 'wod' | 'challenge' | 'event';
-  energy: number;
+  individualEnergy: number;
+  clanEnergy: number;
   createdAt: string;
 }
 
@@ -479,6 +490,38 @@ const setActivityEnergyClaims = (claims: ActivityEnergyClaim[]) => {
 };
 
 const getUsersFromStorage = () => safeParse<Array<{ id: string }>>(localStorage.getItem('crosscity_users'), []);
+
+const addIndividualEnergyToUser = (userId: string, amount: number) => {
+  const users = safeParse<Array<Record<string, any>>>(localStorage.getItem('crosscity_users'), []);
+  const userIndex = users.findIndex((item) => item.id === userId);
+  if (userIndex === -1) return null;
+
+  const targetUser = users[userIndex];
+  const nextIndividualEnergy = Number(targetUser.individualEnergy || 0) + amount;
+  const nextXp = Number(targetUser.xp || 0) + amount;
+  const nextLevel = Math.floor(nextXp / 500) + 1;
+  const updatedUser = {
+    ...targetUser,
+    individualEnergy: nextIndividualEnergy,
+    xp: nextXp,
+    level: nextLevel,
+  };
+
+  const updatedUsers = [...users];
+  updatedUsers[userIndex] = updatedUser;
+  localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
+
+  const activeUser = safeParse<Record<string, any> | null>(localStorage.getItem('crosscity_user'), null);
+  if (activeUser?.id === userId) {
+    localStorage.setItem('crosscity_user', JSON.stringify({ ...activeUser, ...updatedUser }));
+  }
+
+  return {
+    xp: nextXp,
+    level: nextLevel,
+    individualEnergy: nextIndividualEnergy,
+  };
+};
 
 const isKnownActivity = (activityId: string, activityType: ActivityEnergyClaim['activityType']) => {
   if (!activityId.trim()) return false;
@@ -515,9 +558,10 @@ export const generateDominationEnergyForActivity = (params: {
   activityId: string;
   activityType: ActivityEnergyClaim['activityType'];
   energy?: number;
+  clanEnergyBonus?: number;
   participationValid?: boolean;
 }) => {
-  const { userId, activityId, activityType, energy = 20, participationValid = true } = params;
+  const { userId, activityId, activityType, energy = 20, clanEnergyBonus = 0, participationValid = true } = params;
 
   if (!isKnownActivity(activityId, activityType)) {
     return { ok: false as const, status: 404, message: 'Atividade inválida.' };
@@ -527,11 +571,6 @@ export const generateDominationEnergyForActivity = (params: {
   const userExists = users.some((item) => item.id === userId);
   if (!userExists) {
     return { ok: false as const, status: 404, message: 'Aluno inválido.' };
-  }
-
-  const clan = getUserClan(userId);
-  if (!clan) {
-    return { ok: false as const, status: 422, message: 'Aluno sem clã ativo.' };
   }
 
   if (!participationValid) {
@@ -544,20 +583,40 @@ export const generateDominationEnergyForActivity = (params: {
     return { ok: false as const, status: 409, message: 'Você já gerou energia para esta atividade.' };
   }
 
+  const individualResult = addIndividualEnergyToUser(userId, energy);
+  if (!individualResult) {
+    return { ok: false as const, status: 404, message: 'Aluno inválido.' };
+  }
+
+  const clan = getUserClan(userId);
+  const clanEnergy = clan ? energy + clanEnergyBonus : 0;
+
   const claim: ActivityEnergyClaim = {
     id: makeId('energy'),
     userId,
-    clanId: clan.id,
+    clanId: clan?.id ?? null,
     activityId,
     activityType,
-    energy,
+    individualEnergy: energy,
+    clanEnergy,
     createdAt: nowIso(),
   };
 
   setActivityEnergyClaims([claim, ...claims]);
-  addClanEnergyFromCheckIn(userId, energy);
+  if (clan && clanEnergy > 0) {
+    addClanEnergyFromCheckIn(userId, clanEnergy);
+  }
 
   window.dispatchEvent(new Event('storage'));
 
-  return { ok: true as const, status: 201, claim };
+  return {
+    ok: true as const,
+    status: 201,
+    claim,
+    individual: individualResult,
+    clan,
+    message: clan
+      ? `+${energy} XP pessoal e +${clanEnergy} energia para ${clan.name}.`
+      : 'Você ganhou XP pessoal! Entre em um clã para ajudar seu time a dominar territórios.',
+  };
 };

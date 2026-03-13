@@ -11,7 +11,7 @@ import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
-import { ensureClanData } from '@/lib/clanSystem';
+import { ensureClanData, getUserClan } from '@/lib/clanSystem';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
@@ -54,6 +54,12 @@ const toTimeValue = (value: string) => {
 
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
+const getAthleteTitle = (level: number) => {
+  if (level >= 15) return 'Atleta Ouro';
+  if (level >= 8) return 'Atleta Prata';
+  return 'Atleta Bronze';
+};
+
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
@@ -62,6 +68,12 @@ const Dashboard = () => {
   useEffect(() => {
     const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     ensureClanData(users);
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setRefreshTick((prev) => prev + 1);
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
   }, []);
 
   const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
@@ -146,6 +158,8 @@ const Dashboard = () => {
     return raw ? JSON.parse(raw) : null;
   }, [user]);
 
+  const myClan = useMemo(() => (user ? getUserClan(user.id) : null), [user, refreshTick]);
+
   return (
     <div className="space-y-6">
       {/* Hero + Check-in */}
@@ -154,10 +168,15 @@ const Dashboard = () => {
           <div className="text-6xl">{user?.avatar}</div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
-            <p className="text-muted-foreground">CrossUberlandia • Nível {user?.level}</p>
+            <p className="text-muted-foreground">
+              CrossUberlandia • Nível {user?.level} - {getAthleteTitle(user?.level || 1)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Status do Clã: {myClan ? `${myClan.banner} ${myClan.name}` : 'Sem clã'}
+            </p>
             <div className="mt-2 space-y-1 max-w-sm">
               <div className="flex justify-between text-sm">
-                <span>Nível {user?.level}</span>
+                <span>Progresso individual • Nível {user?.level}</span>
                 <span>{user?.xp} / {xpToNextLevel} XP</span>
               </div>
               <Progress value={xpAnimated} className="h-2 transition-all duration-1000" />
