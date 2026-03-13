@@ -11,7 +11,7 @@ import type { DailyWod, DailyWodResult } from '@/lib/mockData';
 import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
-import { ensureClanData, getUserClan } from '@/lib/clanSystem';
+import { ensureClanData, getCheckInXpReward, getUserClan } from '@/lib/clanSystem';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 
@@ -96,6 +96,7 @@ const Dashboard = () => {
   const myPosition = myTodayResult ? todayRanking.findIndex((item) => item.id === myTodayResult.id) + 1 : null;
 
   const today = formatDateKey();
+  const checkInXpReward = getCheckInXpReward(new Date());
   const checkinsData: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
   const myCheckins = user ? checkinsData[user.id] || [] : [];
   const monthPrefix = today.slice(0, 7);
@@ -130,7 +131,7 @@ const Dashboard = () => {
     if (!user || hasCheckedInToday) return;
     const updatedCheckins = { ...checkinsData, [user.id]: [...myCheckins, today] };
     localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
-    const newXp = (user.xp || 0) + 25;
+    const newXp = (user.xp || 0) + checkInXpReward;
     const newLevel = Math.floor(newXp / 500) + 1;
     updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
     const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
@@ -138,7 +139,13 @@ const Dashboard = () => {
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
     );
     localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
-    toast({ title: 'Presença confirmada ✅', description: '+25 XP por check-in.' });
+    toast({
+      title: 'Presença confirmada ✅',
+      description:
+        checkInXpReward > 25
+          ? `+${checkInXpReward} XP por check-in de sábado!`
+          : `+${checkInXpReward} XP por check-in.`,
+    });
     setRefreshTick((prev) => prev + 1);
   };
 
@@ -186,7 +193,7 @@ const Dashboard = () => {
         <div className="mt-4 space-y-2">
           <Button onClick={handleCheckIn} disabled={hasCheckedInToday} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
-            {hasCheckedInToday ? 'Presença confirmada ✓' : 'Confirmar presença hoje (+25 XP)'}
+            {hasCheckedInToday ? 'Presença confirmada ✓' : `Confirmar presença hoje (+${checkInXpReward} XP)`}
           </Button>
           {user && (
             <DominationEnergyButton
