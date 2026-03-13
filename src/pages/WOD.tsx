@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Trophy, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { DominationEnergyButton } from '@/components/DominationEnergyButton';
+import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
 
 const categoryLabels: Record<WodCategory, string> = {
@@ -39,6 +39,7 @@ const WOD = () => {
   const [submitToDuel, setSubmitToDuel] = useState(true);
   const [results, setResults] = useState<DailyWodResult[]>([]);
   const [duels, setDuels] = useState<Duel[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setDailyWod(JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null'));
@@ -96,10 +97,14 @@ const WOD = () => {
   }, [existingResult, selectedCategory]);
 
   const submitResult = () => {
+    if (isSubmitting) return;
+
     if (!dailyWod || !user || !resultValue.trim()) {
       toast({ title: 'Resultado inválido', description: 'Preencha seu resultado para registrar.', variant: 'destructive' });
       return;
     }
+
+    setIsSubmitting(true);
 
     const existing = results.find(
       (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
@@ -178,12 +183,31 @@ const WOD = () => {
     // Force a re-render
     window.dispatchEvent(new Event('storage'));
 
-    toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: isEdit ? `Posição #${rank} na categoria.` : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.` });
+    const energyResult = generateDominationEnergyForActivity({
+      userId: user.id,
+      activityId: dailyWod.id,
+      activityType: 'wod',
+      energy: 20,
+      participationValid: true,
+    });
+
+    const successDescription = isEdit
+      ? `Posição #${rank} na categoria.`
+      : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.`;
+
+    const energyDescription = energyResult.ok
+      ? ' Energia gerada automaticamente.'
+      : energyResult.status === 409
+        ? ' Energia já havia sido gerada.'
+        : '';
+
+    toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: `${successDescription}${energyDescription}` });
     if (!isEdit) setResultValue('');
     // Reload results from storage to ensure UI updates
     setTimeout(() => {
       setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
     }, 100);
+    setIsSubmitting(false);
   };
 
   if (!dailyWod) {
@@ -246,19 +270,9 @@ const WOD = () => {
             </div>
           )}
 
-          <Button onClick={submitResult} className="w-full">{existingResult ? 'Atualizar resultado' : 'Salvar resultado'}</Button>
-
-          {user && dailyWod && (
-            <DominationEnergyButton
-              userId={user.id}
-              activityId={dailyWod.id}
-              activityType="wod"
-              energy={20}
-              participationValid={Boolean(existingResult)}
-              blockedText="Registre seu resultado para liberar energia"
-              className="w-full"
-            />
-          )}
+          <Button onClick={submitResult} className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Salvando...' : existingResult ? 'Atualizar resultado' : 'Salvar resultado'}
+          </Button>
         </CardContent>
       </Card>
 
