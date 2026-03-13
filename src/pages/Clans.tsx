@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Map, Users, Sparkles, Crown } from 'lucide-react';
+import { Swords, Map, Users, Sparkles, Crown, Plus } from 'lucide-react';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import {
+  assignUserToClan,
   clanRewards,
+  createClan,
   ensureClanData,
   getClanLeaderboard,
   getTerritoryOfDay,
@@ -14,9 +17,11 @@ import {
   getUserClan,
   territories,
 } from '@/lib/clanSystem';
+import { useToast } from '@/hooks/use-toast';
 
 const Clans = () => {
   const { user, getAllUsers } = useAuth();
+  const { toast } = useToast();
   const [tick, setTick] = useState(0);
 
   const allUsers = useMemo(() => getAllUsers(), [getAllUsers]);
@@ -32,6 +37,25 @@ const Clans = () => {
 
   const maxEnergy = Math.max(...leaderboard.map((item) => item.energy), 1);
 
+  const handleCreateMyClan = () => {
+    if (!user) return;
+
+    const clanName = window.prompt('Nome do seu clã:');
+    if (!clanName?.trim()) return;
+
+    const motto = window.prompt('Mote do clã (opcional):')?.trim() || 'Juntos dominamos o território.';
+    const newClan = createClan({
+      name: clanName,
+      motto,
+      color: 'slate',
+      banner: '🛡️',
+    });
+
+    assignUserToClan(user.id, newClan.id);
+    toast({ title: 'Clã criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });
+    setTick((value) => value + 1);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -40,31 +64,41 @@ const Clans = () => {
         <p className="text-muted-foreground">Contribua com check-ins e ajude seu clã a dominar o território do dia.</p>
       </div>
 
-      {myClan && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> Meu Clã</CardTitle>
-            <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-2xl font-bold">{myClan.banner} {myClan.name}</p>
-              <p className="text-sm text-muted-foreground">{myClan.motto}</p>
-            </div>
-            {user && (
-              <DominationEnergyButton
-                userId={user.id}
-                activityId={`territory:${territoryState?.dayKey || new Date().toISOString().split('T')[0]}`}
-                activityType="event"
-                energy={25}
-                participationValid
-                className="w-full sm:w-auto"
-                onSuccess={() => setTick((value) => value + 1)}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> {myClan ? 'Meu Clã' : 'Sem Clã'}</CardTitle>
+          <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4 flex-wrap">
+          {myClan ? (
+            <>
+              <div>
+                <p className="text-2xl font-bold">{myClan.banner} {myClan.name}</p>
+                <p className="text-sm text-muted-foreground">{myClan.motto}</p>
+              </div>
+              {user && (
+                <DominationEnergyButton
+                  userId={user.id}
+                  activityId={`territory:${territoryState?.dayKey || new Date().toISOString().split('T')[0]}`}
+                  activityType="event"
+                  energy={25}
+                  participationValid
+                  className="w-full sm:w-auto"
+                  onSuccess={() => setTick((value) => value + 1)}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">Você ganhou XP pessoal! Entre em um clã para ajudar seu time a dominar territórios.</p>
+              <Button type="button" onClick={handleCreateMyClan} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Meu Clã
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
