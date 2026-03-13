@@ -12,6 +12,7 @@ import { Swords, Trophy, Plus } from 'lucide-react';
 import { equipmentCatalog, getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',
@@ -21,10 +22,9 @@ const categoryLabels: Record<WodCategory, string> = {
 
 const toValue = (result: string) => {
   if (result.includes(':')) {
-    const [m, s] = result.split(':').map(Number);
-    if (Number.isNaN(m) || Number.isNaN(s)) return { kind: 'time' as const, value: Number.POSITIVE_INFINITY };
-    return { kind: 'time' as const, value: m * 60 + s };
+    return { kind: 'time' as const, value: toDurationSeconds(result) };
   }
+
   const rounds = Number(result);
   return { kind: 'rounds' as const, value: Number.isNaN(rounds) ? 0 : rounds };
 };
@@ -89,6 +89,11 @@ const Battle = () => {
   const currentUserInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
   const canBet = (user?.level || 0) >= 10;
   const opponents = users.filter((item) => item.id !== user?.id);
+
+  const isTimeScoreDuel = (duel: Duel) => {
+    const duelWod = wods.find((item) => item.id === duel.wodId);
+    return duelWod?.type === 'For Time';
+  };
 
   const saveDuels = (items: Duel[]) => {
     setDuels(items);
@@ -162,6 +167,14 @@ const Battle = () => {
     if (!value) {
       toast({ title: 'Informe o resultado', description: 'Use formato mm:ss ou rounds.', variant: 'destructive' });
       return;
+    }
+
+    if (isTimeScoreDuel(duel)) {
+      const timeError = getDurationValidationError(value);
+      if (timeError) {
+        toast({ title: 'Tempo inválido', description: timeError, variant: 'destructive' });
+        return;
+      }
     }
 
     let updated = duels.map((item) => {
@@ -416,9 +429,14 @@ const Battle = () => {
                   {statusKey === 'active' && mine && (
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Seu resultado (mm:ss ou rounds)"
+                        placeholder={isTimeScoreDuel(duel) ? 'Seu resultado (mm:ss)' : 'Seu resultado (rounds)'}
                         value={submission[duel.id] || ''}
-                        onChange={(e) => setSubmission((prev) => ({ ...prev, [duel.id]: e.target.value }))}
+                        inputMode={isTimeScoreDuel(duel) ? 'numeric' : 'text'}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const nextValue = isTimeScoreDuel(duel) ? formatDurationInput(value) : value;
+                          setSubmission((prev) => ({ ...prev, [duel.id]: nextValue }));
+                        }}
                       />
                       <Button onClick={() => submitResult(duel)} disabled={!!mySubmitted}>Submeter</Button>
                     </div>

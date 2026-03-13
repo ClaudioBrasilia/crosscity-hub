@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Trophy, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
+import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
 
 const categoryLabels: Record<WodCategory, string> = {
@@ -18,11 +19,7 @@ const categoryLabels: Record<WodCategory, string> = {
   beginner: 'Iniciante',
 };
 
-const toTimeValue = (value: string) => {
-  const [minutes, seconds] = value.split(':').map(Number);
-  if (Number.isNaN(minutes) || Number.isNaN(seconds)) return Number.POSITIVE_INFINITY;
-  return minutes * 60 + seconds;
-};
+const toTimeValue = (value: string) => toDurationSeconds(value);
 
 const toRoundsValue = (value: string) => {
   const n = Number(value);
@@ -102,6 +99,14 @@ const WOD = () => {
     if (!dailyWod || !user || !resultValue.trim()) {
       toast({ title: 'Resultado inválido', description: 'Preencha seu resultado para registrar.', variant: 'destructive' });
       return;
+    }
+
+    if (scoreUnit === 'time') {
+      const timeError = getDurationValidationError(resultValue);
+      if (timeError) {
+        toast({ title: 'Tempo inválido', description: timeError, variant: 'destructive' });
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -259,7 +264,12 @@ const WOD = () => {
             </div>
             <div>
               <Label>{scoreUnit === 'time' ? 'Tempo (mm:ss)' : 'Rounds/Reps'}</Label>
-              <Input value={resultValue} onChange={(e) => setResultValue(e.target.value)} placeholder={scoreUnit === 'time' ? '12:34' : '15'} />
+              <Input
+                value={resultValue}
+                onChange={(e) => setResultValue(scoreUnit === 'time' ? formatDurationInput(e.target.value) : e.target.value)}
+                placeholder={scoreUnit === 'time' ? '12:34' : '15'}
+                inputMode={scoreUnit === 'time' ? 'numeric' : 'text'}
+              />
             </div>
           </div>
 
