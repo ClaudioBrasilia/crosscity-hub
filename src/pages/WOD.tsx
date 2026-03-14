@@ -104,7 +104,7 @@ const WOD = () => {
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
     return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && r.category === selectedCategory) || null;
-  }, [dailyWod, results, user, selectedCategory, selectedCategory]);
+  }, [dailyWod, results, user, selectedCategory]);
 
   // Pre-fill form when existing result is found for the selected category
   useEffect(() => {
@@ -135,13 +135,27 @@ const WOD = () => {
 
     setIsSubmitting(true);
 
-    const existing = results.find(
+    const existingInSameCategory = results.find(
       (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
     );
-    const isEdit = !!existing;
+    const existingInOtherCategory = results.find(
+      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category !== selectedCategory
+    );
+
+    if (existingInOtherCategory && !existingInSameCategory) {
+      toast({
+        title: 'Resultado já registrado em outra categoria',
+        description: `Você já registrou este WOD na categoria ${categoryLabels[existingInOtherCategory.category]}. Edite esse resultado existente ou troque de categoria conscientemente para continuar.`,
+        variant: 'destructive',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const isEdit = !!existingInSameCategory;
 
     const payload: DailyWodResult = {
-      id: existing?.id || `res_${Date.now()}`,
+      id: existingInSameCategory?.id || `res_${Date.now()}`,
       wodId: dailyWod.id,
       userId: user.id,
       userName: user.name,
@@ -152,8 +166,8 @@ const WOD = () => {
       submittedAt: Date.now(),
     };
 
-    const updatedResults = existing
-      ? results.map((item) => (item.id === existing.id ? payload : item))
+    const updatedResults = existingInSameCategory
+      ? results.map((item) => (item.id === existingInSameCategory.id ? payload : item))
       : [payload, ...results];
 
     localStorage.setItem('crosscity_wod_results', JSON.stringify(updatedResults));
