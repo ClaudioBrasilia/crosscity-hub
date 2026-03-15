@@ -41,6 +41,11 @@ export interface Duel {
   betType: 'equipment' | 'xp' | null;
   betItems: string[];
   betXpAmount: number | null;
+  betAccepted?: boolean;
+  betReserved?: boolean;
+  betReservedAt?: number | null;
+  betSettledAt?: number | null;
+  betCanceledAt?: number | null;
   createdAt: number;
 }
 
@@ -172,6 +177,11 @@ export const initializeMockData = () => {
         betType: null,
         betItems: [],
         betXpAmount: null,
+        betAccepted: true,
+        betReserved: false,
+        betReservedAt: null,
+        betSettledAt: null,
+        betCanceledAt: null,
         createdAt: Date.now() - 1200000,
       },
     ];
