@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Swords, Trophy, Plus } from 'lucide-react';
-import { equipmentCatalog, getNextEquipment } from '@/lib/equipmentData';
+import { getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
@@ -64,8 +64,7 @@ const Battle = () => {
   const [wodId, setWodId] = useState('');
   const [category, setCategory] = useState<WodCategory>('rx');
   const [betMode, setBetMode] = useState(false);
-  const [betType, setBetType] = useState<'equipment' | 'xp'>('equipment');
-  const [betItem, setBetItem] = useState('');
+  const [betType, setBetType] = useState<'none' | 'xp'>('none');
   const [betXpAmount, setBetXpAmount] = useState(100);
   const [submission, setSubmission] = useState<Record<string, string>>({});
 
@@ -86,8 +85,8 @@ const Battle = () => {
     if (loadedWods[0]) setWodId(loadedWods[0].id);
   }, []);
 
-  const currentUserInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
   const canBet = (user?.level || 0) >= 10;
+  const currentUserInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
   const opponents = users.filter((item) => item.id !== user?.id);
 
   const isTimeScoreDuel = (duel: Duel) => {
@@ -100,8 +99,24 @@ const Battle = () => {
     localStorage.setItem('crosscity_duels', JSON.stringify(items));
   };
 
+  const syncUsers = (nextUsers: any[]) => {
+    localStorage.setItem('crosscity_users', JSON.stringify(nextUsers));
+    setUsers(nextUsers);
+    if (user) {
+      const me = nextUsers.find((item) => item.id === user.id);
+      if (me) {
+        updateUser({ xp: me.xp, level: Math.floor((me.xp || 0) / 500) + 1 });
+      }
+    }
+  };
+
   const createDuel = () => {
     if (!user || !opponentId) return;
+
+    if (betMode && betType === 'xp' && betXpAmount > (user.xp || 0)) {
+      toast({ title: 'XP insuficiente', description: 'Você não pode apostar mais XP do que possui.', variant: 'destructive' });
+      return;
+    }
 
     let selectedWod: DailyWod;
 
@@ -140,25 +155,100 @@ const Battle = () => {
       opponentId,
       challengerResult: null,
       opponentResult: null,
-      status: 'active',
+      status: 'pending',
       winnerId: null,
       betMode,
-      betType: betMode ? betType : null,
-      betItems: betMode && betType === 'equipment' && betItem ? [betItem] : [],
+      betType: betMode && betType === 'xp' ? 'xp' : null,
+      betItems: [],
       betXpAmount: betMode && betType === 'xp' ? betXpAmount : null,
+      betAccepted: false,
+      betReserved: false,
+      betReservedAt: null,
+      betSettledAt: null,
+      betCanceledAt: null,
       createdAt: Date.now(),
     };
 
     saveDuels([duel, ...duels]);
-    toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. Agora os dois atletas podem submeter o resultado real.` });
+    toast({ title: 'Duelo criado!', description: `WOD: ${selectedWod.name}. O oponente precisa aceitar o duelo.` });
     setBetMode(false);
-    setBetItem('');
-    setBetType('equipment');
+    setBetType('none');
     setBetXpAmount(100);
     setCreateMode(false);
     setCustomName('');
     setCustomDescription('');
     setCustomWeight('');
+  };
+
+  const acceptDuel = (duelId: string) => {
+    if (!user) return;
+
+    const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status !== 'pending' || target.opponentId !== user.id) return;
+
+    let storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    const challenger = storedUsers.find((item: any) => item.id === target.challengerId);
+    const opponent = storedUsers.find((item: any) => item.id === target.opponentId);
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount) {
+      const amount = target.betXpAmount;
+      if (!challenger || !opponent || challenger.xp < amount || opponent.xp < amount) {
+        toast({ title: 'XP insuficiente', description: 'Um dos atletas não possui XP suficiente para confirmar a aposta.', variant: 'destructive' });
+        return;
+      }
+
+      storedUsers = storedUsers.map((item: any) => {
+        if (item.id === challenger.id || item.id === opponent.id) {
+          return { ...item, xp: item.xp - amount, level: Math.floor((item.xp - amount) / 500) + 1 };
+        }
+        return item;
+      });
+      syncUsers(storedUsers);
+    }
+
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? {
+          ...item,
+          status: 'active',
+          betAccepted: true,
+          betReserved: Boolean(item.betMode && item.betType === 'xp' && item.betXpAmount),
+          betReservedAt: item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : null,
+        }
+        : item
+    ));
+
+    saveDuels(nextDuels);
+    toast({ title: 'Duelo aceito', description: 'Duelo confirmado e pronto para envio de resultados.' });
+  };
+
+  const cancelDuel = (duelId: string) => {
+    if (!user) return;
+    const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status === 'finished') return;
+    if (target.challengerId !== user.id && target.opponentId !== user.id) return;
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount && target.betReserved && !target.betSettledAt) {
+      const amount = target.betXpAmount;
+      const storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+      const nextUsers = storedUsers.map((item: any) => {
+        if (item.id === target.challengerId || item.id === target.opponentId) {
+          return { ...item, xp: item.xp + amount, level: Math.floor((item.xp + amount) / 500) + 1 };
+        }
+        return item;
+      });
+      syncUsers(nextUsers);
+    }
+
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? { ...item, status: 'finished', winnerId: null, betCanceledAt: Date.now() }
+        : item
+    ));
+    saveDuels(nextDuels);
+    toast({ title: 'Duelo cancelado', description: 'A aposta foi desfeita com segurança.' });
   };
 
   const submitResult = (duel: Duel) => {
@@ -194,6 +284,40 @@ const Battle = () => {
       const winner = users.find((item) => item.id === winnerId);
       const loserId = winnerId === changed.challengerId ? changed.opponentId : changed.challengerId;
 
+      if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
+        const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+        const latest = storedDuels.find((item) => item.id === changed.id);
+        if (latest?.betSettledAt) {
+          saveDuels(updated);
+          setSubmission((prev) => ({ ...prev, [duel.id]: '' }));
+          return;
+        }
+
+        const amount = changed.betXpAmount;
+        const storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+        const nextUsers = storedUsers.map((item: any) => {
+          if (changed.betReserved) {
+            if (item.id === winnerId) {
+              const xp = item.xp + amount * 2;
+              return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+            }
+            return item;
+          }
+
+          if (item.id === winnerId) {
+            const xp = item.xp + amount;
+            return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+          }
+          if (item.id === loserId) {
+            const xp = Math.max(0, item.xp - amount);
+            return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+          }
+          return item;
+        });
+        syncUsers(nextUsers);
+        updated = updated.map((item) => item.id === changed.id ? { ...item, betSettledAt: Date.now() } : item);
+      }
+
       if (winnerId === user.id && user) {
         const currentWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
         localStorage.setItem(`crosscity_wins_${user.id}`, String(currentWins));
@@ -201,7 +325,6 @@ const Battle = () => {
         let inventory = [...currentUserInventory];
         if (changed.betMode && changed.betType === 'equipment' && changed.betItems.length > 0) {
           inventory = [...new Set([...inventory, ...changed.betItems])];
-          // Remove items from loser
           const loserInv: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${loserId}`) || '[]');
           const updatedLoserInv = loserInv.filter((i) => !changed.betItems.includes(i));
           localStorage.setItem(`crosscity_inventory_${loserId}`, JSON.stringify(updatedLoserInv));
@@ -211,22 +334,12 @@ const Battle = () => {
         }
         localStorage.setItem(`crosscity_inventory_${user.id}`, JSON.stringify(inventory));
 
-        let xpGain = 150;
-        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
-          xpGain += changed.betXpAmount;
-        }
+        const xpGain = 150;
         const newXp = (user.xp || 0) + xpGain;
         updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
         toast({ title: 'Vitória no duelo! 🏆', description: `+${xpGain} XP${changed.betType === 'equipment' ? ' e equipamento ganho' : ''}.` });
       } else {
-        // Loser loses XP if bet type is xp
-        if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount && user) {
-          const newXp = Math.max(0, (user.xp || 0) - changed.betXpAmount);
-          updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
-          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu. Você perdeu ${changed.betXpAmount} XP.` });
-        } else {
-          toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
-        }
+        toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
       }
 
       const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
@@ -348,25 +461,14 @@ const Battle = () => {
                 <div className="space-y-3">
                   <div>
                     <Label className="text-xs">Tipo de aposta</Label>
-                    <Select value={betType} onValueChange={(v) => setBetType(v as 'equipment' | 'xp')}>
+                    <Select value={betType} onValueChange={(v) => setBetType(v as 'none' | 'xp')}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="equipment">🎰 Equipamento</SelectItem>
+                        <SelectItem value="none">Sem aposta</SelectItem>
                         <SelectItem value="xp">⚡ XP</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {betType === 'equipment' && (
-                    <Select value={betItem} onValueChange={setBetItem}>
-                      <SelectTrigger><SelectValue placeholder="Escolha equipamento da aposta" /></SelectTrigger>
-                      <SelectContent>
-                        {currentUserInventory.map((eqId) => {
-                          const equipment = equipmentCatalog.find((item) => item.id === eqId);
-                          return equipment ? <SelectItem key={equipment.id} value={equipment.id}>{equipment.emoji} {equipment.name}</SelectItem> : null;
-                        })}
-                      </SelectContent>
-                    </Select>
-                  )}
                   {betType === 'xp' && (
                     <div>
                       <Label className="text-xs">Quantidade de XP (mín. 50, máx. {user?.xp || 0})</Label>
@@ -384,7 +486,7 @@ const Battle = () => {
             </div>
           )}
 
-          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && betType === 'equipment' && !betItem) || (betMode && betType === 'xp' && betXpAmount < 50)}>
+          <Button className="md:col-span-2" onClick={createDuel} disabled={!opponentId || (!createMode && !wodId) || (createMode && (!customName || !customDescription)) || (betMode && betType === 'xp' && betXpAmount < 50)}>
             Criar duelo
           </Button>
         </CardContent>
@@ -412,6 +514,7 @@ const Battle = () => {
                         {duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
                         {duel.betMode && duel.betType === 'xp' && <Badge variant="outline" className="ml-1">⚡ {duel.betXpAmount} XP</Badge>}
                         {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline" className="ml-1">🎰 Equipamento</Badge>}
+                        {duel.betCanceledAt && <Badge variant="outline" className="ml-1">Cancelado</Badge>}
                       </p>
                       <p className="text-sm text-muted-foreground">{getUserName(duel.challengerId)} vs {getUserName(duel.opponentId)}</p>
                     </div>
@@ -439,6 +542,21 @@ const Battle = () => {
                         }}
                       />
                       <Button onClick={() => submitResult(duel)} disabled={!!mySubmitted}>Submeter</Button>
+                    </div>
+                  )}
+
+                  {statusKey === 'pending' && mine && (
+                    <div className="flex gap-2">
+                      {duel.opponentId === user?.id && (
+                        <Button onClick={() => acceptDuel(duel.id)}>Aceitar</Button>
+                      )}
+                      <Button variant="outline" onClick={() => cancelDuel(duel.id)}>Cancelar</Button>
+                    </div>
+                  )}
+
+                  {statusKey === 'active' && mine && (
+                    <div>
+                      <Button variant="outline" size="sm" onClick={() => cancelDuel(duel.id)}>Cancelar duelo</Button>
                     </div>
                   )}
                 </div>
