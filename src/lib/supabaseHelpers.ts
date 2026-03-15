@@ -171,20 +171,8 @@ export async function createWOD(wod: Database['public']['Tables']['wods']['Inser
 }
 
 // ============ REAL-TIME SUBSCRIPTIONS ============
-export function subscribeToUserChanges(userId: string, callback: (user: any) => void) {
-  return supabase
-    .from(`users:id=eq.${userId}`)
-    .on('*', (payload) => {
-      callback(payload.new);
-    })
-    .subscribe();
-}
+// Note: Real-time subscriptions com Supabase v2 devem usar supabase.channel()
+// As funções abaixo foram removidas pois usam a API v1 obsoleta.
+// Para implementar real-time, use:
+// const channel = supabase.channel('users').on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => { ... }).subscribe();
 
-export function subscribeToDuelChanges(callback: (duel: any) => void) {
-  return supabase
-    .from('duels')
-    .on('*', (payload) => {
-      callback(payload.new);
-    })
-    .subscribe();
-}

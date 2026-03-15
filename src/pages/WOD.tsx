@@ -84,7 +84,7 @@ const WOD = () => {
         duel.wodId === dailyWod.id &&
         duel.category === selectedCategory &&
         duel.status === 'active' &&
-        (duel.challengerId === user.id || duel.opponentId === user.id)
+        (duel.challengerId === user.id || duel.opponentIds.includes(user.id))
     );
   }, [dailyWod, duels, selectedCategory, user, results]);
 

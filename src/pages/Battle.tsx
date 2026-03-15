@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Swords, Trophy, Plus } from 'lucide-react';
 import { getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
@@ -107,6 +107,7 @@ const Battle = () => {
   const [duels, setDuels] = useState<Duel[]>([]);
 
   const [selectedOpponents, setSelectedOpponents] = useState<string[]>([]);
+  const [opponentSearch, setOpponentSearch] = useState('');
   const [wodId, setWodId] = useState('');
   const [category, setCategory] = useState<WodCategory>('rx');
   const [betMode, setBetMode] = useState(false);
@@ -289,7 +290,7 @@ const Battle = () => {
       return {
         ...item,
         acceptedBy: newAcceptedBy,
-        status: allAccepted ? 'active' : 'pending',
+        status: (allAccepted ? 'active' : 'pending') as const,
         betReserved: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? true : item.betReserved,
         betReservedAt: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : item.betReservedAt,
       };
@@ -323,7 +324,7 @@ const Battle = () => {
 
     const nextDuels = storedDuels.map((item) => (
       item.id === duelId
-        ? { ...item, status: 'finished', winnerId: null, betCanceledAt: Date.now() }
+        ? { ...item, status: 'finished' as const, winnerId: null, betCanceledAt: Date.now() }
         : item
     ));
     saveDuels(nextDuels);
@@ -467,28 +468,56 @@ const Battle = () => {
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <Label>Oponentes (selecione pelo menos um)</Label>
-            <div className="border rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
-              {opponents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum oponente disponível.</p>
-              ) : (
-                opponents.map((opponent) => (
-                  <div key={opponent.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`opponent_${opponent.id}`}
-                      checked={selectedOpponents.includes(opponent.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedOpponents([...selectedOpponents, opponent.id]);
-                        } else {
-                          setSelectedOpponents(selectedOpponents.filter((id) => id !== opponent.id));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`opponent_${opponent.id}`} className="cursor-pointer font-normal">
-                      {opponent.name} (Lvl {opponent.level || 1})
-                    </Label>
-                  </div>
-                ))
+            <div className="space-y-2">
+              <Input
+                placeholder="Buscar oponente pelo nome..."
+                value={opponentSearch}
+                onChange={(e) => setOpponentSearch(e.target.value)}
+              />
+              {opponentSearch && (
+                <div className="border rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto bg-secondary/5">
+                  {opponents
+                    .filter((opponent) => opponent.name.toLowerCase().includes(opponentSearch.toLowerCase()))
+                    .length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum oponente encontrado.</p>
+                  ) : (
+                    opponents
+                      .filter((opponent) => opponent.name.toLowerCase().includes(opponentSearch.toLowerCase()))
+                      .map((opponent) => (
+                        <div
+                          key={opponent.id}
+                          className="p-2 rounded cursor-pointer hover:bg-secondary/20 transition-colors"
+                          onClick={() => {
+                            if (!selectedOpponents.includes(opponent.id)) {
+                              setSelectedOpponents([...selectedOpponents, opponent.id]);
+                              setOpponentSearch('');
+                            }
+                          }}
+                        >
+                          <p className="font-medium">{opponent.name}</p>
+                          <p className="text-xs text-muted-foreground">Lvl {opponent.level || 1}</p>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+              {selectedOpponents.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {selectedOpponents.map((opponentId) => {
+                    const opponent = users.find((u) => u.id === opponentId);
+                    return (
+                      <Badge key={opponentId} variant="secondary" className="pl-3">
+                        {opponent?.name}
+                        <button
+                          className="ml-2 hover:text-destructive"
+                          onClick={() => setSelectedOpponents(selectedOpponents.filter((id) => id !== opponentId))}
+                        >
+                          ✕
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
