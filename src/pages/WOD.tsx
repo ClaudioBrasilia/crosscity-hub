@@ -19,6 +19,8 @@ const categoryLabels: Record<WodCategory, string> = {
   beginner: 'Iniciante',
 };
 
+const getResultCategory = (result: DailyWodResult): WodCategory => result.category || 'beginner';
+
 const toTimeValue = (value: string) => toDurationSeconds(value);
 
 const toRoundsValue = (value: string) => {
@@ -88,7 +90,7 @@ const WOD = () => {
 
   const categoryRanking = useMemo(() => {
     if (!dailyWod) return [];
-    const entries = results.filter((item) => item.wodId === dailyWod.id && item.category === selectedCategory);
+    const entries = results.filter((item) => item.wodId === dailyWod.id && getResultCategory(item) === selectedCategory);
     const sorted = [...entries].sort((a, b) => {
       if (a.unit === 'time' && b.unit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
       if (a.unit === 'rounds' && b.unit === 'rounds') return toRoundsValue(b.result) - toRoundsValue(a.result);
@@ -103,7 +105,7 @@ const WOD = () => {
   // Check if user already submitted for this WOD in the selected category
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
-    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && r.category === selectedCategory) || null;
+    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && getResultCategory(r) === selectedCategory) || null;
   }, [dailyWod, results, user, selectedCategory, selectedCategory]);
 
   // Pre-fill form when existing result is found for the selected category
@@ -135,9 +137,7 @@ const WOD = () => {
 
     setIsSubmitting(true);
 
-    const existing = results.find(
-      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
-    );
+    const existing = results.find((item) => item.wodId === dailyWod.id && item.userId === user.id);
     const isEdit = !!existing;
 
     const payload: DailyWodResult = {
@@ -162,7 +162,7 @@ const WOD = () => {
     window.dispatchEvent(new Event('storage'));
 
     const currentCategoryResults = updatedResults
-      .filter((item) => item.wodId === dailyWod.id && item.category === selectedCategory)
+      .filter((item) => item.wodId === dailyWod.id && getResultCategory(item) === selectedCategory)
       .sort((a, b) => {
         if (scoreUnit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
         return toRoundsValue(b.result) - toRoundsValue(a.result);
