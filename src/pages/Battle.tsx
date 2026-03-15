@@ -244,6 +244,77 @@ const Battle = () => {
         }
         : item
     ));
+
+    saveDuels(nextDuels);
+    toast({ title: 'Duelo aceito', description: 'Duelo confirmado e pronto para envio de resultados.' });
+  };
+
+  const cancelDuel = (duelId: string) => {
+    if (!user) return;
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status === 'finished') return;
+    if (target.challengerId !== user.id && target.opponentId !== user.id) return;
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount && target.betReserved && !target.betSettledAt) {
+      const amount = target.betXpAmount;
+      const storedUsers = parseStorage<any[]>('crosscity_users', []);
+      const nextUsers = storedUsers.map((item: any) => {
+        if (item.id === target.challengerId || item.id === target.opponentId) {
+          return { ...item, xp: item.xp + amount, level: Math.floor((item.xp + amount) / 500) + 1 };
+        }
+        return item;
+      });
+      syncUsers(nextUsers);
+    }
+
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? { ...item, status: 'finished', winnerId: null, betCanceledAt: Date.now() }
+        : item
+    ));
+    saveDuels(nextDuels);
+    toast({ title: 'Duelo cancelado', description: 'A aposta foi desfeita com segurança.' });
+  };
+
+  const submitResult = (duel: Duel) => {
+    if (!user) return;
+
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status !== 'pending' || target.opponentId !== user.id) return;
+
+    let storedUsers = parseStorage<any[]>('crosscity_users', []);
+    const challenger = storedUsers.find((item: any) => item.id === target.challengerId);
+    const opponent = storedUsers.find((item: any) => item.id === target.opponentId);
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount) {
+      const amount = target.betXpAmount;
+      if (!challenger || !opponent || challenger.xp < amount || opponent.xp < amount) {
+        toast({ title: 'XP insuficiente', description: 'Um dos atletas não possui XP suficiente para confirmar a aposta.', variant: 'destructive' });
+        return;
+      }
+
+      storedUsers = storedUsers.map((item: any) => {
+        if (item.id === challenger.id || item.id === opponent.id) {
+          return { ...item, xp: item.xp - amount, level: Math.floor((item.xp - amount) / 500) + 1 };
+        }
+        return item;
+      });
+      syncUsers(storedUsers);
+    }
+
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? {
+          ...item,
+          status: 'active',
+          betAccepted: true,
+          betReserved: Boolean(item.betMode && item.betType === 'xp' && item.betXpAmount),
+          betReservedAt: item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : null,
+        }
+        : item
+    ));
     saveDuels(nextDuels as Duel[]);
     toast({ title: 'Duelo aceito!', description: 'Agora você pode submeter seu resultado.' });
   };
@@ -291,33 +362,98 @@ const Battle = () => {
 
     const nextDuels = duels.map((item) => {
       if (item.id !== duel.id) return item;
-      const updated = {
-        ...item,
-        challengerResult: item.challengerId === user.id ? result : item.challengerResult,
-        opponentResult: item.opponentId === user.id ? result : item.opponentResult,
-      };
+      if (item.challengerId === user.id) return { ...item, challengerResult: value };
+      if (item.opponentId === user.id) return { ...item, opponentResult: value };
+      return item;
+    });
 
-      if (updated.challengerResult && updated.opponentResult) {
-        updated.status = 'finished';
-        updated.winnerId = pickWinner(updated.challengerResult, updated.opponentResult, updated.challengerId, updated.opponentId);
+    const changed = updated.find((item) => item.id === duel.id);
+    if (changed?.challengerResult && changed.opponentResult && changed.status !== 'finished') {
+      const winnerId = pickWinner(changed.challengerResult, changed.opponentResult, changed.challengerId, changed.opponentId);
+      updated = updated.map((item) =>
+        item.id === duel.id ? { ...item, status: 'finished', winnerId } : item
+      );
 
-        if (updated.betMode && updated.betType === 'xp' && updated.betXpAmount) {
-          const totalPot = updated.betXpAmount * 2;
-          const storedUsers = parseStorage<any[]>('crosscity_users', []);
-          const nextUsers = storedUsers.map((u: any) => {
-            if (u.id === updated.winnerId) {
-              return { ...u, xp: u.xp + totalPot, level: Math.floor((u.xp + totalPot) / 500) + 1 };
-            }
-            return u;
-          });
-          syncUsers(nextUsers);
-          toast({ title: 'Duelo finalizado!', description: `Vencedor: ${getUserName(updated.winnerId)}. Prêmio: ${totalPot} XP!` });
+      const winner = users.find((item) => item.id === winnerId);
+      const loserId = winnerId === changed.challengerId ? changed.opponentId : changed.challengerId;
+
+      if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
+        const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+        const latest = storedDuels.find((item) => item.id === changed.id);
+        if (latest?.betSettledAt) {
+          saveDuels(updated);
+          setSubmission((prev) => ({ ...prev, [duel.id]: '' }));
+          return;
         }
+
+        const amount = changed.betXpAmount;
+        const storedUsers = parseStorage<any[]>('crosscity_users', []);
+        const nextUsers = storedUsers.map((item: any) => {
+          if (changed.betReserved) {
+            if (item.id === winnerId) {
+              const xp = item.xp + amount * 2;
+              return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+            }
+            return item;
+          }
+
+          if (item.id === winnerId) {
+            const xp = item.xp + amount;
+            return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+          }
+          if (item.id === loserId) {
+            const xp = Math.max(0, item.xp - amount);
+            return { ...item, xp, level: Math.floor(xp / 500) + 1 };
+          }
+          return item;
+        });
+        syncUsers(nextUsers);
+        updated = updated.map((item) => item.id === changed.id ? { ...item, betSettledAt: Date.now() } : item);
+      }
+
+      if (winnerId === user.id && user) {
+        const currentWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
+        localStorage.setItem(`crosscity_wins_${user.id}`, String(currentWins));
+
+        let inventory = [...currentUserInventory];
+        if (changed.betMode && changed.betType === 'equipment' && changed.betItems.length > 0) {
+          inventory = [...new Set([...inventory, ...changed.betItems])];
+          const loserInv = parseStorage<string[]>(`crosscity_inventory_${loserId}`, []);
+          const updatedLoserInv = loserInv.filter((i) => !changed.betItems.includes(i));
+          localStorage.setItem(`crosscity_inventory_${loserId}`, JSON.stringify(updatedLoserInv));
+        } else if (!changed.betMode) {
+          const reward = getNextEquipment(currentWins);
+          if (reward) inventory = [...new Set([...inventory, reward.id])];
+        }
+        localStorage.setItem(`crosscity_inventory_${user.id}`, JSON.stringify(inventory));
+
+        const xpGain = 150;
+        const newXp = (user.xp || 0) + xpGain;
+        updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
+        toast({ title: 'Vitória no duelo! 🏆', description: `+${xpGain} XP${changed.betType === 'equipment' ? ' e equipamento ganho' : ''}.` });
+      } else {
+        toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
       }
       return updated;
     });
 
-    saveDuels(nextDuels as Duel[]);
+      const feed = parseStorage<any[]>('crosscity_feed', []);
+      feed.unshift({
+        id: `post_${Date.now()}`,
+        userId: winnerId,
+        userName: winner?.name || 'Atleta',
+        userAvatar: winner?.avatar || '🏆',
+        content: `Venceu duelo em ${changed.wodName} (${categoryLabels[changed.category]}).`,
+        wodName: 'Duelos',
+        time: 'Vitória',
+        reactions: { fire: 0, clap: 0, muscle: 0 },
+        comments: 0,
+        timestamp: Date.now(),
+      });
+      localStorage.setItem('crosscity_feed', JSON.stringify(feed));
+    }
+
+    saveDuels(updated);
     setSubmission((prev) => ({ ...prev, [duel.id]: '' }));
   };
 
