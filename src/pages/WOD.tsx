@@ -26,6 +26,29 @@ const toRoundsValue = (value: string) => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+const formatTimeInput = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (!digits) return '';
+
+  if (digits.length <= 2) {
+    return `0:${digits.padStart(2, '0')}`;
+  }
+
+  const minutes = digits.slice(0, -2).replace(/^0+(?=\d)/, '');
+  const seconds = digits.slice(-2);
+  return `${minutes || '0'}:${seconds}`;
+};
+
+const getTimeValidationError = (value: string) => {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) return 'Preencha seu tempo para registrar.';
+  if (!/^\d+:[0-5]\d$/.test(trimmedValue)) {
+    return 'Tempo inválido. Use o formato m:ss ou mm:ss com segundos entre 00 e 59.';
+  }
+
+  return null;
+};
 
 const WOD = () => {
   const { user, updateUser } = useAuth();
@@ -81,7 +104,7 @@ const WOD = () => {
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
     return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && r.category === selectedCategory) || null;
-  }, [dailyWod, results, user, selectedCategory]);
+  }, [dailyWod, results, user, selectedCategory, selectedCategory]);
 
   // Pre-fill form when existing result is found for the selected category
   useEffect(() => {
@@ -112,27 +135,13 @@ const WOD = () => {
 
     setIsSubmitting(true);
 
-    const existingInSameCategory = results.find(
+    const existing = results.find(
       (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category === selectedCategory
     );
-    const existingInOtherCategory = results.find(
-      (item) => item.wodId === dailyWod.id && item.userId === user.id && item.category !== selectedCategory
-    );
-
-    if (existingInOtherCategory && !existingInSameCategory) {
-      toast({
-        title: 'Resultado já registrado em outra categoria',
-        description: `Você já registrou este WOD na categoria ${categoryLabels[existingInOtherCategory.category]}. Edite esse resultado existente ou troque de categoria conscientemente para continuar.`,
-        variant: 'destructive',
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    const isEdit = !!existingInSameCategory;
+    const isEdit = !!existing;
 
     const payload: DailyWodResult = {
-      id: existingInSameCategory?.id || `res_${Date.now()}`,
+      id: existing?.id || `res_${Date.now()}`,
       wodId: dailyWod.id,
       userId: user.id,
       userName: user.name,
@@ -143,8 +152,8 @@ const WOD = () => {
       submittedAt: Date.now(),
     };
 
-    const updatedResults = existingInSameCategory
-      ? results.map((item) => (item.id === existingInSameCategory.id ? payload : item))
+    const updatedResults = existing
+      ? results.map((item) => (item.id === existing.id ? payload : item))
       : [payload, ...results];
 
     localStorage.setItem('crosscity_wod_results', JSON.stringify(updatedResults));
