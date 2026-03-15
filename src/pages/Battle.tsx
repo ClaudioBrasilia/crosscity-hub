@@ -279,21 +279,88 @@ const Battle = () => {
 
   const submitResult = (duel: Duel) => {
     if (!user) return;
-    const value = submission[duel.id];
-    if (!value) {
-      toast({ title: 'Informe o resultado', description: 'Use formato mm:ss ou rounds.', variant: 'destructive' });
-      return;
+
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status !== 'pending' || target.opponentId !== user.id) return;
+
+    let storedUsers = parseStorage<any[]>('crosscity_users', []);
+    const challenger = storedUsers.find((item: any) => item.id === target.challengerId);
+    const opponent = storedUsers.find((item: any) => item.id === target.opponentId);
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount) {
+      const amount = target.betXpAmount;
+      if (!challenger || !opponent || challenger.xp < amount || opponent.xp < amount) {
+        toast({ title: 'XP insuficiente', description: 'Um dos atletas não possui XP suficiente para confirmar a aposta.', variant: 'destructive' });
+        return;
+      }
+
+      storedUsers = storedUsers.map((item: any) => {
+        if (item.id === challenger.id || item.id === opponent.id) {
+          return { ...item, xp: item.xp - amount, level: Math.floor((item.xp - amount) / 500) + 1 };
+        }
+        return item;
+      });
+      syncUsers(storedUsers);
     }
 
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? {
+          ...item,
+          status: 'active',
+          betAccepted: true,
+          betReserved: Boolean(item.betMode && item.betType === 'xp' && item.betXpAmount),
+          betReservedAt: item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : null,
+        }
+        : item
+    ));
+    saveDuels(nextDuels as Duel[]);
+    toast({ title: 'Duelo aceito!', description: 'Agora você pode submeter seu resultado.' });
+  };
+
+  const cancelDuel = (duelId: string) => {
+    if (!user) return;
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+    const target = storedDuels.find((item) => item.id === duelId);
+    if (!target || target.status === 'finished') return;
+    if (target.challengerId !== user.id && target.opponentId !== user.id) return;
+
+    if (target.betMode && target.betType === 'xp' && target.betXpAmount && target.betReserved && !target.betSettledAt) {
+      const amount = target.betXpAmount;
+      const storedUsers = parseStorage<any[]>('crosscity_users', []);
+      const nextUsers = storedUsers.map((u: any) => {
+        if (u.id === target.challengerId || u.id === target.opponentId) {
+          return { ...u, xp: u.xp + amount, level: Math.floor((u.xp + amount) / 500) + 1 };
+        }
+        return u;
+      });
+      syncUsers(nextUsers);
+    }
+
+    const nextDuels = storedDuels.map((item) => (
+      item.id === duelId
+        ? { ...item, status: 'finished', winnerId: null, betCanceledAt: Date.now() }
+        : item
+    ));
+    saveDuels(nextDuels as Duel[]);
+    toast({ title: 'Duelo cancelado', description: 'O duelo foi removido e as apostas devolvidas (se houver).' });
+  };
+
+  const submitResult = (duel: Duel) => {
+    if (!user) return;
+    const result = submission[duel.id];
+    if (!result) return;
+
     if (isTimeScoreDuel(duel)) {
-      const timeError = getDurationValidationError(value);
-      if (timeError) {
-        toast({ title: 'Tempo inválido', description: timeError, variant: 'destructive' });
+      const error = getDurationValidationError(result);
+      if (error) {
+        toast({ title: 'Formato inválido', description: error, variant: 'destructive' });
         return;
       }
     }
 
-    let updated = duels.map((item) => {
+    const nextDuels = duels.map((item) => {
       if (item.id !== duel.id) return item;
       if (item.challengerId === user.id) return { ...item, challengerResult: value };
       if (item.opponentId === user.id) return { ...item, opponentResult: value };
@@ -367,6 +434,8 @@ const Battle = () => {
       } else {
         toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
       }
+      return updated;
+    });
 
       const feed = parseStorage<any[]>('crosscity_feed', []);
       feed.unshift({
@@ -388,74 +457,68 @@ const Battle = () => {
     setSubmission((prev) => ({ ...prev, [duel.id]: '' }));
   };
 
+  const getUserName = (id: string) => users.find((u) => u.id === id)?.name || 'Atleta';
+
   const duelGroups = useMemo(() => ({
-    pending: duels.filter((duel) => duel.status === 'pending'),
-    active: duels.filter((duel) => duel.status === 'active'),
-    finished: duels.filter((duel) => duel.status === 'finished'),
+    pending: duels.filter((d) => d.status === 'pending'),
+    active: duels.filter((d) => d.status === 'active'),
+    finished: duels.filter((d) => d.status === 'finished'),
   }), [duels]);
 
-  const getUserName = (id: string) => users.find((item) => item.id === id)?.name || id;
-
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">Duelos Diretos</h1>
+    <div className="container max-w-4xl py-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Arena de Duelos</h1>
+          <p className="text-muted-foreground">Desafie outros atletas e prove sua força.</p>
+        </div>
+        <Swords className="h-10 w-10 text-primary" />
+      </div>
 
-      <Card className="border-primary/20">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5" /> Criar duelo 1v1</CardTitle>
-          <CardDescription>Escolha colega, WOD e categoria. Cada atleta envia o resultado real após completar o treino.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" /> Novo Desafio
+          </CardTitle>
+          <CardDescription>Escolha um oponente e um WOD para duelar.</CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-4">
+        <CardContent className="grid gap-4 md:grid-cols-2">
           <div>
-            <Label>Colega</Label>
+            <Label>Oponente</Label>
             <Select value={opponentId} onValueChange={setOpponentId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar colega" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecione um atleta" /></SelectTrigger>
               <SelectContent>
                 {opponents.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>{item.avatar} {item.name}</SelectItem>
+                  <SelectItem key={item.id} value={item.id}>{item.name} (Lvl {item.level || 1})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="md:col-span-2 space-y-3">
-            <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
               <Label>WOD</Label>
-              <Button variant="ghost" size="sm" onClick={() => setCreateMode(!createMode)} className="text-xs gap-1">
-                <Plus className="h-3 w-3" />
-                {createMode ? 'Selecionar existente' : 'Criar WOD'}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setCreateMode(!createMode)}>
+                {createMode ? 'Selecionar existente' : 'Criar personalizado'}
               </Button>
             </div>
-
             {createMode ? (
-              <div className="grid md:grid-cols-2 gap-3 p-3 border rounded-lg bg-secondary/10">
-                <div>
-                  <Label className="text-xs">Nome do WOD</Label>
-                  <Input placeholder="Ex: Death by Thrusters" value={customName} onChange={(e) => setCustomName(e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs">Tipo</Label>
-                  <Select value={customType} onValueChange={(v) => setCustomType(v as 'For Time' | 'AMRAP' | 'EMOM')}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="For Time">For Time</SelectItem>
-                      <SelectItem value="AMRAP">AMRAP</SelectItem>
-                      <SelectItem value="EMOM">EMOM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label className="text-xs">Descrição / Movimentos</Label>
-                  <Textarea placeholder="Ex: 21-15-9 Thrusters e Pull-ups" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} rows={3} />
-                </div>
-                <div>
-                  <Label className="text-xs">Carga RX (kg, opcional)</Label>
-                  <Input placeholder="Ex: 43" value={customWeight} onChange={(e) => setCustomWeight(e.target.value)} />
-                </div>
+              <div className="space-y-2">
+                <Input placeholder="Nome do WOD" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                <Select value={customType} onValueChange={(v: any) => setCustomType(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="For Time">For Time</SelectItem>
+                    <SelectItem value="AMRAP">AMRAP</SelectItem>
+                    <SelectItem value="EMOM">EMOM</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Textarea placeholder="Descrição/Movimentos" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} />
+                <Input placeholder="Peso sugerido (opcional)" value={customWeight} onChange={(e) => setCustomWeight(e.target.value)} />
               </div>
             ) : (
               <Select value={wodId} onValueChange={setWodId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar WOD" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione um WOD" /></SelectTrigger>
                 <SelectContent>
                   {wods.map((item) => (
                     <SelectItem key={item.id} value={item.id}>{item.name} • {item.date}</SelectItem>
