@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Trophy, Medal, Award } from 'lucide-react';
+import type { DailyWodResult } from '@/lib/mockData';
 
 type Category = 'rx' | 'scaled' | 'beginner';
 type Gender = 'male' | 'female';
@@ -30,15 +31,28 @@ const genderLabels: Record<Gender, string> = {
 const Leaderboard = () => {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [checkins, setCheckins] = useState<Record<string, string[]>>({});
+  const [results, setResults] = useState<DailyWodResult[]>([]);
+  const [dailyWodId, setDailyWodId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]').map(({ password, ...item }: any) => ({
-      ...item,
-      category: item.category || 'beginner',
-      gender: item.gender || 'male',
-    }));
-    setUsers(loadedUsers);
-    setCheckins(JSON.parse(localStorage.getItem('crosscity_checkins') || '{}'));
+    const syncData = () => {
+      const loadedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]').map(({ password, ...item }: any) => ({
+        ...item,
+        category: item.category || 'beginner',
+        gender: item.gender || 'male',
+      }));
+
+      const dailyWod = JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null');
+
+      setUsers(loadedUsers);
+      setCheckins(JSON.parse(localStorage.getItem('crosscity_checkins') || '{}'));
+      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
+      setDailyWodId(dailyWod?.id || null);
+    };
+
+    syncData();
+    window.addEventListener('storage', syncData);
+    return () => window.removeEventListener('storage', syncData);
   }, []);
 
   const getMedal = (index: number) => {
@@ -48,9 +62,27 @@ const Leaderboard = () => {
     return <span className="text-xs font-bold text-muted-foreground">#{index + 1}</span>;
   };
 
+  const getResultCategory = (result: DailyWodResult | undefined): Category => result?.category || 'beginner';
+
+  const getUserRankingCategory = (user: LeaderboardUser): Category => {
+    const userResults = results.filter((result) => result.userId === user.id);
+    const latestForDailyWod = dailyWodId
+      ? userResults
+          .filter((result) => result.wodId === dailyWodId)
+          .sort((a, b) => b.submittedAt - a.submittedAt)[0]
+      : undefined;
+
+    if (latestForDailyWod) return getResultCategory(latestForDailyWod);
+
+    const latestResult = [...userResults].sort((a, b) => b.submittedAt - a.submittedAt)[0];
+    if (latestResult) return getResultCategory(latestResult);
+
+    return user.category || 'beginner';
+  };
+
   const rankingFor = (category: Category, gender: Gender) => {
     return [...users]
-      .filter((user) => user.category === category && user.gender === gender)
+      .filter((user) => getUserRankingCategory(user) === category && user.gender === gender)
       .sort((a, b) => (Number(b.xp) || 0) - (Number(a.xp) || 0));
   };
 
