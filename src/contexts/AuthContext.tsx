@@ -45,13 +45,17 @@ const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
   return 'athlete';
 };
 
-const normalizeUser = (raw: any): User => ({
-  ...raw,
-  individualEnergy: Number(raw.individualEnergy ?? raw.xp ?? 0),
-  gender: raw.gender || 'male',
-  category: raw.category || 'beginner',
-  role: resolveRole(raw),
-});
+const normalizeUser = (raw: any): User | null => {
+  if (!raw || typeof raw !== 'object') return null;
+
+  return {
+    ...raw,
+    individualEnergy: Number(raw.individualEnergy ?? raw.xp ?? 0),
+    gender: raw.gender || 'male',
+    category: raw.category || 'beginner',
+    role: resolveRole(raw),
+  };
+};
 
 const migrateStoredUsers = () => {
   const usersData = localStorage.getItem('crosscity_users') || '[]';
@@ -85,9 +89,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const storedUser = localStorage.getItem('crosscity_user');
     if (storedUser) {
-      const normalizedUser = normalizeUser(JSON.parse(storedUser));
-      setUser(normalizedUser);
-      localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
+      try {
+        const normalizedUser = normalizeUser(JSON.parse(storedUser));
+        if (normalizedUser) {
+          setUser(normalizedUser);
+          localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
+        } else {
+          localStorage.removeItem('crosscity_user');
+        }
+      } catch {
+        localStorage.removeItem('crosscity_user');
+      }
     }
   }, []);
 
@@ -98,6 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (foundUser) {
       const { password: _, ...userWithoutPassword } = foundUser;
       const normalizedUser = normalizeUser(userWithoutPassword);
+      if (!normalizedUser) {
+        throw new Error('Invalid user data');
+      }
       setUser(normalizedUser);
       localStorage.setItem('crosscity_user', JSON.stringify(normalizedUser));
     } else {
@@ -174,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return JSON.parse(usersData).map((u: any) => {
       const { password: _, ...rest } = u;
       return normalizeUser(rest);
-    });
+    }).filter(Boolean);
   };
 
   const setUserRole = (userId: string, role: UserRole) => {
