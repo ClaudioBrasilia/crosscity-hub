@@ -209,11 +209,11 @@ const Battle = () => {
   const acceptDuel = (duelId: string) => {
     if (!user) return;
 
-    const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
     const target = storedDuels.find((item) => item.id === duelId);
     if (!target || target.status !== 'pending' || target.opponentId !== user.id) return;
 
-    let storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    let storedUsers = parseStorage<any[]>('crosscity_users', []);
     const challenger = storedUsers.find((item: any) => item.id === target.challengerId);
     const opponent = storedUsers.find((item: any) => item.id === target.opponentId);
 
@@ -251,14 +251,14 @@ const Battle = () => {
 
   const cancelDuel = (duelId: string) => {
     if (!user) return;
-    const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+    const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
     const target = storedDuels.find((item) => item.id === duelId);
     if (!target || target.status === 'finished') return;
     if (target.challengerId !== user.id && target.opponentId !== user.id) return;
 
     if (target.betMode && target.betType === 'xp' && target.betXpAmount && target.betReserved && !target.betSettledAt) {
       const amount = target.betXpAmount;
-      const storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+      const storedUsers = parseStorage<any[]>('crosscity_users', []);
       const nextUsers = storedUsers.map((item: any) => {
         if (item.id === target.challengerId || item.id === target.opponentId) {
           return { ...item, xp: item.xp + amount, level: Math.floor((item.xp + amount) / 500) + 1 };
@@ -311,7 +311,7 @@ const Battle = () => {
       const loserId = winnerId === changed.challengerId ? changed.opponentId : changed.challengerId;
 
       if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
-        const storedDuels: Duel[] = JSON.parse(localStorage.getItem('crosscity_duels') || '[]');
+        const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
         const latest = storedDuels.find((item) => item.id === changed.id);
         if (latest?.betSettledAt) {
           saveDuels(updated);
@@ -320,7 +320,7 @@ const Battle = () => {
         }
 
         const amount = changed.betXpAmount;
-        const storedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+        const storedUsers = parseStorage<any[]>('crosscity_users', []);
         const nextUsers = storedUsers.map((item: any) => {
           if (changed.betReserved) {
             if (item.id === winnerId) {
@@ -351,7 +351,7 @@ const Battle = () => {
         let inventory = [...currentUserInventory];
         if (changed.betMode && changed.betType === 'equipment' && changed.betItems.length > 0) {
           inventory = [...new Set([...inventory, ...changed.betItems])];
-          const loserInv: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${loserId}`) || '[]');
+          const loserInv = parseStorage<string[]>(`crosscity_inventory_${loserId}`, []);
           const updatedLoserInv = loserInv.filter((i) => !changed.betItems.includes(i));
           localStorage.setItem(`crosscity_inventory_${loserId}`, JSON.stringify(updatedLoserInv));
         } else if (!changed.betMode) {
@@ -368,7 +368,7 @@ const Battle = () => {
         toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
       }
 
-      const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
+      const feed = parseStorage<any[]>('crosscity_feed', []);
       feed.unshift({
         id: `post_${Date.now()}`,
         userId: winnerId,
