@@ -32,16 +32,15 @@ export interface Duel {
   wodName: string;
   category: WodCategory;
   challengerId: string;
-  opponentId: string;
-  challengerResult: string | null;
-  opponentResult: string | null;
+  opponentIds: string[];
+  results: Record<string, string | null>;
   status: 'pending' | 'active' | 'finished';
   winnerId: string | null;
   betMode: boolean;
   betType: 'equipment' | 'xp' | null;
   betItems: string[];
   betXpAmount: number | null;
-  betAccepted?: boolean;
+  acceptedBy: string[];
   betReserved?: boolean;
   betReservedAt?: number | null;
   betSettledAt?: number | null;
@@ -168,16 +167,15 @@ export const initializeMockData = () => {
         wodName: mockDailyWods[0].name,
         category: 'rx',
         challengerId: 'user_1',
-        opponentId: 'user_2',
-        challengerResult: null,
-        opponentResult: null,
+        opponentIds: ['user_2'],
+        results: { user_1: null, user_2: null },
         status: 'active',
         winnerId: null,
         betMode: false,
         betType: null,
         betItems: [],
         betXpAmount: null,
-        betAccepted: true,
+        acceptedBy: ['user_2'],
         betReserved: false,
         betReservedAt: null,
         betSettledAt: null,
