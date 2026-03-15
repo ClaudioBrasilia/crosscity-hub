@@ -290,7 +290,7 @@ const Battle = () => {
       return {
         ...item,
         acceptedBy: newAcceptedBy,
-        status: (allAccepted ? 'active' : 'pending') as const,
+        status: allAccepted ? 'active' as Duel['status'] : 'pending' as Duel['status'],
         betReserved: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? true : item.betReserved,
         betReservedAt: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : item.betReservedAt,
       };
@@ -324,7 +324,7 @@ const Battle = () => {
 
     const nextDuels = storedDuels.map((item) => (
       item.id === duelId
-        ? { ...item, status: 'finished' as const, winnerId: null, betCanceledAt: Date.now() }
+        ? { ...item, status: 'finished' as Duel['status'], winnerId: null, betCanceledAt: Date.now() }
         : item
     ));
     saveDuels(nextDuels);

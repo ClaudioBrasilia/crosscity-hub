@@ -185,9 +185,13 @@ const WOD = () => {
     if (activeDuel && submitToDuel) {
       const updatedDuels = duels.map((duel) => {
         if (duel.id !== activeDuel.id) return duel;
-        return duel.challengerId === user.id
-          ? { ...duel, challengerResult: resultValue }
-          : { ...duel, opponentResult: resultValue };
+        return {
+          ...duel,
+          results: {
+            ...duel.results,
+            [user.id]: resultValue
+          }
+        };
       });
       localStorage.setItem('crosscity_duels', JSON.stringify(updatedDuels));
       setDuels(updatedDuels);
