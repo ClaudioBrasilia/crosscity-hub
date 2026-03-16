@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
+import { normalizeDuel, checkAllResultsSubmitted, settleBet, pickWinner } from '@/lib/duelLogic';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',
@@ -52,6 +53,52 @@ const getTimeValidationError = (value: string) => {
   return null;
 };
 
+const parseStorage = <T,>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+};
+
+const toValue = (result: string) => {
+  if (result.includes(':')) {
+    return { kind: 'time' as const, value: toDurationSeconds(result) };
+  }
+
+  const rounds = Number(result);
+  return { kind: 'rounds' as const, value: Number.isNaN(rounds) ? 0 : rounds };
+};
+
+const pickWinnerLocal = (results: Record<string, string>, participantIds: string[]) => {
+  const validResults = participantIds.filter((id) => results[id]);
+  if (validResults.length === 0) return null;
+
+  let winnerId = validResults[0];
+  let winnerValue = toValue(results[winnerId]);
+
+  for (let i = 1; i < validResults.length; i++) {
+    const id = validResults[i];
+    const value = toValue(results[id]);
+
+    if (winnerValue.kind === 'time' && value.kind === 'time') {
+      if (value.value < winnerValue.value) {
+        winnerId = id;
+        winnerValue = value;
+      }
+    } else if (winnerValue.kind === 'rounds' && value.kind === 'rounds') {
+      if (value.value > winnerValue.value) {
+        winnerId = id;
+        winnerValue = value;
+      }
+    }
+  }
+
+  return winnerId;
+};
+
 const WOD = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
@@ -62,16 +109,20 @@ const WOD = () => {
   const [submitToDuel, setSubmitToDuel] = useState(true);
   const [results, setResults] = useState<DailyWodResult[]>([]);
   const [duels, setDuels] = useState<Duel[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setDailyWod(JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null'));
     setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
-    setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]'));
+    setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]').map(normalizeDuel));
+    setUsers(JSON.parse(localStorage.getItem('crosscity_users') || '[]'));
 
     // Listen for storage changes (updates from other tabs/windows)
     const handleStorageChange = () => {
       setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
+      setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]').map(normalizeDuel));
+      setUsers(JSON.parse(localStorage.getItem('crosscity_users') || '[]'));
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -106,7 +157,7 @@ const WOD = () => {
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
     return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && getResultCategory(r) === selectedCategory) || null;
-  }, [dailyWod, results, user, selectedCategory, selectedCategory]);
+  }, [dailyWod, results, user, selectedCategory]);
 
   // Pre-fill form when existing result is found for the selected category
   useEffect(() => {
@@ -182,8 +233,9 @@ const WOD = () => {
       }
     }
 
+    let updatedDuels = duels;
     if (activeDuel && submitToDuel) {
-      const updatedDuels = duels.map((duel) => {
+      updatedDuels = duels.map((duel) => {
         if (duel.id !== activeDuel.id) return duel;
         return {
           ...duel,
@@ -193,6 +245,56 @@ const WOD = () => {
           }
         };
       });
+
+      // Verificar se todos os resultados foram enviados
+      const changedDuel = updatedDuels.find((d) => d.id === activeDuel.id);
+      if (changedDuel && checkAllResultsSubmitted(changedDuel) && changedDuel.status !== 'finished') {
+        const allParticipants = [changedDuel.challengerId, ...changedDuel.opponentIds];
+        const winnerId = pickWinnerLocal(changedDuel.results, allParticipants);
+
+        if (winnerId) {
+          // Liquidar a aposta
+          let storedUsers = parseStorage<any[]>('crosscity_users', []);
+          const { updatedUsers, updatedDuel } = settleBet(changedDuel, winnerId, storedUsers);
+          
+          updatedDuels = updatedDuels.map((d) =>
+            d.id === changedDuel.id ? updatedDuel : d
+          );
+
+          localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
+          setUsers(updatedUsers);
+
+          // Atualizar o usuário atual se ele for o vencedor
+          if (winnerId === user.id) {
+            const updatedUser = updatedUsers.find((u) => u.id === user.id);
+            if (updatedUser) {
+              const xpGain = 150;
+              const finalXp = updatedUser.xp + xpGain;
+              updateUser({ xp: finalXp, level: Math.floor(finalXp / 500) + 1 });
+              toast({ title: 'Vitória no duelo! 🏆', description: `Duelo finalizado. XP da aposta liquidado.` });
+            }
+          } else {
+            toast({ title: 'Duelo finalizado', description: `${updatedUsers.find((u) => u.id === winnerId)?.name || 'Outro atleta'} venceu.` });
+          }
+
+          // Adicionar ao feed
+          const feed = parseStorage<any[]>('crosscity_feed', []);
+          feed.unshift({
+            id: `post_${Date.now()}`,
+            userId: winnerId,
+            userName: updatedUsers.find((u) => u.id === winnerId)?.name || 'Atleta',
+            userAvatar: updatedUsers.find((u) => u.id === winnerId)?.avatar || '🏆',
+            content: `Venceu duelo em ${changedDuel.wodName} (${categoryLabels[changedDuel.category]}).`,
+            wodName: 'Duelos',
+            time: 'Vitória',
+            reactions: { fire: 0, clap: 0, muscle: 0 },
+            comments: 0,
+            timestamp: Date.now(),
+          });
+          localStorage.setItem('crosscity_feed', JSON.stringify(feed));
+        }
+      }
+
       localStorage.setItem('crosscity_duels', JSON.stringify(updatedDuels));
       setDuels(updatedDuels);
       // Force a re-render

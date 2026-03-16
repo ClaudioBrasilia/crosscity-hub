@@ -14,6 +14,7 @@ import { getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
+import { normalizeDuel, calculateWinner, reserveXp, refundXp, settleBet, checkAllResultsSubmitted } from '@/lib/duelLogic';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',
@@ -81,23 +82,6 @@ const parseStorage = <T,>(key: string, fallback: T): T => {
     return fallback;
   }
 };
-
-const normalizeDuel = (item: any): Duel => ({
-  ...item,
-  opponentIds: Array.isArray(item?.opponentIds) ? item.opponentIds : [item?.opponentId || ''],
-  results: typeof item?.results === 'object' ? item.results : { [item?.challengerId]: item?.challengerResult, [item?.opponentId]: item?.opponentResult },
-  acceptedBy: Array.isArray(item?.acceptedBy) ? item.acceptedBy : (item?.betAccepted ? [item?.opponentId] : []),
-  status: item?.status === 'pending' || item?.status === 'active' || item?.status === 'finished' ? item.status : 'active',
-  winnerId: item?.winnerId ?? null,
-  betMode: Boolean(item?.betMode),
-  betType: item?.betType === 'xp' || item?.betType === 'equipment' ? item.betType : null,
-  betItems: Array.isArray(item?.betItems) ? item.betItems : [],
-  betXpAmount: typeof item?.betXpAmount === 'number' ? item.betXpAmount : null,
-  betReserved: Boolean(item?.betReserved),
-  betReservedAt: typeof item?.betReservedAt === 'number' ? item.betReservedAt : null,
-  betSettledAt: typeof item?.betSettledAt === 'number' ? item.betSettledAt : null,
-  betCanceledAt: typeof item?.betCanceledAt === 'number' ? item.betCanceledAt : null,
-});
 
 const Battle = () => {
   const { user, updateUser } = useAuth();
@@ -258,41 +242,28 @@ const Battle = () => {
 
     let storedUsers = parseStorage<any[]>('crosscity_users', []);
 
-    // Se for aposta de XP, reservar o XP
-    if (target.betMode && target.betType === 'xp' && target.betXpAmount) {
-      const amount = target.betXpAmount;
-      const allParticipants = [target.challengerId, ...target.opponentIds];
-      
-      for (const participantId of allParticipants) {
-        const participant = storedUsers.find((u) => u.id === participantId);
-        if (!participant || participant.xp < amount) {
-          toast({ title: 'XP insuficiente', description: `${participant?.name || 'Um atleta'} não possui XP suficiente para confirmar a aposta.`, variant: 'destructive' });
-          return;
-        }
-      }
-
-      // Reservar XP de todos os participantes
-      storedUsers = storedUsers.map((item: any) => {
-        if (allParticipants.includes(item.id)) {
-          return { ...item, xp: item.xp - amount, level: Math.floor((item.xp - amount) / 500) + 1 };
-        }
-        return item;
-      });
-      syncUsers(storedUsers);
-    }
-
     const nextDuels = storedDuels.map((item) => {
       if (item.id !== duelId) return item;
       
       const newAcceptedBy = [...item.acceptedBy, user.id];
       const allAccepted = newAcceptedBy.length === item.opponentIds.length;
 
+      // Reservar XP apenas quando o duelo passa de pending para active
+      if (allAccepted && !item.betReserved && item.betMode && item.betType === 'xp' && item.betXpAmount) {
+        const { updatedUsers: nextUsers, updatedDuel } = reserveXp(item, storedUsers);
+        storedUsers = nextUsers;
+        syncUsers(nextUsers);
+        return {
+          ...updatedDuel,
+          acceptedBy: newAcceptedBy,
+          status: 'active' as Duel['status'],
+        };
+      }
+
       return {
         ...item,
         acceptedBy: newAcceptedBy,
         status: allAccepted ? 'active' as Duel['status'] : 'pending' as Duel['status'],
-        betReserved: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? true : item.betReserved,
-        betReservedAt: allAccepted && item.betMode && item.betType === 'xp' && item.betXpAmount ? Date.now() : item.betReservedAt,
       };
     });
 
@@ -308,18 +279,11 @@ const Battle = () => {
     if (target.challengerId !== user.id && !target.opponentIds.includes(user.id)) return;
 
     // Se houver aposta de XP reservada, devolver o XP
+    let storedUsers = parseStorage<any[]>('crosscity_users', []);
     if (target.betMode && target.betType === 'xp' && target.betXpAmount && target.betReserved && !target.betSettledAt) {
-      const amount = target.betXpAmount;
-      const storedUsers = parseStorage<any[]>('crosscity_users', []);
-      const allParticipants = [target.challengerId, ...target.opponentIds];
-      
-      const nextUsers = storedUsers.map((item: any) => {
-        if (allParticipants.includes(item.id)) {
-          return { ...item, xp: item.xp + amount, level: Math.floor((item.xp + amount) / 500) + 1 };
-        }
-        return item;
-      });
+      const nextUsers = refundXp(target, storedUsers);
       syncUsers(nextUsers);
+      storedUsers = nextUsers;
     }
 
     const nextDuels = storedDuels.map((item) => (
@@ -352,44 +316,24 @@ const Battle = () => {
     const changed = nextDuels.find((item) => item.id === duel.id);
     if (changed) {
       const allParticipants = [changed.challengerId, ...changed.opponentIds];
-      const allSubmitted = allParticipants.every((id) => changed.results[id]);
+      const allSubmitted = checkAllResultsSubmitted(changed);
 
       if (allSubmitted && changed.status !== 'finished') {
         const winnerId = pickWinner(changed.results, allParticipants);
 
         if (winnerId) {
-          nextDuels.forEach((item, index) => {
-            if (item.id === duel.id) {
-              nextDuels[index] = { ...item, status: 'finished', winnerId };
-            }
-          });
+          // Liquidar a aposta
+          let storedUsers = parseStorage<any[]>('crosscity_users', []);
+          const { updatedUsers, updatedDuel } = settleBet(changed, winnerId, storedUsers);
+          
+          const finalNextDuels = nextDuels.map((item) =>
+            item.id === changed.id ? updatedDuel : item
+          );
 
-          const winner = users.find((item) => item.id === winnerId);
+          const winner = updatedUsers.find((item) => item.id === winnerId);
           const loserIds = allParticipants.filter((id) => id !== winnerId);
 
-          if (changed.betMode && changed.betType === 'xp' && changed.betXpAmount) {
-            const storedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
-            const latest = storedDuels.find((item) => item.id === changed.id);
-            if (!latest?.betSettledAt) {
-              const amount = changed.betXpAmount;
-              const storedUsers = parseStorage<any[]>('crosscity_users', []);
-              const nextUsers = storedUsers.map((item: any) => {
-                if (item.id === winnerId) {
-                  const totalWinnings = amount * loserIds.length;
-                  const xp = item.xp + totalWinnings;
-                  return { ...item, xp, level: Math.floor(xp / 500) + 1 };
-                }
-                return item;
-              });
-              syncUsers(nextUsers);
-
-              nextDuels.forEach((item, index) => {
-                if (item.id === changed.id) {
-                  nextDuels[index] = { ...item, betSettledAt: Date.now() };
-                }
-              });
-            }
-          }
+          syncUsers(updatedUsers);
 
           if (winnerId === user.id && user) {
             const currentWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
@@ -410,7 +354,7 @@ const Battle = () => {
             localStorage.setItem(`crosscity_inventory_${user.id}`, JSON.stringify(inventory));
 
             const xpGain = 150;
-            const newXp = (user.xp || 0) + xpGain;
+            const newXp = (updatedUsers.find((u) => u.id === user.id)?.xp || 0) + xpGain;
             updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
             toast({ title: 'Vitória no duelo! 🏆', description: `+${xpGain} XP${changed.betType === 'equipment' ? ' e equipamento ganho' : ''}.` });
           } else {
@@ -432,11 +376,14 @@ const Battle = () => {
             timestamp: Date.now(),
           });
           localStorage.setItem('crosscity_feed', JSON.stringify(feed));
+
+          saveDuels(finalNextDuels);
         }
+      } else {
+        saveDuels(nextDuels);
       }
     }
 
-    saveDuels(nextDuels);
     setSubmission((prev) => ({ ...prev, [duel.id]: '' }));
   };
 
@@ -643,13 +590,14 @@ const Battle = () => {
                 <div key={duel.id} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">
-                        {duel.wodName} <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
-                        {duel.betMode && duel.betType === 'xp' && <Badge variant="outline" className="ml-1">⚡ {duel.betXpAmount} XP</Badge>}
-                        {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline" className="ml-1">🎰 Equipamento</Badge>}
-                        {duel.betCanceledAt && <Badge variant="outline" className="ml-1">Cancelado</Badge>}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold">{duel.wodName}</span>
+                        <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
+                        {duel.betMode && duel.betType === 'xp' && <Badge variant="outline">⚡ {duel.betXpAmount} XP</Badge>}
+                        {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline">🎰 Equipamento</Badge>}
+                        {duel.betCanceledAt && <Badge variant="outline">Cancelado</Badge>}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
                         {getUserName(duel.challengerId)} vs {duel.opponentIds.map((id) => getUserName(id)).join(', ')}
                       </p>
                     </div>
