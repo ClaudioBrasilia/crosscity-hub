@@ -179,7 +179,7 @@ const Dashboard = () => {
               CrossUberlandia • Nível {user?.level} - {getAthleteTitle(user?.level || 1)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Status do Clã: {myClan ? `${myClan.banner} ${myClan.name}` : 'Sem clã'}
+            Status do Time: {myClan ? `${myClan.banner} ${myClan.name}` : 'Sem time'}
             </p>
             <div className="mt-2 space-y-1 max-w-sm">
               <div className="flex justify-between text-sm">
@@ -386,13 +386,13 @@ const Dashboard = () => {
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Swords className="h-5 w-5 text-primary" />
-            Guerra de Clãs
+            Guerra de Times
           </CardTitle>
-          <CardDescription>Seu check-in fortalece o domínio territorial do seu clã.</CardDescription>
+          <CardDescription>Seu check-in fortalece o domínio territorial do seu time.</CardDescription>
         </CardHeader>
         <CardContent>
           <Link to="/clans">
-            <Button variant="outline" size="sm" className="w-full">Ver Clãs & Territórios →</Button>
+            <Button variant="outline" size="sm" className="w-full">Ver Times & Territórios →</Button>
           </Link>
         </CardContent>
       </Card>

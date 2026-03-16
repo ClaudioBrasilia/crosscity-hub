@@ -89,8 +89,7 @@ export const clanRewards: ClanReward[] = [
   {
     id: 'reward_workshop',
     title: 'Brinde Surpresa',
-    description: 'Um item exclusivo para o clã que dominar o território. O brinde será revelado no final do mês!',
-    type: 'real',
+   description: 'Um item exclusivo para o time que dominar o território. O brinde será revelado no final do mês!',    type: 'real',
   },
   { id: 'reward_badges', title: 'Badges de Honra', description: 'Medalha digital para guerreiros de consistência.', type: 'digital' },
   {
@@ -633,6 +632,6 @@ export const generateDominationEnergyForActivity = (params: {
     clan,
     message: clan
       ? `+${energy} XP pessoal e +${clanEnergy} energia para ${clan.name}.`
-      : 'Você ganhou XP pessoal! Entre em um clã para ajudar seu time a dominar territórios.',
+    : 'Você ganhou XP pessoal! Entre em um time para ajudar seu time a dominar territórios.',
   };
 };

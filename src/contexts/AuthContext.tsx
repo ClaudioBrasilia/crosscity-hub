@@ -34,8 +34,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const COACH_EMAILS = new Set([\"alex@crosscity.com\"]);
-const ADMIN_EMAILS = new Set([\'alex@crosscity.com\', \'initial_admin@crosscity.com\']);
+const COACH_EMAILS = new Set(["alex@crosscity.com"]);
+const ADMIN_EMAILS = new Set(['alex@crosscity.com', 'initial_admin@crosscity.com']);
 const resolveRole = (raw: { email?: string; role?: unknown }): UserRole => {
   const email = raw.email?.toLowerCase() || '';
   if (ADMIN_EMAILS.has(email)) return 'admin';

@@ -40,11 +40,9 @@ const Clans = () => {
   const handleCreateMyClan = () => {
     if (!user) return;
 
-    const clanName = window.prompt('Nome do seu clã:');
-    if (!clanName?.trim()) return;
+   const clanName = window.prompt('Nome do seu time:');    if (!clanName?.trim()) return;
 
-    const motto = window.prompt('Mote do clã (opcional):')?.trim() || 'Juntos dominamos o território.';
-    const newClan = createClan({
+    const motto = window.prompt('Mote do time (opcional):')?.trim() || 'Juntos dominamos o território.'; const newClan = createClan({
       name: clanName,
       motto,
       color: 'slate',
@@ -52,22 +50,20 @@ const Clans = () => {
     });
 
     assignUserToClan(user.id, newClan.id);
-    toast({ title: 'Clã criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });
-    setTick((value) => value + 1);
+    toast({ title: 'Time criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });   setTick((value) => value + 1);
   };
 
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Clãs & Territórios</h1>
-        <p className="text-muted-foreground">Contribua com check-ins e ajude seu clã a dominar o território do dia.</p>
+        <h1 className="text-3xl font-bold">Times & Territórios</h1>
+        <p className="text-muted-foreground">Contribua com check-ins e ajude seu time a dominar o território do dia.</p>
       </div>
 
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> {myClan ? 'Meu Clã' : 'Sem Clã'}</CardTitle>
-          <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> {myClan ? 'Meu Time' : 'Sem Time'}</CardTitle>         <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-between gap-4 flex-wrap">
           {myClan ? (
@@ -90,10 +86,10 @@ const Clans = () => {
             </>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">Você ganhou XP pessoal! Entre em um clã para ajudar seu time a dominar territórios.</p>
+              <p className="text-sm text-muted-foreground">Você ganhou XP pessoal! Entre em um time para ajudar seu time a dominar territórios.</p>
               <Button type="button" onClick={handleCreateMyClan} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                Criar Meu Clã
+                Criar Meu Time
               </Button>
             </>
           )}
@@ -118,14 +114,14 @@ const Clans = () => {
               ))}
             </div>
             {territoryState?.winnerClanId && (
-              <Badge variant="secondary">Clã líder atualizado em tempo real</Badge>
+              <Badge variant="secondary">Time líder atualizado em tempo real</Badge>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Leaderboard de Clãs</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Leaderboard de Times</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {leaderboard.map((entry, index) => (
@@ -146,7 +142,7 @@ const Clans = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Economia de Clã</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Economia de Time</CardTitle>
           <CardDescription>Benefícios desbloqueados por presença e domínio de território.</CardDescription>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-3 gap-3">
