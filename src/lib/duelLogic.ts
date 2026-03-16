@@ -19,7 +19,7 @@ export const normalizeDuel = (item: any): Duel => ({
   betCanceledAt: typeof item?.betCanceledAt === 'number' ? item.betCanceledAt : null,
 });
 
-export const calculateWinner = (duel: Duel, users: User[]): string | null => {
+export const calculateWinner = (duel: Duel, users: DuelUser[]): string | null => {
   // Implementar lógica de cálculo do vencedor aqui
   // Por enquanto, retorna o desafiante como vencedor se houver resultados
   const participantIds = [duel.challengerId, ...duel.opponentIds];
