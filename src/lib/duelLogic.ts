@@ -90,7 +90,7 @@ export const reserveXp = (duel: Duel, users: DuelUser[]): { updatedUsers: DuelUs
   return { updatedUsers, updatedDuel };
 };
 
-export const refundXp = (duel: Duel, users: User[]): User[] => {
+export const refundXp = (duel: Duel, users: DuelUser[]): DuelUser[] => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || !duel.betReserved || duel.betSettledAt) {
     return users;
   }
