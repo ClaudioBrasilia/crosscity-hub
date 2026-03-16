@@ -108,7 +108,7 @@ export const refundXp = (duel: Duel, users: DuelUser[]): DuelUser[] => {
   return updatedUsers;
 };
 
-export const settleBet = (duel: Duel, winnerId: string | null, users: User[]): { updatedUsers: User[]; updatedDuel: Duel; } => {
+export const settleBet = (duel: Duel, winnerId: string | null, users: DuelUser[]): { updatedUsers: DuelUser[]; updatedDuel: Duel; } => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || !duel.betReserved || duel.betSettledAt) {
     return { updatedUsers: users, updatedDuel: duel };
   }
