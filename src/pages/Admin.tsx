@@ -1,16 +1,31 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import { Shield, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Users, Loader2 } from 'lucide-react';
+
+interface UserItem {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  role: 'athlete' | 'coach' | 'admin';
+}
 
 const Admin = () => {
   const { user, getAllUsers, setUserRole } = useAuth();
   const { toast } = useToast();
-  const [users, setUsers] = useState(getAllUsers());
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAllUsers().then((data) => {
+      setUsers(data as UserItem[]);
+      setLoading(false);
+    });
+  }, []);
 
   if (user?.role !== 'admin') {
     return (
@@ -22,9 +37,10 @@ const Admin = () => {
     );
   }
 
-  const handleRoleChange = (userId: string, newRole: 'athlete' | 'coach' | 'admin') => {
-    setUserRole(userId, newRole);
-    setUsers(getAllUsers());
+  const handleRoleChange = async (userId: string, newRole: 'athlete' | 'coach' | 'admin') => {
+    await setUserRole(userId, newRole);
+    const updated = await getAllUsers();
+    setUsers(updated as UserItem[]);
     const roleLabels: Record<string, string> = { athlete: 'Atleta', coach: 'Professor', admin: 'Admin' };
     toast({
       title: 'Papel atualizado!',
@@ -33,9 +49,9 @@ const Admin = () => {
   };
 
   const roleColor = (role: string) => {
-    if (role === 'admin') return 'destructive';
-    if (role === 'coach') return 'default';
-    return 'secondary';
+    if (role === 'admin') return 'destructive' as const;
+    if (role === 'coach') return 'default' as const;
+    return 'secondary' as const;
   };
 
   const roleLabel = (role: string) => {
@@ -59,39 +75,45 @@ const Admin = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {users.map((u: any) => (
-              <div
-                key={u.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{u.avatar || '👤'}</span>
-                  <div>
-                    <p className="font-medium">{u.name}</p>
-                    <p className="text-sm text-muted-foreground">{u.email}</p>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{u.avatar || '👤'}</span>
+                    <div>
+                      <p className="font-medium">{u.name}</p>
+                      <p className="text-sm text-muted-foreground">{u.email}</p>
+                    </div>
+                    <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
                   </div>
-                  <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
-                </div>
 
-                {u.id !== user.id && (
-                  <Select
-                    value={u.role}
-                    onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="athlete">Atleta</SelectItem>
-                      <SelectItem value="coach">Professor</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            ))}
-          </div>
+                  {u.id !== user?.id && (
+                    <Select
+                      value={u.role}
+                      onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="athlete">Atleta</SelectItem>
+                        <SelectItem value="coach">Professor</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

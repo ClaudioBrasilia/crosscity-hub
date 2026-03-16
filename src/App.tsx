@@ -27,7 +27,8 @@ import Clans from "./pages/Clans";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 };
 
