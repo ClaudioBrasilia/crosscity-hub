@@ -117,7 +117,7 @@ const Battle = () => {
   }, []);
 
   const userLevel = user?.level ?? Math.floor((user?.xp || 0) / 500) + 1;
-  const canBet = userLevel >= 10;
+  const canBet = true;
   const currentUserInventory = parseStorage<string[]>(`crosscity_inventory_${user?.id}`, []);
   const opponents = users.filter((item) => item.id !== user?.id);
 
@@ -515,10 +515,9 @@ const Battle = () => {
             </Select>
           </div>
 
-          {canBet && (
-            <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
+          <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label>Modo aposta (nível 10+)</Label>
+                <Label>Modo aposta</Label>
                 <Switch checked={betMode} onCheckedChange={setBetMode} />
               </div>
               {betMode && (
@@ -550,8 +549,7 @@ const Battle = () => {
                   )}
                 </div>
               )}
-            </div>
-          )}
+          </div>
 
           <Button 
             className="md:col-span-2" 
