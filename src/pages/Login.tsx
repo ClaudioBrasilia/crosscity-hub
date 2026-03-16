@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const { login, register, resetPassword } = useAuth();
+  const { login, register, resetPassword, user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
