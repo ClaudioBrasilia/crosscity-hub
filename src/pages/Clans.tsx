@@ -24,7 +24,11 @@ const Clans = () => {
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
 
-  const allUsers = useMemo(() => getAllUsers(), [getAllUsers]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    getAllUsers().then((users) => setAllUsers(users));
+  }, []);
 
   useEffect(() => {
     ensureClanData(allUsers);
