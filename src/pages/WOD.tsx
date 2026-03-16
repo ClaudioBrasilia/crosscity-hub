@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
-import { normalizeDuel, checkAllResultsSubmitted, settleBet, pickWinner } from '@/lib/duelLogic';
+import { normalizeDuel, checkAllResultsSubmitted, settleBet, calculateWinner } from '@/lib/duelLogic';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',

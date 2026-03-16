@@ -1,4 +1,6 @@
-import type { Duel, User } from './mockData';
+import type { Duel } from './mockData';
+
+type DuelUser = { id: string; xp: number; [key: string]: any };
 
 export const normalizeDuel = (item: any): Duel => ({
   ...item,
@@ -17,7 +19,7 @@ export const normalizeDuel = (item: any): Duel => ({
   betCanceledAt: typeof item?.betCanceledAt === 'number' ? item.betCanceledAt : null,
 });
 
-export const calculateWinner = (duel: Duel, users: User[]): string | null => {
+export const calculateWinner = (duel: Duel, users: DuelUser[]): string | null => {
   // Implementar lógica de cálculo do vencedor aqui
   // Por enquanto, retorna o desafiante como vencedor se houver resultados
   const participantIds = [duel.challengerId, ...duel.opponentIds];
@@ -68,7 +70,7 @@ const parseTime = (timeStr: string): number => {
   return 0;
 };
 
-export const reserveXp = (duel: Duel, users: User[]): { updatedUsers: User[]; updatedDuel: Duel; } => {
+export const reserveXp = (duel: Duel, users: DuelUser[]): { updatedUsers: DuelUser[]; updatedDuel: Duel; } => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || duel.betReserved) {
     return { updatedUsers: users, updatedDuel: duel };
   }
@@ -88,7 +90,7 @@ export const reserveXp = (duel: Duel, users: User[]): { updatedUsers: User[]; up
   return { updatedUsers, updatedDuel };
 };
 
-export const refundXp = (duel: Duel, users: User[]): User[] => {
+export const refundXp = (duel: Duel, users: DuelUser[]): DuelUser[] => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || !duel.betReserved || duel.betSettledAt) {
     return users;
   }
@@ -106,7 +108,7 @@ export const refundXp = (duel: Duel, users: User[]): User[] => {
   return updatedUsers;
 };
 
-export const settleBet = (duel: Duel, winnerId: string | null, users: User[]): { updatedUsers: User[]; updatedDuel: Duel; } => {
+export const settleBet = (duel: Duel, winnerId: string | null, users: DuelUser[]): { updatedUsers: DuelUser[]; updatedDuel: Duel; } => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || !duel.betReserved || duel.betSettledAt) {
     return { updatedUsers: users, updatedDuel: duel };
   }
