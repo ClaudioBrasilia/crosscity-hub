@@ -1,4 +1,6 @@
-import type { Duel, User } from './mockData';
+import type { Duel } from './mockData';
+
+type DuelUser = { id: string; xp: number; [key: string]: any };
 
 export const normalizeDuel = (item: any): Duel => ({
   ...item,
