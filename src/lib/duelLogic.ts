@@ -70,7 +70,7 @@ const parseTime = (timeStr: string): number => {
   return 0;
 };
 
-export const reserveXp = (duel: Duel, users: User[]): { updatedUsers: User[]; updatedDuel: Duel; } => {
+export const reserveXp = (duel: Duel, users: DuelUser[]): { updatedUsers: DuelUser[]; updatedDuel: Duel; } => {
   if (!duel.betMode || duel.betType !== 'xp' || !duel.betXpAmount || duel.betReserved) {
     return { updatedUsers: users, updatedDuel: duel };
   }
