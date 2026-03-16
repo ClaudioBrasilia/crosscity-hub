@@ -93,6 +93,8 @@ const Login = () => {
     }
   };
 
+  if (!loading && user) return <Navigate to="/" />;
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/20">
       <Card className="w-full max-w-md border-primary/20">
