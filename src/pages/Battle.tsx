@@ -116,7 +116,6 @@ const Battle = () => {
     if (loadedWods[0]) setWodId(loadedWods[0].id);
   }, []);
 
-  const canBet = true;
   const currentUserInventory = parseStorage<string[]>(`crosscity_inventory_${user?.id}`, []);
   const opponents = users.filter((item) => item.id !== user?.id);
 
@@ -514,10 +513,9 @@ const Battle = () => {
             </Select>
           </div>
 
-          {canBet && (
-            <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
+          <div className="space-y-3 p-3 border rounded-lg bg-secondary/10 md:col-span-2">
               <div className="flex items-center justify-between">
-                <Label>Modo aposta (nível 10+)</Label>
+                <Label>Modo aposta</Label>
                 <Switch checked={betMode} onCheckedChange={setBetMode} />
               </div>
               {betMode && (
@@ -550,7 +548,6 @@ const Battle = () => {
                 </div>
               )}
             </div>
-          )}
 
           <Button 
             className="md:col-span-2" 
