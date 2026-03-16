@@ -116,7 +116,7 @@ const Battle = () => {
     if (loadedWods[0]) setWodId(loadedWods[0].id);
   }, []);
 
-  const canBet = (user?.level || 0) >= 10;
+  const canBet = true;
   const currentUserInventory = parseStorage<string[]>(`crosscity_inventory_${user?.id}`, []);
   const opponents = users.filter((item) => item.id !== user?.id);
 
