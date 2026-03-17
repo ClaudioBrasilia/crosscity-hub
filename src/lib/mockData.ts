@@ -56,18 +56,45 @@ export const initializeMockData = () => {};
 export const cleanupLegacyMockData = () => {
   if (typeof window === 'undefined' || !window.localStorage) return;
 
-  const legacyKeys = [
-    'crosscity_users',
-    'crosscity_boxes',
-    'crosscity_feed',
-    'crosscity_daily_wods',
-    'crosscity_daily_wod',
-    'crosscity_wod_results',
-    'crosscity_checkins',
-    'crosscity_duels',
-  ];
+  const LEGACY_CLAN_IDS = new Set(['clan_forge', 'clan_arena', 'clan_courtyard', 'clan_temple']);
 
-  legacyKeys.forEach((key) => window.localStorage.removeItem(key));
+  const safeParse = <T,>(value: string | null, fallback: T): T => {
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const clans = safeParse<Array<{ id?: string }>>(window.localStorage.getItem('crosscity_clans'), []);
+  const hasLegacyClans = clans.some((clan) => typeof clan.id === 'string' && LEGACY_CLAN_IDS.has(clan.id));
+  if (hasLegacyClans) {
+    window.localStorage.removeItem('crosscity_clans');
+  }
+
+  const membershipKeys = ['crosscity_memberships', 'crosscity_clan_memberships'];
+  membershipKeys.forEach((key) => {
+    const memberships = safeParse<Record<string, string>>(window.localStorage.getItem(key), {});
+    const hasLegacyMembership = Object.values(memberships).some((clanId) => LEGACY_CLAN_IDS.has(clanId));
+    if (hasLegacyMembership) {
+      window.localStorage.removeItem(key);
+    }
+  });
+
+  const territoryState = safeParse<{
+    energyByClan?: Record<string, number>;
+    winnerClanId?: string | null;
+  } | null>(window.localStorage.getItem('crosscity_territory_state'), null);
+
+  const hasLegacyTerritoryState = !!territoryState && (
+    Object.keys(territoryState.energyByClan || {}).some((clanId) => LEGACY_CLAN_IDS.has(clanId)) ||
+    (typeof territoryState.winnerClanId === 'string' && LEGACY_CLAN_IDS.has(territoryState.winnerClanId))
+  );
+
+  if (hasLegacyTerritoryState) {
+    window.localStorage.removeItem('crosscity_territory_state');
+  }
 };
 
 export const avatarEmojis = ['💪', '🔥', '⚡', '🌟', '💥', '🏋️', '⚔️', '🎯', '🚀', '👊'];
