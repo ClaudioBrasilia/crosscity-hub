@@ -51,4 +51,23 @@ export interface Duel {
 // Inicialização automática de dados mock desativada para produção.
 export const initializeMockData = () => {};
 
+
+// Remove dados legados de versões antigas que semeavam mocks automaticamente.
+export const cleanupLegacyMockData = () => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  const legacyKeys = [
+    'crosscity_users',
+    'crosscity_boxes',
+    'crosscity_feed',
+    'crosscity_daily_wods',
+    'crosscity_daily_wod',
+    'crosscity_wod_results',
+    'crosscity_checkins',
+    'crosscity_duels',
+  ];
+
+  legacyKeys.forEach((key) => window.localStorage.removeItem(key));
+};
+
 export const avatarEmojis = ['💪', '🔥', '⚡', '🌟', '💥', '🏋️', '⚔️', '🎯', '🚀', '👊'];
