@@ -58,7 +58,7 @@ const Login = () => {
         registerData.category,
         registerData.role
       );
-      toast({ title: 'Welcome to CrossCity Hub!', description: 'Your journey starts now 🔥' });
+      toast({ title: 'Welcome to BoxLink!', description: 'Your journey starts now 🔥' });
       navigate('/');
     } catch (error) {
       toast({
@@ -100,7 +100,7 @@ const Login = () => {
       <Card className="w-full max-w-md border-primary/20">
         <CardHeader className="text-center">
           <div className="text-6xl mb-4">🏋️</div>
-          <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">CrossCity Hub</CardTitle>
+          <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">BoxLink</CardTitle>
           <CardDescription>Conecte-se ao seu box e evolua junto</CardDescription>
         </CardHeader>
         <CardContent>

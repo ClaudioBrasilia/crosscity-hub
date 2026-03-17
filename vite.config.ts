@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
       manifest: {
-        name: "CrossCity Hub — Conecte-se ao seu box",
-        short_name: "CrossCity Hub",
+        name: "BoxLink — Conecte-se ao seu box",
+        short_name: "BoxLink",
         description: "App gamificado para atletas de CrossFit. WODs, duelos, ranking e comunidade.",
         theme_color: "#3b82f6",
         background_color: "#0a0a0a",

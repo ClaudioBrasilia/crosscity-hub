@@ -54,7 +54,7 @@ const Install = () => {
         <CardHeader className="text-center">
           <div className="text-6xl mb-4">📲</div>
           <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">
-            Instalar CrossCity Hub
+            Instalar BoxLink
           </CardTitle>
           <CardDescription>
             Tenha o app direto na tela inicial do seu celular
@@ -66,7 +66,7 @@ const Install = () => {
               <div className="text-4xl mb-3">✅</div>
               <p className="text-lg font-semibold text-foreground">App já instalado!</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Abra o CrossCity Hub pela tela inicial do seu dispositivo.
+                Abra o BoxLink pela tela inicial do seu dispositivo.
               </p>
             </div>
           ) : (
