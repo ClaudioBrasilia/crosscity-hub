@@ -14,6 +14,7 @@ import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } fro
 import { ensureClanData, getCheckInXpReward, getUserClan } from '@/lib/clanSystem';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
   const [count, setCount] = useState(0);
@@ -54,6 +55,26 @@ const toTimeValue = (value: string) => {
 
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
+const calculateDistanceMeters = (
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+) => {
+  const earthRadiusMeters = 6371000;
+  const dLat = ((toLat - fromLat) * Math.PI) / 180;
+  const dLng = ((toLng - fromLng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((fromLat * Math.PI) / 180) *
+      Math.cos((toLat * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMeters * c;
+};
+
 const getAthleteTitle = (level: number) => {
   if (level >= 15) return 'Atleta Ouro';
   if (level >= 8) return 'Atleta Prata';
@@ -64,6 +85,10 @@ const Dashboard = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [refreshTick, setRefreshTick] = useState(0);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [isInsideAllowedArea, setIsInsideAllowedArea] = useState(false);
+  const [locationCheck, setLocationCheck] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [activeLocation, setActiveLocation] = useState<{ id: string; latitude: number; longitude: number; radius_meters: number } | null>(null);
 
   useEffect(() => {
     const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
@@ -74,6 +99,24 @@ const Dashboard = () => {
     const sync = () => setRefreshTick((prev) => prev + 1);
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
+  }, []);
+
+  useEffect(() => {
+    const loadActiveLocation = async () => {
+      const { data } = await supabase
+        .from('training_locations')
+        .select('id, latitude, longitude, radius_meters')
+        .eq('active', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setActiveLocation(data);
+      }
+    };
+
+    loadActiveLocation();
   }, []);
 
   const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
@@ -101,6 +144,7 @@ const Dashboard = () => {
   const myCheckins = user ? checkinsData[user.id] || [] : [];
   const monthPrefix = today.slice(0, 7);
   const hasCheckedInToday = myCheckins.includes(today);
+  const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
   const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
 
   // Badges
@@ -127,8 +171,64 @@ const Dashboard = () => {
     return feed.slice(0, 3);
   }, []);
 
-  const handleCheckIn = () => {
-    if (!user || hasCheckedInToday) return;
+  const handleVerifyLocation = () => {
+    if (!activeLocation) {
+      setLocationStatus('localização indisponível');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationStatus('localização indisponível');
+      return;
+    }
+
+    setLocationStatus('verificando localização');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const distance = calculateDistanceMeters(
+          activeLocation.latitude,
+          activeLocation.longitude,
+          latitude,
+          longitude,
+        );
+        const inside = distance <= activeLocation.radius_meters;
+
+        setLocationCheck({ latitude, longitude });
+        setIsInsideAllowedArea(inside);
+        setLocationStatus(inside ? 'dentro da área permitida' : 'fora da área permitida');
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationStatus('permissão negada');
+        } else {
+          setLocationStatus('localização indisponível');
+        }
+        setIsInsideAllowedArea(false);
+        setLocationCheck(null);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  };
+
+  const handleCheckIn = async () => {
+    if (!user || checkInBlocked || !activeLocation || !locationCheck) return;
+
+    const { data, error } = await supabase.rpc('perform_location_checkin', {
+      p_location_id: activeLocation.id,
+      p_user_latitude: locationCheck.latitude,
+      p_user_longitude: locationCheck.longitude,
+    });
+
+    if (error || !data?.[0]?.allowed) {
+      toast({
+        title: 'Check-in não autorizado',
+        description: data?.[0]?.message || 'Não foi possível validar sua localização no servidor.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const updatedCheckins = { ...checkinsData, [user.id]: [...myCheckins, today] };
     localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
     const newXp = (user.xp || 0) + checkInXpReward;
@@ -191,7 +291,11 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="mt-4 space-y-2">
-          <Button onClick={handleCheckIn} disabled={hasCheckedInToday} size="lg" className="w-full sm:w-auto">
+          <Button onClick={handleVerifyLocation} disabled={!activeLocation} size="lg" variant="outline" className="w-full sm:w-auto">
+            Verificar localização
+          </Button>
+          {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
+          <Button onClick={handleCheckIn} disabled={checkInBlocked} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
             {hasCheckedInToday ? 'Presença confirmada ✓' : `Confirmar presença hoje (+${checkInXpReward} XP)`}
           </Button>
