@@ -264,7 +264,7 @@ const Battle = () => {
       return {
         ...item,
         acceptedBy: newAcceptedBy,
-        status: allAccepted ? 'active' as Duel['status'] : 'pending' as Duel['status'],
+        status: allAccepted ? ('active' as const) : ('pending' as const),
       };
     });
 
