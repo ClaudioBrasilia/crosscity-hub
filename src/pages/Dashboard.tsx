@@ -276,7 +276,7 @@ const Dashboard = () => {
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
             <p className="text-muted-foreground">
-              CrossUberlandia • Nível {user?.level} - {getAthleteTitle(user?.level || 1)}
+              CrossCity Hub • Nível {user?.level} - {getAthleteTitle(user?.level || 1)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
             Status do Time: {myClan ? `${myClan.banner} ${myClan.name}` : 'Sem time'}
