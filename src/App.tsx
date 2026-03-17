@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { initializeMockData } from "@/lib/mockData";
+import { cleanupLegacyMockData } from "@/lib/mockData";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Feed from "./pages/Feed";
@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    initializeMockData();
+    cleanupLegacyMockData();
   }, []);
 
   return (
