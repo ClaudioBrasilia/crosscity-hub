@@ -72,11 +72,10 @@ export interface ClanRewardGrant {
 }
 
 export const clans: Clan[] = [
-  { id: 'clan_forge', name: 'Guerreiros da Forja', motto: 'Disciplina constrói campeões.', banner: '⚒️', color: 'orange', colors: 'from-orange-500 to-red-500', createdAt: '2025-01-01T00:00:00.000Z' },
-  { id: 'clan_arena', name: 'Titãs da Arena', motto: 'Cada round conta para todos.', banner: '🛡️', color: 'blue', colors: 'from-blue-500 to-cyan-500', createdAt: '2025-01-01T00:00:00.000Z' },
-  { id: 'clan_courtyard', name: 'Legião do Pátio', motto: 'Consistência vence talento.', banner: '🏟️', color: 'emerald', colors: 'from-emerald-500 to-lime-500', createdAt: '2025-01-01T00:00:00.000Z' },
-  { id: 'clan_temple', name: 'Guardas do Templo', motto: 'Honra, foco e comunidade.', banner: '🏛️', color: 'violet', colors: 'from-violet-500 to-fuchsia-500', createdAt: '2025-01-01T00:00:00.000Z' },
+  // Removido seed de times pré-definidos. Novos times devem ser criados pelos usuários.
 ];
+
+const LEGACY_PRESET_CLAN_IDS = new Set(['clan_forge', 'clan_arena', 'clan_courtyard', 'clan_temple']);
 
 export const territories: Territory[] = [
   { id: 'territory_forge', name: 'A Forja', icon: '🔥', focus: 'força e PRs', rotationOrder: 1 },
@@ -188,6 +187,12 @@ export const ensureClanData = (users: UserProfile[]) => {
     localStorage.setItem(STORAGE_KEYS.clans, JSON.stringify(clans));
   }
 
+  const storedClans = safeParse<Clan[]>(localStorage.getItem(STORAGE_KEYS.clans), []);
+  const sanitizedClans = storedClans.filter((clan) => !LEGACY_PRESET_CLAN_IDS.has(clan.id));
+  if (sanitizedClans.length !== storedClans.length) {
+    localStorage.setItem(STORAGE_KEYS.clans, JSON.stringify(sanitizedClans));
+  }
+
   const memberships = safeParse<Record<string, string>>(localStorage.getItem(STORAGE_KEYS.memberships), {});
   const availableClans = getStoredClans();
   const availableClanIds = new Set(availableClans.map((clan) => clan.id));
@@ -212,6 +217,35 @@ export const ensureClanData = (users: UserProfile[]) => {
         dayKey: todayKey,
         energyByClan: seededEnergy,
         winnerClanId: null,
+      } satisfies TerritoryState),
+    );
+    return;
+  }
+
+  const filteredEnergyByClan = Object.fromEntries(
+    Object.entries(state.energyByClan).filter(([clanId]) => availableClanIds.has(clanId)),
+  );
+
+  for (const clanId of availableClanIds) {
+    if (typeof filteredEnergyByClan[clanId] !== 'number') {
+      filteredEnergyByClan[clanId] = 0;
+    }
+  }
+
+  const sanitizedWinnerClanId = state.winnerClanId && availableClanIds.has(state.winnerClanId)
+    ? state.winnerClanId
+    : null;
+
+  if (
+    sanitizedWinnerClanId !== state.winnerClanId ||
+    Object.keys(filteredEnergyByClan).length !== Object.keys(state.energyByClan).length
+  ) {
+    localStorage.setItem(
+      STORAGE_KEYS.territoryState,
+      JSON.stringify({
+        ...state,
+        energyByClan: filteredEnergyByClan,
+        winnerClanId: sanitizedWinnerClanId,
       } satisfies TerritoryState),
     );
   }
