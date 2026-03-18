@@ -1,52 +1,60 @@
 
 
-## Plano: Unificar botão de check-in no Dashboard
+## Plano: Sistema Completo — Benchmarks, Batalha Virtual, Meu Box e Apostas de Equipamentos
 
-### Problema atual
+### Visão Geral
 
-O Dashboard tem **três elementos separados** para check-in (linhas 297-317):
-1. Botão "Verificar localização" — valida GPS
-2. Botão "Confirmar presença hoje (+25 XP)" — faz o check-in e dá XP
-3. `DominationEnergyButton` "Faça check-in para gerar energia" — gera energia do time **após** o check-in
+Implementar 4 novas funcionalidades interligadas:
 
-Isso confunde o usuário com duas ações sequenciais para algo que deveria ser uma única ação.
+1. **Benchmarks** — Registrar PRs de exercícios-chave
+2. **Batalha Virtual** — Simulação automática baseada nos benchmarks
+3. **Meu Box** — Garagem virtual com equipamentos conquistados
+4. **Apostas** — Atletas nível 10+ podem apostar equipamentos em batalhas
 
-### Solução
+### Arquivos a criar
 
-Unificar os passos 2 e 3 em **um único botão**. Ao clicar "Fazer check-in", o código:
-1. Executa o `handleCheckIn` existente (salva check-in, dá XP, atualiza perfil)
-2. Logo em seguida, chama `generateDominationEnergyForActivity` automaticamente (a mesma função que o `DominationEnergyButton` usa) para gerar energia do time
+**`src/lib/battleSimulator.ts`** — Motor de simulação:
+- Mapeia cada WOD para benchmarks relevantes (Fran → Thruster + Pull-ups)
+- Calcula score: `(benchmarks * peso) + (XP * 0.1) + (level * 50) ± 10% random`
+- For Time: menor score = mais rápido. AMRAP: maior score = mais rounds
+- Retorna ranking com tempos simulados
 
-O botão "Verificar localização" permanece inalterado.
+**`src/lib/equipmentData.ts`** — Catálogo de 24 equipamentos em 4 tiers:
+- Tier 1 (1-3 vitórias): Cones 🔶, Jump Rope 🪢, Abmat, Timer, Chalk, Foam Roller
+- Tier 2 (4-8): Kettlebell, Dumbbell, Medicine Ball, Wall Ball, Box Jump, Band
+- Tier 3 (9-15): Barbell, Squat Rack, Pull-up Bar, Rings, Plates, Bench
+- Tier 4 (16-24): Rower, Assault Bike, Rope Climb, Ski Erg, Pegboard, Podium 🏆
 
-### Mudanças
+**`src/pages/Benchmarks.tsx`** — Registrar/editar PRs, ver ranking do box por exercício
 
-**Arquivo único: `src/pages/Dashboard.tsx`**
+**`src/pages/Battle.tsx`** — Escolher WOD + oponentes, animação de barras de progresso, resultado com pódio. Modo normal (+150 XP) e modo aposta (nível 10+: cada jogador aposta 1 equipamento, vencedor leva tudo)
 
-1. **Importar** `generateDominationEnergyForActivity` e `hasGeneratedDominationEnergy` de `@/lib/clanSystem` (já importa `getUserClan` e `getCheckInXpReward` dali)
+**`src/pages/MyBox.tsx`** — Grid visual dos 24 equipamentos (desbloqueados coloridos, trancados em cinza). Barra de progresso geral. Seção mostrando equipamentos ganhos em apostas
 
-2. **No `handleCheckIn`** (linhas 218-254): após o check-in ser bem-sucedido (após `updateUser` e toast), chamar `generateDominationEnergyForActivity` com os mesmos parâmetros que o `DominationEnergyButton` usava:
-   - `userId: user.id`
-   - `activityId: \`checkin:${today}\``
-   - `activityType: 'checkin'`
-   - `energy: 20`
-   - `participationValid: true`
+### Arquivos a modificar
 
-3. **Atualizar o texto do botão** (linha 304): de `Confirmar presença hoje (+${checkInXpReward} XP)` para `Fazer check-in (+${checkInXpReward} XP e energia)`
+- **`src/lib/mockData.ts`**: Adicionar `benchmarkExercises`, mock benchmarks para os 5 users, mock inventários
+- **`src/contexts/AuthContext.tsx`**: Adicionar `wins`, `battles` ao User
+- **`src/components/Layout.tsx`**: 3 novos nav items (Benchmarks, Batalha, Meu Box)
+- **`src/App.tsx`**: 3 novas rotas
+- **`src/pages/Dashboard.tsx`**: Cards de vitórias e equipamentos
 
-4. **Remover** o componente `<DominationEnergyButton>` (linhas 306-316) e seu import (linha 15)
+### Sistema de Apostas (Nível 10+)
 
-5. **Adicionar feedback** da energia gerada no toast de sucesso (incluir info do time se aplicável)
+- Ao criar batalha, opção "Apostar Equipamento" aparece se nível ≥ 10
+- Cada participante seleciona 1 equipamento do seu inventário para apostar
+- Equipamentos apostados ficam "bloqueados" durante a batalha
+- Vencedor recebe todos os equipamentos apostados
+- Perdedor perde o equipamento apostado (removido do inventário)
+- Ícone especial 🎰 nas batalhas com aposta no histórico
 
-6. **Corrigir o erro de build** na linha 99: adicionar `category` ao tipo `StoredUserProgress` ou fazer cast adequado para `ensureClanData`
+### Fluxo do Usuário
 
-### O que NÃO muda
-
-- Nenhuma regra de negócio alterada
-- `handleVerifyLocation` permanece idêntico
-- `calculateDistanceMeters` permanece
-- Validação de localização via `activeLocation` + `isInsideAllowedArea` permanece
-- A chamada RPC `perform_location_checkin` permanece
-- `generateDominationEnergyForActivity` em `clanSystem.ts` não é alterada
-- Nenhum outro arquivo é modificado
+1. Registra PRs em Benchmarks
+2. Inicia Batalha → escolhe WOD e oponentes
+3. Se nível 10+: pode ativar modo aposta e selecionar equipamento
+4. Animação de corrida com barras de progresso
+5. Vencedor ganha equipamento do catálogo (normal) ou equipamentos dos oponentes (aposta)
+6. Meu Box atualiza com novos itens
+7. Post automático no feed com resultado
 
