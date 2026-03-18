@@ -82,8 +82,8 @@ const getAthleteTitle = (level: number) => {
   return 'Atleta Bronze';
 };
 
-type ActiveTrainingLocation = Pick<Tables<'training_locations'>, 'id' | 'latitude' | 'longitude' | 'radius_meters'>;
-type StoredUserProgress = { id: string; xp?: number; level?: number; checkins?: number };
+type ActiveTrainingLocation = { id: string; latitude: number; longitude: number; radius_meters: number };
+type StoredUserProgress = { id: string; xp?: number; level?: number; checkins?: number; category?: string };
 
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
