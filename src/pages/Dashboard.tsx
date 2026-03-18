@@ -15,7 +15,6 @@ import { ensureClanData, getCheckInXpReward, getUserClan, generateDominationEner
 import type { UserProfile } from '@/lib/clanSystem';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
   const [count, setCount] = useState(0);
