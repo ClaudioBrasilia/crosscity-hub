@@ -319,19 +319,8 @@ const Dashboard = () => {
           {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
           <Button onClick={handleCheckIn} disabled={checkInBlocked} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
-            {hasCheckedInToday ? 'Presença confirmada ✓' : `Confirmar presença hoje (+${checkInXpReward} XP)`}
+            {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP e energia)`}
           </Button>
-          {user && (
-            <DominationEnergyButton
-              userId={user.id}
-              activityId={`checkin:${today}`}
-              activityType="checkin"
-              energy={20}
-              participationValid={hasCheckedInToday}
-              blockedText="Faça check-in para gerar energia"
-              className="w-full sm:w-auto"
-            />
-          )}
         </div>
       </div>
 
