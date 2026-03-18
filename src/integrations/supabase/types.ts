@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      checkins: {
+        Row: {
+          calculated_distance_meters: number | null
+          check_in_date: string
+          checked_in_at: string | null
+          created_at: string | null
+          geolocation_validated: boolean
+          id: string
+          location_id: string | null
+          user_id: string
+          user_latitude: number | null
+          user_longitude: number | null
+        }
+        Insert: {
+          calculated_distance_meters?: number | null
+          check_in_date: string
+          checked_in_at?: string | null
+          created_at?: string | null
+          geolocation_validated?: boolean
+          id?: string
+          location_id?: string | null
+          user_id: string
+          user_latitude?: number | null
+          user_longitude?: number | null
+        }
+        Update: {
+          calculated_distance_meters?: number | null
+          check_in_date?: string
+          checked_in_at?: string | null
+          created_at?: string | null
+          geolocation_validated?: boolean
+          id?: string
+          location_id?: string | null
+          user_id?: string
+          user_latitude?: number | null
+          user_longitude?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "training_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -65,6 +112,39 @@ export type Database = {
         }
         Relationships: []
       }
+      training_locations: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          radius_meters: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name: string
+          radius_meters: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          radius_meters?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -98,6 +178,19 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      perform_location_checkin: {
+        Args: {
+          p_location_id: string
+          p_user_latitude: number
+          p_user_longitude: number
+        }
+        Returns: {
+          allowed: boolean
+          checkin_id: string | null
+          distance_meters: number | null
+          message: string
+        }[]
       }
     }
     Enums: {

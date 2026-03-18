@@ -15,6 +15,7 @@ import { ensureClanData, getCheckInXpReward, getUserClan } from '@/lib/clanSyste
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
   const [count, setCount] = useState(0);
@@ -81,6 +82,9 @@ const getAthleteTitle = (level: number) => {
   return 'Atleta Bronze';
 };
 
+type ActiveTrainingLocation = Pick<Tables<'training_locations'>, 'id' | 'latitude' | 'longitude' | 'radius_meters'>;
+type StoredUserProgress = { id: string; xp?: number; level?: number; checkins?: number };
+
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
@@ -88,10 +92,10 @@ const Dashboard = () => {
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [isInsideAllowedArea, setIsInsideAllowedArea] = useState(false);
   const [locationCheck, setLocationCheck] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [activeLocation, setActiveLocation] = useState<{ id: string; latitude: number; longitude: number; radius_meters: number } | null>(null);
+  const [activeLocation, setActiveLocation] = useState<ActiveTrainingLocation | null>(null);
 
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     ensureClanData(users);
   }, []);
 
@@ -234,8 +238,8 @@ const Dashboard = () => {
     const newXp = (user.xp || 0) + checkInXpReward;
     const newLevel = Math.floor(newXp / 500) + 1;
     updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
-    const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-    const updatedUsers = users.map((item: any) =>
+    const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+    const updatedUsers = users.map((item) =>
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
     );
     localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
