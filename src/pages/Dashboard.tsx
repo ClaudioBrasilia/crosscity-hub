@@ -96,7 +96,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-    ensureClanData(users);
+    ensureClanData(users as UserProfile[]);
   }, []);
 
   useEffect(() => {
