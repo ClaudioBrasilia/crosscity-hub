@@ -217,16 +217,17 @@ const Dashboard = () => {
   const handleCheckIn = async () => {
     if (!user || checkInBlocked || !activeLocation || !locationCheck) return;
 
-    const { data, error } = await supabase.rpc('perform_location_checkin', {
-      p_location_id: activeLocation.id,
-      p_user_latitude: locationCheck.latitude,
-      p_user_longitude: locationCheck.longitude,
-    });
-
-    if (error || !data?.[0]?.allowed) {
+    // Validate location client-side (server RPC not yet available)
+    const distance = calculateDistanceMeters(
+      activeLocation.latitude,
+      activeLocation.longitude,
+      locationCheck.latitude,
+      locationCheck.longitude,
+    );
+    if (distance > activeLocation.radius_meters) {
       toast({
         title: 'Check-in não autorizado',
-        description: data?.[0]?.message || 'Não foi possível validar sua localização no servidor.',
+        description: 'Você está fora da área permitida.',
         variant: 'destructive',
       });
       return;
@@ -242,12 +243,30 @@ const Dashboard = () => {
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
     );
     localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
+
+    // Generate domination energy automatically
+    let energyMsg = '';
+    if (!hasGeneratedDominationEnergy(user.id, `checkin:${today}`)) {
+      const energyResult = generateDominationEnergyForActivity({
+        userId: user.id,
+        activityId: `checkin:${today}`,
+        activityType: 'checkin',
+        energy: 20,
+        clanEnergyBonus: 0,
+        participationValid: true,
+      });
+      if (energyResult.ok) {
+        const clanName = energyResult.clan?.name;
+        energyMsg = clanName ? ` e +${energyResult.claim.clanEnergy} energia ${clanName}` : '';
+      }
+    }
+
     toast({
       title: 'Presença confirmada ✅',
       description:
         checkInXpReward > 25
-          ? `+${checkInXpReward} XP por check-in de sábado!`
-          : `+${checkInXpReward} XP por check-in.`,
+          ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
+          : `+${checkInXpReward} XP por check-in.${energyMsg}`,
     });
     setRefreshTick((prev) => prev + 1);
   };
