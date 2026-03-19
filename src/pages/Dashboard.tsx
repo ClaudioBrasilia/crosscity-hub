@@ -106,15 +106,15 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadActiveLocation = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(0) as { data: null };
+      const { data, error } = await supabase
+        .from('training_locations' as any)
+        .select('id, latitude, longitude, radius_meters')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
 
-      // training_locations table not yet in schema — use localStorage fallback
-      const stored = localStorage.getItem('crosscity_training_location');
-      if (stored) {
-        try { setActiveLocation(JSON.parse(stored)); } catch { /* ignore */ }
+      if (!error && data) {
+        setActiveLocation(data as unknown as ActiveTrainingLocation);
       }
     };
 
