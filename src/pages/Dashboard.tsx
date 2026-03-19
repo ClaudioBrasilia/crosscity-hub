@@ -216,23 +216,39 @@ const Dashboard = () => {
   const handleCheckIn = async () => {
     if (!user || checkInBlocked || !activeLocation || !locationCheck) return;
 
-    // Validate location client-side (server RPC not yet available)
-    const distance = calculateDistanceMeters(
-      activeLocation.latitude,
-      activeLocation.longitude,
-      locationCheck.latitude,
-      locationCheck.longitude,
-    );
-    if (distance > activeLocation.radius_meters) {
+    const { data, error } = await supabase.rpc('perform_location_checkin', {
+      p_location_id: activeLocation.id,
+      p_user_latitude: locationCheck.latitude,
+      p_user_longitude: locationCheck.longitude,
+    });
+
+    if (error) {
       toast({
-        title: 'Check-in não autorizado',
-        description: 'Você está fora da área permitida.',
+        title: 'Erro ao validar check-in',
+        description: error.message,
         variant: 'destructive',
       });
       return;
     }
 
-    const updatedCheckins = { ...checkinsData, [user.id]: [...myCheckins, today] };
+    const result = data?.[0];
+
+    if (!result?.allowed) {
+      const distanceLabel = typeof result?.distance_meters === 'number'
+        ? ` Distância calculada: ${Math.round(result.distance_meters)}m.`
+        : '';
+
+      toast({
+        title: 'Check-in não autorizado',
+        description: `${result?.message || 'Não foi possível validar seu check-in.'}${distanceLabel}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const updatedCheckins = hasCheckedInToday
+      ? checkinsData
+      : { ...checkinsData, [user.id]: [...myCheckins, today] };
     localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
     const newXp = (user.xp || 0) + checkInXpReward;
     const newLevel = Math.floor(newXp / 500) + 1;
@@ -260,12 +276,20 @@ const Dashboard = () => {
       }
     }
 
+    const rpcMessage = result.message
+      ? `${result.message}. `
+      : '';
+    const distanceLabel = typeof result.distance_meters === 'number'
+      ? `Distância validada: ${Math.round(result.distance_meters)}m. `
+      : '';
+
     toast({
       title: 'Presença confirmada ✅',
       description:
-        checkInXpReward > 25
+        `${rpcMessage}${distanceLabel}` +
+        (checkInXpReward > 25
           ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
-          : `+${checkInXpReward} XP por check-in.${energyMsg}`,
+          : `+${checkInXpReward} XP por check-in.${energyMsg}`),
     });
     setRefreshTick((prev) => prev + 1);
   };
