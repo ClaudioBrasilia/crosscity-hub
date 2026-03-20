@@ -255,14 +255,12 @@ const Dashboard = () => {
       }
     }
 
-    const distanceLabel = locationCheck
-      ? `Distância: ${Math.round(locationCheck.distance)}m. `
-      : '';
+    const distanceLabel = '';
 
     toast({
       title: 'Presença confirmada ✅',
       description:
-        `${rpcMessage}${distanceLabel}` +
+        `${distanceLabel}` +
         (checkInXpReward > 25
           ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
           : `+${checkInXpReward} XP por check-in.${energyMsg}`),
