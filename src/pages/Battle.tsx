@@ -98,6 +98,7 @@ const Battle = () => {
   const [betType, setBetType] = useState<'none' | 'xp'>('none');
   const [betXpAmount, setBetXpAmount] = useState(100);
   const [submission, setSubmission] = useState<Record<string, string>>({});
+  const [expandedDuelId, setExpandedDuelId] = useState<string | null>(null);
 
   // Custom WOD creation
   const [createMode, setCreateMode] = useState(false);
