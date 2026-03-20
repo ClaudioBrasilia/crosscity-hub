@@ -135,19 +135,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      perform_location_checkin: {
-        Args: {
-          p_location_id: string
-          p_user_latitude: number
-          p_user_longitude: number
-        }
-        Returns: {
-          allowed: boolean
-          checkin_id: string | null
-          distance_meters: number | null
-          message: string
-        }[]
-      }
     }
     Enums: {
       app_role: "athlete" | "coach" | "admin"
