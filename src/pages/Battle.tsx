@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 
-import { Swords, Trophy, Plus } from 'lucide-react';
+import { Swords, Trophy, Plus, ChevronDown, Dumbbell } from 'lucide-react';
 import { getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
@@ -98,6 +98,7 @@ const Battle = () => {
   const [betType, setBetType] = useState<'none' | 'xp'>('none');
   const [betXpAmount, setBetXpAmount] = useState(100);
   const [submission, setSubmission] = useState<Record<string, string>>({});
+  const [expandedDuelId, setExpandedDuelId] = useState<string | null>(null);
 
   // Custom WOD creation
   const [createMode, setCreateMode] = useState(false);
@@ -584,24 +585,67 @@ const Battle = () => {
               const isChallenger = duel.challengerId === user?.id;
               const isOpponent = duel.opponentIds.includes(user?.id || '');
               const needsMyAcceptance = statusKey === 'pending' && isOpponent && !duel.acceptedBy.includes(user?.id || '');
+              const duelWod = wods.find((item) => item.id === duel.wodId);
+              const duelVersion = duelWod?.versions[duel.category];
+              const isExpanded = expandedDuelId === duel.id;
 
               return (
                 <div key={duel.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold">{duel.wodName}</span>
-                        <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
-                        {duel.betMode && duel.betType === 'xp' && <Badge variant="outline">⚡ {duel.betXpAmount} XP</Badge>}
-                        {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline">🎰 Equipamento</Badge>}
-                        {duel.betCanceledAt && <Badge variant="outline">Cancelado</Badge>}
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="flex-1 cursor-pointer rounded-md transition-colors hover:bg-secondary/10 -m-2 p-2"
+                      onClick={() => setExpandedDuelId((current) => (current === duel.id ? null : duel.id))}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setExpandedDuelId((current) => (current === duel.id ? null : duel.id));
+                        }
+                      }}
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{duel.wodName}</span>
+                            <Badge variant="secondary">{categoryLabels[duel.category]}</Badge>
+                            {duel.betMode && duel.betType === 'xp' && <Badge variant="outline">⚡ {duel.betXpAmount} XP</Badge>}
+                            {duel.betMode && duel.betType === 'equipment' && <Badge variant="outline">🎰 Equipamento</Badge>}
+                            {duel.betCanceledAt && <Badge variant="outline">Cancelado</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {getUserName(duel.challengerId)} vs {duel.opponentIds.map((id) => getUserName(id)).join(', ')}
+                          </p>
+                        </div>
+                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {getUserName(duel.challengerId)} vs {duel.opponentIds.map((id) => getUserName(id)).join(', ')}
-                      </p>
                     </div>
-                    {duel.winnerId && <p className="font-bold text-primary flex items-center gap-1"><Trophy className="h-4 w-4" /> {getUserName(duel.winnerId)}</p>}
+                    {duel.winnerId && <p className="font-bold text-primary flex items-center gap-1 shrink-0"><Trophy className="h-4 w-4" /> {getUserName(duel.winnerId)}</p>}
                   </div>
+
+                  {isExpanded && duelWod && duelVersion && (
+                    <div className="rounded-lg border bg-secondary/10 p-4 space-y-3 transition-all">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Dumbbell className="h-4 w-4 text-primary" />
+                        <span>Detalhes do WOD</span>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Tipo</p>
+                          <p className="text-sm font-medium">{duelWod.type}</p>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Descrição</p>
+                          <p className="text-sm whitespace-pre-line">{duelVersion.description}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Peso recomendado</p>
+                          <p className="text-sm font-medium">{duelVersion.weight}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="text-sm space-y-1">
                     {allParticipants.map((participantId) => (
