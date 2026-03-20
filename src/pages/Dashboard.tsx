@@ -216,31 +216,10 @@ const Dashboard = () => {
   const handleCheckIn = async () => {
     if (!user || checkInBlocked || !activeLocation || !locationCheck) return;
 
-    const { data, error } = await supabase.rpc('perform_location_checkin', {
-      p_location_id: activeLocation.id,
-      p_user_latitude: locationCheck.latitude,
-      p_user_longitude: locationCheck.longitude,
-    });
-
-    if (error) {
-      toast({
-        title: 'Erro ao validar check-in',
-        description: error.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const result = data?.[0];
-
-    if (!result?.allowed) {
-      const distanceLabel = typeof result?.distance_meters === 'number'
-        ? ` Distância calculada: ${Math.round(result.distance_meters)}m.`
-        : '';
-
+    if (!isInsideAllowedArea) {
       toast({
         title: 'Check-in não autorizado',
-        description: `${result?.message || 'Não foi possível validar seu check-in.'}${distanceLabel}`,
+        description: 'Você está fora da área permitida para check-in. Verifique sua localização primeiro.',
         variant: 'destructive',
       });
       return;
@@ -276,17 +255,12 @@ const Dashboard = () => {
       }
     }
 
-    const rpcMessage = result.message
-      ? `${result.message}. `
-      : '';
-    const distanceLabel = typeof result.distance_meters === 'number'
-      ? `Distância validada: ${Math.round(result.distance_meters)}m. `
-      : '';
+    const distanceLabel = '';
 
     toast({
       title: 'Presença confirmada ✅',
       description:
-        `${rpcMessage}${distanceLabel}` +
+        `${distanceLabel}` +
         (checkInXpReward > 25
           ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
           : `+${checkInXpReward} XP por check-in.${energyMsg}`),
