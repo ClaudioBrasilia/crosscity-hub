@@ -255,11 +255,8 @@ const Dashboard = () => {
       }
     }
 
-    const rpcMessage = result.message
-      ? `${result.message}. `
-      : '';
-    const distanceLabel = typeof result.distance_meters === 'number'
-      ? `Distância validada: ${Math.round(result.distance_meters)}m. `
+    const distanceLabel = locationCheck
+      ? `Distância: ${Math.round(locationCheck.distance)}m. `
       : '';
 
     toast({
