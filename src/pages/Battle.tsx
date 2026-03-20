@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 
-import { Swords, Trophy, Plus } from 'lucide-react';
+import { Swords, Trophy, Plus, ChevronDown, Dumbbell } from 'lucide-react';
 import { getNextEquipment } from '@/lib/equipmentData';
 import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
