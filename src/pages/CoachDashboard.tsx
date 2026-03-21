@@ -19,6 +19,8 @@ interface WodData {
   date: string;
   title: string;
   type: string;
+  warmup: string;
+  skill: string;
   description: string;
   rxWeights: string;
   scaledWeights: string;
@@ -40,17 +42,21 @@ interface Challenge {
 const CoachDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
-  const [wodData, setWodData] = useState<WodData>({
+
+  const createInitialWodData = (): WodData => ({
     id: '',
     date: new Date().toISOString().split('T')[0],
     title: '',
     type: 'AMRAP',
+    warmup: '',
+    skill: '',
     description: '',
     rxWeights: '',
     scaledWeights: '',
     beginnerWeights: '',
   });
+
+  const [wodData, setWodData] = useState<WodData>(createInitialWodData());
 
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [newChallenge, setNewChallenge] = useState<Partial<Challenge>>({
@@ -80,7 +86,10 @@ const CoachDashboard = () => {
     // Load existing WOD
     const storedWod = localStorage.getItem('crosscity_daily_wod');
     if (storedWod) {
-      setWodData(JSON.parse(storedWod));
+      setWodData({
+        ...createInitialWodData(),
+        ...JSON.parse(storedWod),
+      });
     }
   }, []);
 
@@ -222,6 +231,26 @@ const CoachDashboard = () => {
                   placeholder="Nome do WOD (ex: Fran, Murph...)"
                   value={wodData.title}
                   onChange={(e) => setWodData({ ...wodData, title: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Warm-up</Label>
+                <Textarea
+                  placeholder="Descreva o aquecimento do dia..."
+                  rows={3}
+                  value={wodData.warmup}
+                  onChange={(e) => setWodData({ ...wodData, warmup: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Skill</Label>
+                <Textarea
+                  placeholder="Descreva a parte técnica do treino..."
+                  rows={3}
+                  value={wodData.skill}
+                  onChange={(e) => setWodData({ ...wodData, skill: e.target.value })}
                 />
               </div>
 
