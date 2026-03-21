@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Trophy, Medal, Award } from 'lucide-react';
 import type { DailyWodResult } from '@/lib/mockData';
+import { filterEntriesByKnownUsers, getStoredUsers, safeParse } from '@/lib/realUsers';
 
 type Category = 'rx' | 'scaled' | 'beginner';
 type Gender = 'male' | 'female';
@@ -36,17 +37,25 @@ const Leaderboard = () => {
 
   useEffect(() => {
     const syncData = () => {
-      const loadedUsers = JSON.parse(localStorage.getItem('crosscity_users') || '[]').map(({ password, ...item }: any) => ({
+      const loadedUsers = getStoredUsers().map((item: any) => ({
         ...item,
+        boxId: item.boxId || '',
+        xp: Number(item.xp) || 0,
         category: item.category || 'beginner',
         gender: item.gender || 'male',
       }));
 
-      const dailyWod = JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null');
+      const dailyWod = safeParse(localStorage.getItem('crosscity_daily_wod'), null);
+      const filteredResults = filterEntriesByKnownUsers(
+        safeParse<DailyWodResult[]>(localStorage.getItem('crosscity_wod_results'), []),
+        (item) => [item.userId],
+      );
+      const rawCheckins = safeParse<Record<string, string[]>>(localStorage.getItem('crosscity_checkins'), {});
+      const filteredCheckins = Object.fromEntries(Object.entries(rawCheckins).filter(([userId]) => loadedUsers.some((user) => user.id === userId)));
 
-      setUsers(loadedUsers);
-      setCheckins(JSON.parse(localStorage.getItem('crosscity_checkins') || '{}'));
-      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
+      setUsers(loadedUsers as LeaderboardUser[]);
+      setCheckins(filteredCheckins);
+      setResults(filteredResults);
       setDailyWodId(dailyWod?.id || null);
     };
 

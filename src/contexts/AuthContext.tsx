@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeParse } from '@/lib/realUsers';
 import type { Session } from '@supabase/supabase-js';
 
 type Gender = 'male' | 'female';
@@ -49,16 +50,6 @@ const USER_SCOPED_STORAGE_KEYS = [
   'crosscity_wins_',
   'crosscity_battles_',
 ];
-
-const safeParse = <T,>(value: string | null, fallback: T): T => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-};
-
 const sanitizeLegacyLocalStorage = (users: User[]) => {
   if (typeof window === 'undefined' || !window.localStorage) return;
 
@@ -98,6 +89,48 @@ const sanitizeLegacyLocalStorage = (users: User[]) => {
   const filteredProgress = Object.fromEntries(Object.entries(parsedProgress).filter(([userId]) => validIds.has(userId)));
   if (Object.keys(filteredProgress).length !== Object.keys(parsedProgress).length) {
     window.localStorage.setItem('crosscity_challenge_progress', JSON.stringify(filteredProgress));
+  }
+
+  const parsedBenchmarks = safeParse<Record<string, Record<string, number>>>(window.localStorage.getItem('crosscity_benchmarks'), {});
+  const filteredBenchmarks = Object.fromEntries(Object.entries(parsedBenchmarks).filter(([userId]) => validIds.has(userId)));
+  if (Object.keys(filteredBenchmarks).length !== Object.keys(parsedBenchmarks).length) {
+    window.localStorage.setItem('crosscity_benchmarks', JSON.stringify(filteredBenchmarks));
+  }
+
+  const parsedBenchmarkHistory = safeParse<Record<string, Record<string, Array<Record<string, unknown>>>>>(window.localStorage.getItem('crosscity_benchmark_history'), {});
+  const filteredBenchmarkHistory = Object.fromEntries(Object.entries(parsedBenchmarkHistory).filter(([userId]) => validIds.has(userId)));
+  if (Object.keys(filteredBenchmarkHistory).length !== Object.keys(parsedBenchmarkHistory).length) {
+    window.localStorage.setItem('crosscity_benchmark_history', JSON.stringify(filteredBenchmarkHistory));
+  }
+
+  const parsedCompletedChallenges = Object.fromEntries(
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('crosscity_completed_challenges_'))
+      .map((key) => [key, safeParse<string[]>(window.localStorage.getItem(key), [])]),
+  );
+  Object.keys(parsedCompletedChallenges).forEach((key) => {
+    const userId = key.replace('crosscity_completed_challenges_', '');
+    if (!validIds.has(userId)) {
+      window.localStorage.removeItem(key);
+    }
+  });
+
+  const hydratedResults = filteredResults.map((item) => ({
+    ...item,
+    userName: users.find((user) => user.id === String(item.userId || ''))?.name || item.userName,
+    avatar: users.find((user) => user.id === String(item.userId || ''))?.avatar || item.avatar,
+  }));
+  if (JSON.stringify(hydratedResults) !== JSON.stringify(filteredResults)) {
+    window.localStorage.setItem('crosscity_wod_results', JSON.stringify(hydratedResults));
+  }
+
+  const hydratedFeed = filteredFeed.map((item) => ({
+    ...item,
+    userName: users.find((user) => user.id === String(item.userId || ''))?.name || item.userName,
+    userAvatar: users.find((user) => user.id === String(item.userId || ''))?.avatar || item.userAvatar,
+  }));
+  if (JSON.stringify(hydratedFeed) !== JSON.stringify(filteredFeed)) {
+    window.localStorage.setItem('crosscity_feed', JSON.stringify(hydratedFeed));
   }
 
   Object.keys(window.localStorage).forEach((key) => {

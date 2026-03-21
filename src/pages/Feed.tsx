@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Flame, ThumbsUp } from 'lucide-react';
+import { filterEntriesByKnownUsers, getStoredUsersMap, safeParse } from '@/lib/realUsers';
 
 interface Post {
   id: string;
@@ -18,14 +18,19 @@ interface Post {
 }
 
 const Feed = () => {
-  const { user } = useAuth();
+  const usersMap = getStoredUsersMap();
   const [posts, setPosts] = useState<Post[]>([]);
 
   useEffect(() => {
-    const feedData = localStorage.getItem('crosscity_feed');
-    if (feedData) {
-      setPosts(JSON.parse(feedData));
-    }
+    const feedData = filterEntriesByKnownUsers(
+      safeParse<Post[]>(localStorage.getItem('crosscity_feed'), []),
+      (post) => [post.userId],
+    ).map((post) => ({
+      ...post,
+      userName: usersMap.get(post.userId)?.name || post.userName,
+      userAvatar: usersMap.get(post.userId)?.avatar || post.userAvatar,
+    }));
+    setPosts(feedData);
   }, []);
 
   const formatTime = (timestamp: number) => {

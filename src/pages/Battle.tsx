@@ -15,6 +15,7 @@ import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import { normalizeDuel, calculateWinner, reserveXp, refundXp, settleBet, checkAllResultsSubmitted } from '@/lib/duelLogic';
+import { filterEntriesByKnownUsers, getStoredUsers, safeParse } from '@/lib/realUsers';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',
@@ -108,9 +109,12 @@ const Battle = () => {
   const [customWeight, setCustomWeight] = useState('');
 
   useEffect(() => {
-    const loadedUsers = parseStorage<any[]>('crosscity_users', []);
+    const loadedUsers = getStoredUsers();
     const loadedWods = parseStorage<DailyWod[]>('crosscity_daily_wods', []);
-    const loadedDuels = parseStorage<any[]>('crosscity_duels', []).map(normalizeDuel);
+    const loadedDuels = filterEntriesByKnownUsers(
+      safeParse<any[]>(localStorage.getItem('crosscity_duels'), []),
+      (item) => [item?.challengerId, ...(Array.isArray(item?.opponentIds) ? item.opponentIds : [])],
+    ).map(normalizeDuel);
     setUsers(loadedUsers);
     setWods(loadedWods);
     setDuels(loadedDuels);
