@@ -9,6 +9,7 @@ import { benchmarkExercises } from '@/lib/battleSimulator';
 import { BarChart3, Save, Trophy, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { getStoredUsers, safeParse } from '@/lib/realUsers';
 
 const Benchmarks = () => {
   const { user } = useAuth();
@@ -19,19 +20,19 @@ const Benchmarks = () => {
   const [allBenchmarks, setAllBenchmarks] = useState<any[]>([]);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('crosscity_benchmarks') || '{}');
+    const stored = safeParse<Record<string, Record<string, number>>>(localStorage.getItem('crosscity_benchmarks'), {});
     setBenchmarks(stored[user?.id || ''] || {});
     setAllBenchmarks(Object.entries(stored).map(([userId, bm]) => ({ userId, benchmarks: bm })));
   }, [user]);
 
   const handleSave = () => {
     if (!value || !user) return;
-    const stored = JSON.parse(localStorage.getItem('crosscity_benchmarks') || '{}');
+    const stored = safeParse<Record<string, Record<string, number>>>(localStorage.getItem('crosscity_benchmarks'), {});
     if (!stored[user.id]) stored[user.id] = {};
     stored[user.id][selectedExercise] = Number(value);
 
     // Save history for charts
-    const history = JSON.parse(localStorage.getItem('crosscity_benchmark_history') || '{}');
+    const history = safeParse<Record<string, Record<string, Array<{ value: number; date: string }>>>>(localStorage.getItem('crosscity_benchmark_history'), {});
     if (!history[user.id]) history[user.id] = {};
     if (!history[user.id][selectedExercise]) history[user.id][selectedExercise] = [];
     history[user.id][selectedExercise].push({
@@ -52,7 +53,7 @@ const Benchmarks = () => {
   // Chart data for selected exercise history
   const chartData = useMemo(() => {
     if (!user) return [];
-    const history = JSON.parse(localStorage.getItem('crosscity_benchmark_history') || '{}');
+    const history = safeParse<Record<string, Record<string, Array<{ value: number; date: string }>>>>(localStorage.getItem('crosscity_benchmark_history'), {});
     const userHistory = history[user.id]?.[selectedExercise] || [];
     // If no history, use current value as single point
     if (userHistory.length === 0 && benchmarks[selectedExercise]) {
@@ -73,7 +74,7 @@ const Benchmarks = () => {
     }));
   }, [benchmarks]);
 
-  const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+  const users = getStoredUsers();
   const ranking = users
     .map((u: any) => {
       const userBm = allBenchmarks.find(b => b.userId === u.id);

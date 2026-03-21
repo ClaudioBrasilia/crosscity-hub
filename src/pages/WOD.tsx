@@ -13,6 +13,7 @@ import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
 import { normalizeDuel, checkAllResultsSubmitted, settleBet, calculateWinner } from '@/lib/duelLogic';
+import { filterEntriesByKnownUsers, getStoredUsers, safeParse } from '@/lib/realUsers';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX',
@@ -113,16 +114,19 @@ const WOD = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setDailyWod(JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null'));
-    setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
-    setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]').map(normalizeDuel));
-    setUsers(JSON.parse(localStorage.getItem('crosscity_users') || '[]'));
+    const syncStorage = () => {
+      const storedUsers = getStoredUsers();
+      setDailyWod(safeParse(localStorage.getItem('crosscity_daily_wod'), null));
+      setResults(filterEntriesByKnownUsers(safeParse<DailyWodResult[]>(localStorage.getItem('crosscity_wod_results'), []), (item) => [item.userId]));
+      setDuels(filterEntriesByKnownUsers(safeParse<any[]>(localStorage.getItem('crosscity_duels'), []), (item) => [item?.challengerId, ...(Array.isArray(item?.opponentIds) ? item.opponentIds : [])]).map(normalizeDuel));
+      setUsers(storedUsers as any[]);
+    };
+
+    syncStorage();
 
     // Listen for storage changes (updates from other tabs/windows)
     const handleStorageChange = () => {
-      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
-      setDuels(JSON.parse(localStorage.getItem('crosscity_duels') || '[]').map(normalizeDuel));
-      setUsers(JSON.parse(localStorage.getItem('crosscity_users') || '[]'));
+      syncStorage();
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
