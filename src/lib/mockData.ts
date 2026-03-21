@@ -11,6 +11,8 @@ export interface DailyWod {
   date: string;
   name: string;
   type: 'For Time' | 'AMRAP' | 'EMOM';
+  warmup?: string;
+  skill?: string;
   versions: Record<WodCategory, DailyWodVersion>;
 }
 
