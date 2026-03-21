@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
@@ -39,6 +39,79 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ADMIN_EMAILS = new Set(['alex@crosscity.com', 'initial_admin@crosscity.com']);
+const STORAGE_USERS_KEY = 'crosscity_users';
+const USER_SCOPED_STORAGE_KEYS = [
+  'crosscity_completed_challenges_',
+  'crosscity_goals_',
+  'crosscity_theme_',
+  'crosscity_onboarding_',
+  'crosscity_inventory_',
+  'crosscity_wins_',
+  'crosscity_battles_',
+];
+
+const safeParse = <T,>(value: string | null, fallback: T): T => {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+};
+
+const sanitizeLegacyLocalStorage = (users: User[]) => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  const validIds = new Set(users.map((item) => item.id));
+  window.localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
+
+  const parsedResults = safeParse<Array<Record<string, any>>>(window.localStorage.getItem('crosscity_wod_results'), []);
+  const filteredResults = parsedResults.filter((item) => validIds.has(String(item.userId || '')));
+  if (filteredResults.length !== parsedResults.length) {
+    window.localStorage.setItem('crosscity_wod_results', JSON.stringify(filteredResults));
+  }
+
+  const parsedDuels = safeParse<Array<Record<string, any>>>(window.localStorage.getItem('crosscity_duels'), []);
+  const filteredDuels = parsedDuels.filter((item) => {
+    const participantIds = [item?.challengerId, ...(Array.isArray(item?.opponentIds) ? item.opponentIds : [item?.opponentId])]
+      .filter(Boolean)
+      .map(String);
+    return participantIds.length > 0 && participantIds.every((id) => validIds.has(id));
+  });
+  if (filteredDuels.length !== parsedDuels.length) {
+    window.localStorage.setItem('crosscity_duels', JSON.stringify(filteredDuels));
+  }
+
+  const parsedFeed = safeParse<Array<Record<string, any>>>(window.localStorage.getItem('crosscity_feed'), []);
+  const filteredFeed = parsedFeed.filter((item) => validIds.has(String(item.userId || '')));
+  if (filteredFeed.length !== parsedFeed.length) {
+    window.localStorage.setItem('crosscity_feed', JSON.stringify(filteredFeed));
+  }
+
+  const parsedCheckins = safeParse<Record<string, string[]>>(window.localStorage.getItem('crosscity_checkins'), {});
+  const filteredCheckins = Object.fromEntries(Object.entries(parsedCheckins).filter(([userId]) => validIds.has(userId)));
+  if (Object.keys(filteredCheckins).length !== Object.keys(parsedCheckins).length) {
+    window.localStorage.setItem('crosscity_checkins', JSON.stringify(filteredCheckins));
+  }
+
+  const parsedProgress = safeParse<Record<string, Record<string, number>>>(window.localStorage.getItem('crosscity_challenge_progress'), {});
+  const filteredProgress = Object.fromEntries(Object.entries(parsedProgress).filter(([userId]) => validIds.has(userId)));
+  if (Object.keys(filteredProgress).length !== Object.keys(parsedProgress).length) {
+    window.localStorage.setItem('crosscity_challenge_progress', JSON.stringify(filteredProgress));
+  }
+
+  Object.keys(window.localStorage).forEach((key) => {
+    const scopedPrefix = USER_SCOPED_STORAGE_KEYS.find((prefix) => key.startsWith(prefix));
+    if (!scopedPrefix) return;
+
+    const userId = key.slice(scopedPrefix.length);
+    if (userId && !validIds.has(userId)) {
+      window.localStorage.removeItem(key);
+    }
+  });
+
+  window.dispatchEvent(new Event('storage'));
+};
 
 async function fetchUserProfile(userId: string): Promise<User | null> {
   const { data: profile, error: profileError } = await supabase
@@ -56,7 +129,6 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     .single();
 
   const dbRole = (roleData?.role as UserRole) || 'athlete';
-  // Admin email fallback for bootstrapping the first admin
   const finalRole = ADMIN_EMAILS.has(profile.email?.toLowerCase()) ? 'admin' : dbRole;
 
   return {
@@ -82,6 +154,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
+    const { data: profiles } = await supabase.from('profiles').select('*');
+    const { data: roles } = await supabase.from('user_roles').select('user_id, role');
+
+    if (!profiles) return [];
+
+    const roleMap = new Map<string, UserRole>();
+    roles?.forEach((r: any) => roleMap.set(r.user_id, r.role as UserRole));
+
+    return profiles.map((p: any) => {
+      const dbRole = roleMap.get(p.id) || 'athlete';
+      const finalRole = ADMIN_EMAILS.has(p.email?.toLowerCase()) ? 'admin' : dbRole;
+      return {
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        avatar: p.avatar || '👤',
+        boxId: p.box_id || 'box_1',
+        xp: p.xp || 0,
+        individualEnergy: p.xp || 0,
+        level: p.level || 1,
+        streak: p.streak || 0,
+        gender: (p.gender as Gender) || 'male',
+        category: (p.category as Category) || 'beginner',
+        role: finalRole,
+        checkins: p.checkins || 0,
+        wins: p.wins || 0,
+        battles: p.battles || 0,
+      };
+    });
+  }, []);
+
   const handleSession = useCallback(async (session: Session | null) => {
     if (!session?.user) {
       setUser(null);
@@ -94,18 +198,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       handleSession(session);
     });
 
-    // Then check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, [handleSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+
+    if (!user) {
+      window.localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify([]));
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncRealUsersToStorage = async () => {
+      const users = await getAllUsers();
+      if (!cancelled) {
+        sanitizeLegacyLocalStorage(users);
+      }
+    };
+
+    syncRealUsersToStorage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAllUsers]);
 
   const login = async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -160,40 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw new Error(error.message);
   };
 
-  const getAllUsers = async (): Promise<User[]> => {
-    const { data: profiles } = await supabase.from('profiles').select('*');
-    const { data: roles } = await supabase.from('user_roles').select('user_id, role');
-
-    if (!profiles) return [];
-
-    const roleMap = new Map<string, UserRole>();
-    roles?.forEach((r: any) => roleMap.set(r.user_id, r.role as UserRole));
-
-    return profiles.map((p: any) => {
-      const dbRole = roleMap.get(p.id) || 'athlete';
-      const finalRole = ADMIN_EMAILS.has(p.email?.toLowerCase()) ? 'admin' : dbRole;
-      return {
-        id: p.id,
-        name: p.name,
-        email: p.email,
-        avatar: p.avatar || '👤',
-        boxId: p.box_id || 'box_1',
-        xp: p.xp || 0,
-        individualEnergy: p.xp || 0,
-        level: p.level || 1,
-        streak: p.streak || 0,
-        gender: (p.gender as Gender) || 'male',
-        category: (p.category as Category) || 'beginner',
-        role: finalRole,
-        checkins: p.checkins || 0,
-        wins: p.wins || 0,
-        battles: p.battles || 0,
-      };
-    });
-  };
-
   const setUserRole = async (userId: string, role: UserRole) => {
-    // Upsert: update if exists, insert if not
     const { data: existing } = await supabase
       .from('user_roles')
       .select('id')
@@ -206,7 +299,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.from('user_roles').insert({ user_id: userId, role });
     }
 
-    // Update local state if changing own role
     if (user && user.id === userId) {
       setUser(prev => prev ? { ...prev, role } : null);
     }
