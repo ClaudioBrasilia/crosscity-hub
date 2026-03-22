@@ -117,6 +117,7 @@ const Admin = () => {
           )}
         </CardContent>
       </Card>
+      <AdminCheckinHistory users={users} />
     </div>
   );
 };

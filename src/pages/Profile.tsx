@@ -209,6 +209,9 @@ const Profile = () => {
         </CardContent>
       </Card>
 
+      {/* Histórico Mensal */}
+      <CheckinMonthlyHistory dates={Array.from(myCheckins)} />
+
       {/* Conquistas Completas */}
       <Card className="border-primary/20">
         <CardHeader>
