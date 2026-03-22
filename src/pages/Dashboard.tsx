@@ -66,6 +66,16 @@ const sanitizeDailyWodStorage = () => {
   }
 };
 
+const getStoredDailyWod = (): DailyWod | null => {
+  sanitizeDailyWodStorage();
+
+  try {
+    return JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null') as DailyWod | null;
+  } catch {
+    return null;
+  }
+};
+
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
 const calculateDistanceMeters = (
@@ -139,7 +149,7 @@ const Dashboard = () => {
   const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
   const unlockedCount = equipmentCatalog.filter((eq) => userWins >= eq.winsRequired || userInventory.includes(eq.id)).length;
 
-  const dailyWod: DailyWod | null = JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null');
+  const dailyWod = getStoredDailyWod();
   const dailyResults: DailyWodResult[] = JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]');
   const myTodayResult = dailyResults.find((item) => item.wodId === dailyWod?.id && item.userId === user?.id);
 

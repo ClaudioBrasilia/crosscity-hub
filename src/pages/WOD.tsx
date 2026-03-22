@@ -117,6 +117,7 @@ const WOD = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [dailyWod, setDailyWod] = useState<DailyWod | null>(null);
+  const [hasLoadedWod, setHasLoadedWod] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<WodCategory>('rx');
   const [scoreUnit, setScoreUnit] = useState<WodScoreUnit>('time');
   const [resultValue, setResultValue] = useState('');
@@ -134,6 +135,7 @@ const WOD = () => {
       setResults(filterEntriesByKnownUsers(safeParse<DailyWodResult[]>(localStorage.getItem('crosscity_wod_results'), []), (item) => [item.userId]));
       setDuels(filterEntriesByKnownUsers(safeParse<any[]>(localStorage.getItem('crosscity_duels'), []), (item) => [item?.challengerId, ...(Array.isArray(item?.opponentIds) ? item.opponentIds : [])]).map(normalizeDuel));
       setUsers(storedUsers as any[]);
+      setHasLoadedWod(true);
     };
 
     syncStorage();
@@ -363,8 +365,12 @@ const WOD = () => {
     setIsSubmitting(false);
   };
 
-  if (!dailyWod) {
+  if (!hasLoadedWod) {
     return <div>Carregando WOD do dia...</div>;
+  }
+
+  if (!dailyWod) {
+    return <div>Nenhum WOD do dia cadastrado.</div>;
   }
 
   return (

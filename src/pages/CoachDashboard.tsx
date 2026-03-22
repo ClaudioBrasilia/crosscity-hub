@@ -162,7 +162,11 @@ const CoachDashboard = () => {
     // Load existing WOD
     const storedWod = localStorage.getItem('crosscity_daily_wod');
     if (storedWod) {
-      setWodData(normalizeStoredWod(JSON.parse(storedWod)));
+      try {
+        setWodData(normalizeStoredWod(JSON.parse(storedWod)));
+      } catch {
+        localStorage.removeItem('crosscity_daily_wod');
+      }
     }
   }, []);
 
