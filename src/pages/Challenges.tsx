@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { ChallengeLeaderboard } from '@/components/ChallengeLeaderboard';
 import { ChallengeRankingFull } from '@/components/ChallengeRankingFull';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,10 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import {
   getActiveChallenges, addChallenge, removeChallenge, getChallengeProgress,
   incrementChallengeProgress, getCompletedChallenges, markChallengeComplete,
+  uploadChallengeProof, getChallengeProofs,
   type Challenge, type ChallengeType,
 } from '@/lib/challenges';
 import { useToast } from '@/hooks/use-toast';
-import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp } from 'lucide-react';
+import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp, Camera, ImageIcon, Loader2 } from 'lucide-react';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
