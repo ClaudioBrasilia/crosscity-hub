@@ -64,6 +64,19 @@ const parseStorage = <T,>(key: string, fallback: T): T => {
   }
 };
 
+const sanitizeDailyWodStorage = () => {
+  try {
+    const raw = localStorage.getItem('crosscity_daily_wod');
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    if (!parsed || !parsed.versions || !parsed.name) {
+      localStorage.removeItem('crosscity_daily_wod');
+    }
+  } catch {
+    localStorage.removeItem('crosscity_daily_wod');
+  }
+};
+
 const toValue = (result: string) => {
   if (result.includes(':')) {
     return { kind: 'time' as const, value: toDurationSeconds(result) };
@@ -115,6 +128,7 @@ const WOD = () => {
 
   useEffect(() => {
     const syncStorage = () => {
+      sanitizeDailyWodStorage();
       const storedUsers = getStoredUsers();
       setDailyWod(safeParse(localStorage.getItem('crosscity_daily_wod'), null));
       setResults(filterEntriesByKnownUsers(safeParse<DailyWodResult[]>(localStorage.getItem('crosscity_wod_results'), []), (item) => [item.userId]));
