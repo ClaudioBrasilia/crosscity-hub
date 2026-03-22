@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dumbbell, Flame, Users, Trash2, Plus, Save, ChevronRight } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { getChallengeProgress } from '@/lib/challenges';
+import type { DailyWod, DailyWodVersion, WodCategory } from '@/lib/mockData';
 
 interface WodData {
   id: string;
@@ -39,22 +40,99 @@ interface Challenge {
   endDate: string;
 }
 
+const defaultWodDescription = (versions?: Partial<Record<WodCategory, DailyWodVersion>>) =>
+  versions?.rx?.description || versions?.scaled?.description || versions?.beginner?.description || '';
+
+const defaultWodWeight = (
+  versions: Partial<Record<WodCategory, DailyWodVersion>> | undefined,
+  category: WodCategory,
+) => versions?.[category]?.weight || '';
+
+const createInitialWodData = (): WodData => ({
+  id: '',
+  date: new Date().toISOString().split('T')[0],
+  title: '',
+  type: 'AMRAP',
+  warmup: '',
+  skill: '',
+  description: '',
+  rxWeights: '',
+  scaledWeights: '',
+  beginnerWeights: '',
+});
+
+const normalizeStoredWod = (storedWod: unknown): WodData => {
+  const initialData = createInitialWodData();
+
+  if (!storedWod || typeof storedWod !== 'object') {
+    return initialData;
+  }
+
+  const record = storedWod as Record<string, unknown>;
+  const versions = (record.versions && typeof record.versions === 'object'
+    ? record.versions
+    : undefined) as Partial<Record<WodCategory, DailyWodVersion>> | undefined;
+
+  return {
+    ...initialData,
+    id: typeof record.id === 'string' ? record.id : initialData.id,
+    date: typeof record.date === 'string' ? record.date : initialData.date,
+    title:
+      typeof record.title === 'string'
+        ? record.title
+        : typeof record.name === 'string'
+          ? record.name
+          : initialData.title,
+    type: typeof record.type === 'string' ? record.type : initialData.type,
+    warmup: typeof record.warmup === 'string' ? record.warmup : initialData.warmup,
+    skill: typeof record.skill === 'string' ? record.skill : initialData.skill,
+    description:
+      typeof record.description === 'string'
+        ? record.description
+        : defaultWodDescription(versions),
+    rxWeights:
+      typeof record.rxWeights === 'string'
+        ? record.rxWeights
+        : defaultWodWeight(versions, 'rx'),
+    scaledWeights:
+      typeof record.scaledWeights === 'string'
+        ? record.scaledWeights
+        : defaultWodWeight(versions, 'scaled'),
+    beginnerWeights:
+      typeof record.beginnerWeights === 'string'
+        ? record.beginnerWeights
+        : defaultWodWeight(versions, 'beginner'),
+  };
+};
+
+const toDailyWodPayload = (wodData: WodData): DailyWod => ({
+  id: wodData.id || `wod_${Date.now()}`,
+  date: wodData.date,
+  name: wodData.title,
+  type: wodData.type as DailyWod['type'],
+  warmup: wodData.warmup.trim(),
+  skill: wodData.skill.trim(),
+  versions: {
+    rx: {
+      description: wodData.description,
+      weight: wodData.rxWeights,
+    },
+    scaled: {
+      description: wodData.description,
+      weight: wodData.scaledWeights,
+    },
+    beginner: {
+      description: wodData.description,
+      weight: wodData.beginnerWeights,
+    },
+  },
+});
+
 const CoachDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const createInitialWodData = (): WodData => ({
-    id: '',
-    date: new Date().toISOString().split('T')[0],
-    title: '',
-    type: 'AMRAP',
-    warmup: '',
-    skill: '',
-    description: '',
-    rxWeights: '',
-    scaledWeights: '',
-    beginnerWeights: '',
-  });
+  const [wodData, setWodData] = useState<WodData>(createInitialWodData());
 
   const [wodData, setWodData] = useState<WodData>(createInitialWodData());
 
@@ -86,10 +164,7 @@ const CoachDashboard = () => {
     // Load existing WOD
     const storedWod = localStorage.getItem('crosscity_daily_wod');
     if (storedWod) {
-      setWodData({
-        ...createInitialWodData(),
-        ...JSON.parse(storedWod),
-      });
+      setWodData(normalizeStoredWod(JSON.parse(storedWod)));
     }
   }, []);
 
@@ -99,12 +174,9 @@ const CoachDashboard = () => {
   }
 
   const handleSaveWod = () => {
-    const wodToSave = {
-      ...wodData,
-      id: wodData.id || `wod_${Date.now()}`,
-    };
+    const wodToSave = toDailyWodPayload(wodData);
     localStorage.setItem('crosscity_daily_wod', JSON.stringify(wodToSave));
-    setWodData(wodToSave);
+    setWodData(normalizeStoredWod(wodToSave));
     toast({
       title: 'WOD salvo!',
       description: 'O WOD do dia foi atualizado com sucesso.',
