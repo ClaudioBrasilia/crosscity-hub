@@ -1,4 +1,12 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export type ChallengeType = 'weekly' | 'monthly';
+
+export interface ChallengeProof {
+  url: string;
+  uploadedAt: string;
+  step: number;
+}
 
 export interface Challenge {
   id: string;
@@ -60,6 +68,61 @@ export function incrementChallengeProgress(challengeId: string, userId: string):
   const next = current + 1;
   setChallengeProgress(challengeId, userId, next);
   return next;
+}
+
+// --- Challenge Proof Photos ---
+
+const PROOFS_KEY = 'crosscity_challenge_proofs';
+
+export function getChallengeProofs(challengeId: string, userId: string): ChallengeProof[] {
+  try {
+    const data: Record<string, Record<string, ChallengeProof[]>> = JSON.parse(localStorage.getItem(PROOFS_KEY) || '{}');
+    return data[userId]?.[challengeId] || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveChallengeProof(challengeId: string, userId: string, proof: ChallengeProof): void {
+  try {
+    const data: Record<string, Record<string, ChallengeProof[]>> = JSON.parse(localStorage.getItem(PROOFS_KEY) || '{}');
+    if (!data[userId]) data[userId] = {};
+    if (!data[userId][challengeId]) data[userId][challengeId] = [];
+    data[userId][challengeId].push(proof);
+    localStorage.setItem(PROOFS_KEY, JSON.stringify(data));
+  } catch { /* silent */ }
+}
+
+export async function uploadChallengeProof(
+  challengeId: string,
+  userId: string,
+  file: File,
+  step: number
+): Promise<string | null> {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${userId}/${challengeId}/${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('challenge-proofs')
+      .upload(path, file, { upsert: false });
+
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('challenge-proofs')
+      .getPublicUrl(path);
+
+    const url = urlData.publicUrl;
+    saveChallengeProof(challengeId, userId, { url, uploadedAt: new Date().toISOString(), step });
+    return url;
+  } catch (err) {
+    console.error('Upload failed:', err);
+    return null;
+  }
 }
 
 export function getCompletedChallenges(userId: string): string[] {
