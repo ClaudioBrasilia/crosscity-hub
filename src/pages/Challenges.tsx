@@ -35,6 +35,42 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
   const isComplete = progress >= challenge.target;
   const pct = Math.min((progress / challenge.target) * 100, 100);
 
+  const [showProofUpload, setShowProofUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const proofs = getChallengeProofs(challenge.id, userId);
+
+  const handleIncrementWithProof = async (file?: File) => {
+    if (file && userId) {
+      setUploading(true);
+      const url = await uploadChallengeProof(challenge.id, userId, file, progress + 1);
+      setUploading(false);
+      if (url) {
+        toast({ title: '📸 Foto enviada!', description: 'Prova registrada com sucesso.' });
+      } else {
+        toast({ title: '⚠️ Erro no upload', description: 'Progresso registrado, mas a foto falhou.', variant: 'destructive' });
+      }
+    }
+    onIncrement(challenge);
+    setShowProofUpload(false);
+    setProofPreview(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Máximo 5MB.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setProofPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   return (
     <Card className={`border-primary/20 transition-all ${isComplete && !isClaimed ? 'ring-2 ring-secondary/50 shadow-lg shadow-secondary/10' : ''}`}>
       <CardContent className="p-4">
@@ -46,6 +82,11 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${challenge.type === 'weekly' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-secondary/20 text-secondary border-secondary/30'}`}>
                 {challenge.type === 'weekly' ? 'Semanal' : 'Mensal'}
               </Badge>
+              {proofs.length > 0 && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-accent/20 text-accent-foreground border-accent/30">
+                  <ImageIcon className="h-2.5 w-2.5 mr-0.5" /> {proofs.length} foto{proofs.length > 1 ? 's' : ''}
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{challenge.description}</p>
 
@@ -58,8 +99,8 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
             </div>
 
             <div className="flex gap-2 mt-3">
-              {!isComplete && !isClaimed && (
-                <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => onIncrement(challenge)}>
+              {!isComplete && !isClaimed && !showProofUpload && (
+                <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setShowProofUpload(true)}>
                   <ChevronUp className="h-3.5 w-3.5" /> +1 Progresso
                 </Button>
               )}
@@ -78,6 +119,62 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
               )}
             </div>
 
+            {/* Proof Upload Area */}
+            {showProofUpload && !isComplete && !isClaimed && (
+              <div className="mt-3 rounded-lg border border-primary/20 bg-muted/30 p-3 space-y-3">
+                <p className="text-xs text-muted-foreground">Adicione uma foto como prova (opcional):</p>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+
+                {proofPreview ? (
+                  <div className="relative">
+                    <img src={proofPreview} alt="Prova" className="w-full h-32 object-cover rounded-md" />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute top-1 right-1 h-6 w-6 p-0 bg-background/80"
+                      onClick={() => { setProofPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-1.5"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Tirar foto / Escolher
+                  </Button>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    disabled={uploading}
+                    onClick={() => {
+                      const file = fileInputRef.current?.files?.[0];
+                      handleIncrementWithProof(file);
+                    }}
+                  >
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                    {proofPreview ? 'Enviar com foto' : 'Registrar sem foto'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowProofUpload(false); setProofPreview(null); }}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {!isCoach && !!userId && (
               <DominationEnergyButton
