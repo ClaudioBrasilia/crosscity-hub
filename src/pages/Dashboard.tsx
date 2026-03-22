@@ -53,6 +53,19 @@ const toTimeValue = (value: string) => {
   return minutes * 60 + seconds;
 };
 
+const sanitizeDailyWodStorage = () => {
+  try {
+    const raw = localStorage.getItem('crosscity_daily_wod');
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    if (!parsed || !parsed.versions || !parsed.name) {
+      localStorage.removeItem('crosscity_daily_wod');
+    }
+  } catch {
+    localStorage.removeItem('crosscity_daily_wod');
+  }
+};
+
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
 const calculateDistanceMeters = (
@@ -118,6 +131,7 @@ const Dashboard = () => {
       }
     };
 
+    sanitizeDailyWodStorage();
     loadActiveLocation();
   }, []);
 

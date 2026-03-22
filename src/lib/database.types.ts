@@ -117,24 +117,30 @@ export type Database = {
           id: string
           date: string
           name: string
-          type: 'For Time' | 'AMRAP' | 'EMOM'
+          type: 'For Time' | 'AMRAP' | 'EMOM' | 'Chipper' | 'Hero WOD'
           description: string
+          warmup: string | null
+          skill: string | null
           created_at: string
         }
         Insert: {
           id?: string
           date: string
           name: string
-          type: 'For Time' | 'AMRAP' | 'EMOM'
+          type: 'For Time' | 'AMRAP' | 'EMOM' | 'Chipper' | 'Hero WOD'
           description: string
+          warmup?: string | null
+          skill?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           date?: string
           name?: string
-          type?: 'For Time' | 'AMRAP' | 'EMOM'
+          type?: 'For Time' | 'AMRAP' | 'EMOM' | 'Chipper' | 'Hero WOD'
           description?: string
+          warmup?: string | null
+          skill?: string | null
           created_at?: string
         }
       }
