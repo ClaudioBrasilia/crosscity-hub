@@ -134,6 +134,8 @@ const CoachDashboard = () => {
 
   const [wodData, setWodData] = useState<WodData>(createInitialWodData());
 
+  const [wodData, setWodData] = useState<WodData>(createInitialWodData());
+
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [newChallenge, setNewChallenge] = useState<Partial<Challenge>>({
     title: '',
