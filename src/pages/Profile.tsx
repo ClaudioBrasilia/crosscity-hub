@@ -10,6 +10,7 @@ import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check,
 import { useToast } from '@/hooks/use-toast';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
+import CheckinMonthlyHistory from '@/components/CheckinMonthlyHistory';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
 
 const Profile = () => {
