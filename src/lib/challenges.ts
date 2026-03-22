@@ -1,4 +1,12 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export type ChallengeType = 'weekly' | 'monthly';
+
+export interface ChallengeProof {
+  url: string;
+  uploadedAt: string;
+  step: number;
+}
 
 export interface Challenge {
   id: string;
