@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Trophy, Medal, Award } from 'lucide-react';
 import type { DailyWodResult } from '@/lib/mockData';
 import { filterEntriesByKnownUsers, getStoredUsers, safeParse } from '@/lib/realUsers';
+import UserAvatar from '@/components/UserAvatar';
 
 type Category = 'rx' | 'scaled' | 'beginner';
 type Gender = 'male' | 'female';
@@ -12,6 +13,7 @@ interface LeaderboardUser {
   id: string;
   name: string;
   avatar: string;
+  avatarUrl?: string | null;
   boxId: string;
   xp: number;
   category: Category;
@@ -117,7 +119,7 @@ const Leaderboard = () => {
           <Card key={user.id} className={`border-primary/20 ${index < 3 ? 'bg-primary/10' : ''}`}>
             <CardContent className="p-3 flex items-center gap-3">
               <div className="w-6 flex justify-center">{getMedal(index)}</div>
-              <span className="text-2xl">{user.avatar}</span>
+              <UserAvatar name={user.name} avatar={user.avatar} avatarUrl={user.avatarUrl} className="h-10 w-10" fallbackClassName="text-sm" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{user.name}</p>
                 <p className="text-xs text-muted-foreground">{genderLabels[user.gender]}</p>
@@ -175,7 +177,7 @@ const Leaderboard = () => {
                 <Card key={user.id} className={`border-primary/20 ${index < 3 ? 'bg-primary/10' : ''}`}>
                   <CardContent className="p-3 flex items-center gap-3">
                     <div className="w-6 flex justify-center">{getMedal(index)}</div>
-                    <span className="text-2xl">{user.avatar}</span>
+                    <UserAvatar name={user.name} avatar={user.avatar} avatarUrl={user.avatarUrl} className="h-10 w-10" fallbackClassName="text-sm" />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold truncate">{user.name}</p>
                       <p className="text-xs text-muted-foreground">{categoryLabels[user.category]} • {genderLabels[user.gender]}</p>

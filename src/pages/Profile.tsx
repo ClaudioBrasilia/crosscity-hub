@@ -1,23 +1,30 @@
-import { useState, useMemo } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X, Upload, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
 import CheckinMonthlyHistory from '@/components/CheckinMonthlyHistory';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
+import UserAvatar from '@/components/UserAvatar';
+
+const PROFILE_PHOTO_BUCKET = 'profile-photos';
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar);
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [editData, setEditData] = useState({
     name: user?.name || '',
     gender: user?.gender || 'male' as 'male' | 'female',
@@ -28,8 +35,19 @@ const Profile = () => {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  const checkins: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
-  const myCheckins = user ? new Set(checkins[user.id] || []) : new Set<string>();
+  useEffect(() => {
+    setSelectedAvatar(user?.avatar);
+    setEditData({
+      name: user?.name || '',
+      gender: user?.gender || 'male',
+      category: user?.category || 'beginner',
+    });
+  }, [user]);
+
+  const myCheckins = useMemo(() => {
+    const checkins: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
+    return user ? new Set(checkins[user.id] || []) : new Set<string>();
+  }, [user]);
 
   const calendarDays = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -48,10 +66,13 @@ const Profile = () => {
   const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthCheckinCount = calendarDays.days.filter((d) => d.isPresent).length;
 
-  // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+
+  const getStoragePath = (fileName: string) => `${user?.id}/${fileName}`;
+
+  const buildPublicUrl = (path: string) => supabase.storage.from(PROFILE_PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
 
   const handleSaveAvatar = () => {
     if (selectedAvatar) {
@@ -64,6 +85,85 @@ const Profile = () => {
     updateUser(editData);
     setIsEditing(false);
     toast({ title: 'Perfil atualizado!' });
+  };
+
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!user || !file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: 'Formato inválido',
+        description: 'Use uma imagem JPG, PNG ou WEBP.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'Imagem muito grande',
+        description: 'Escolha uma imagem com até 2MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const filePath = getStoragePath(`avatar-${Date.now()}.${extension}`);
+
+    try {
+      if (user.avatarUrl) {
+        const previousPath = user.avatarUrl.split(`/storage/v1/object/public/${PROFILE_PHOTO_BUCKET}/`)[1];
+        if (previousPath) {
+          await supabase.storage.from(PROFILE_PHOTO_BUCKET).remove([previousPath]);
+        }
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from(PROFILE_PHOTO_BUCKET)
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      await updateUser({ avatarUrl: buildPublicUrl(filePath) });
+      toast({ title: 'Foto de perfil atualizada!' });
+    } catch (error) {
+      console.error('Erro ao enviar foto de perfil:', error);
+      toast({
+        title: 'Erro no upload',
+        description: 'Não foi possível atualizar a foto de perfil.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!user?.avatarUrl) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const existingPath = user.avatarUrl.split(`/storage/v1/object/public/${PROFILE_PHOTO_BUCKET}/`)[1];
+      if (existingPath) {
+        await supabase.storage.from(PROFILE_PHOTO_BUCKET).remove([existingPath]);
+      }
+
+      await updateUser({ avatarUrl: null });
+      toast({ title: 'Foto removida com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao remover foto de perfil:', error);
+      toast({
+        title: 'Erro ao remover foto',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   const prevMonth = () => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
@@ -92,6 +192,29 @@ const Profile = () => {
           )}
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-primary/10 bg-muted/20 p-4">
+            <div className="flex items-center gap-4">
+              <UserAvatar name={user?.name} avatar={user?.avatar} avatarUrl={user?.avatarUrl} className="h-20 w-20" fallbackClassName="text-2xl" />
+              <div>
+                <p className="text-lg font-semibold">{user?.name}</p>
+                <p className="text-sm text-muted-foreground">{user?.avatarUrl ? 'Foto de perfil ativa' : 'Sem foto, usando avatar padrão.'}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Label htmlFor="profile-photo" className="inline-flex">
+                <Button type="button" variant="outline" className="gap-2" disabled={isUploadingPhoto} asChild>
+                  <span>
+                    <Upload className="h-4 w-4" /> {user?.avatarUrl ? 'Trocar foto' : 'Enviar foto'}
+                  </span>
+                </Button>
+              </Label>
+              <Input id="profile-photo" type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handlePhotoUpload} disabled={isUploadingPhoto} />
+              <Button type="button" variant="ghost" className="gap-2" onClick={handleRemovePhoto} disabled={!user?.avatarUrl || isUploadingPhoto}>
+                <Trash2 className="h-4 w-4" /> Remover
+              </Button>
+            </div>
+          </div>
+
           {!isEditing ? (
             <>
               <div>
@@ -175,7 +298,6 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Calendário */}
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -209,10 +331,8 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Histórico Mensal */}
       <CheckinMonthlyHistory dates={Array.from(myCheckins)} />
 
-      {/* Conquistas Completas */}
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -253,7 +373,6 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Theme Selector */}
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -292,10 +411,10 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Avatar */}
       <Card className="border-primary/20">
         <CardHeader><CardTitle>Personalizar Avatar</CardTitle></CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">A foto de perfil aparece primeiro. Sem foto, o app usa o avatar atual ou a inicial do nome.</p>
           <div className="grid grid-cols-5 gap-4 mb-6">
             {avatarEmojis.map((emoji) => (
               <button key={emoji} onClick={() => setSelectedAvatar(emoji)} className={`text-6xl p-4 rounded-lg border-2 transition-all hover:scale-110 ${selectedAvatar === emoji ? 'border-primary bg-primary/10' : 'border-border'}`}>
@@ -306,7 +425,6 @@ const Profile = () => {
           <Button onClick={handleSaveAvatar} className="w-full">Salvar Avatar</Button>
         </CardContent>
       </Card>
-      {/* Achievement Share Card */}
       {selectedBadge && user && (
         <AchievementCard
           badge={selectedBadge}

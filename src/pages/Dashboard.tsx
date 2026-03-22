@@ -13,6 +13,7 @@ import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { ensureClanData, getCheckInXpReward, getUserClan, generateDominationEnergyForActivity, hasGeneratedDominationEnergy } from '@/lib/clanSystem';
 import type { UserProfile } from '@/lib/clanSystem';
+import UserAvatar from '@/components/UserAvatar';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -315,7 +316,7 @@ const Dashboard = () => {
       {/* Hero + Check-in */}
       <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <div className="text-6xl">{user?.avatar}</div>
+          <UserAvatar name={user?.name} avatar={user?.avatar} avatarUrl={user?.avatarUrl} className="h-20 w-20 text-3xl" fallbackClassName="text-3xl" />
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
             <p className="text-muted-foreground">

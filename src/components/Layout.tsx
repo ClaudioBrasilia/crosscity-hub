@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame, GraduationCap, Shield, Map } from 'lucide-react';
 import OnboardingTour from '@/components/OnboardingTour';
+import UserAvatar from '@/components/UserAvatar';
 import GoalsQuestionnaire from '@/components/GoalsQuestionnaire';
 
 const THEME_PRESETS: Record<string, { primary: string; secondary: string; accent: string; ring: string }> = {
@@ -109,7 +110,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full border border-primary/30 px-2 py-1">
-                <span className="text-lg">{user?.avatar}</span>
+                <UserAvatar name={user?.name} avatar={user?.avatar} avatarUrl={user?.avatarUrl} className="h-9 w-9" fallbackClassName="text-sm" />
                 <p className="text-xs font-medium hidden sm:block">Nível {user?.level}</p>
               </div>
 
