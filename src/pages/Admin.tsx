@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { Shield, Users, Loader2 } from 'lucide-react';
+import AdminCheckinHistory from '@/components/AdminCheckinHistory';
 
 interface UserItem {
   id: string;
@@ -116,6 +117,7 @@ const Admin = () => {
           )}
         </CardContent>
       </Card>
+      <AdminCheckinHistory users={users} />
     </div>
   );
 };
