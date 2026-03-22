@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Flame, ThumbsUp } from 'lucide-react';
 import { filterEntriesByKnownUsers, getStoredUsersMap, safeParse } from '@/lib/realUsers';
+import UserAvatar from '@/components/UserAvatar';
 
 interface Post {
   id: string;
   userId: string;
   userName: string;
   userAvatar: string;
+  userAvatarUrl?: string | null;
   content: string;
   wodName: string;
   time: string;
@@ -18,7 +20,7 @@ interface Post {
 }
 
 const Feed = () => {
-  const usersMap = getStoredUsersMap();
+  const usersMap = useMemo(() => getStoredUsersMap(), []);
   const [posts, setPosts] = useState<Post[]>([]);
 
   useEffect(() => {
@@ -29,9 +31,10 @@ const Feed = () => {
       ...post,
       userName: usersMap.get(post.userId)?.name || post.userName,
       userAvatar: usersMap.get(post.userId)?.avatar || post.userAvatar,
+      userAvatarUrl: usersMap.get(post.userId)?.avatarUrl || post.userAvatarUrl || null,
     }));
     setPosts(feedData);
-  }, []);
+  }, [usersMap]);
 
   const formatTime = (timestamp: number) => {
     const diff = Date.now() - timestamp;
@@ -52,7 +55,7 @@ const Feed = () => {
         <Card key={post.id} className="border-primary/20 overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
-              <div className="text-4xl">{post.userAvatar}</div>
+              <UserAvatar name={post.userName} avatar={post.userAvatar} avatarUrl={post.userAvatarUrl} className="h-12 w-12" fallbackClassName="text-base" />
               <div className="flex-1 space-y-3">
                 <div>
                   <div className="flex items-center gap-2">

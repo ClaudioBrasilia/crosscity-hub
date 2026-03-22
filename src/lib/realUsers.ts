@@ -2,6 +2,7 @@ export interface StoredUserIdentity {
   id: string;
   name?: string;
   avatar?: string;
+  avatarUrl?: string | null;
   [key: string]: unknown;
 }
 
@@ -25,6 +26,7 @@ export const getStoredUsers = (): StoredUserIdentity[] => {
       id: item.id,
       name: typeof item.name === 'string' ? item.name : undefined,
       avatar: typeof item.avatar === 'string' ? item.avatar : undefined,
+      avatarUrl: typeof item.avatarUrl === 'string' ? item.avatarUrl : null,
     }));
 };
 
