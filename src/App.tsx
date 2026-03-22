@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Install from "./pages/Install";
 import Clans from "./pages/Clans";
+import TvMode from "./pages/TvMode";
 
 const queryClient = new QueryClient();
 
