@@ -239,8 +239,10 @@ const Dashboard = () => {
     );
   };
 
+  const [isSubmittingCheckin, setIsSubmittingCheckin] = useState(false);
+
   const handleCheckIn = async () => {
-    if (!user || checkInBlocked || !activeLocation || !locationCheck) return;
+    if (!user || checkInBlocked || !activeLocation || !locationCheck || isSubmittingCheckin) return;
 
     if (!isInsideAllowedArea) {
       toast({
@@ -251,48 +253,53 @@ const Dashboard = () => {
       return;
     }
 
-    const updatedCheckins = hasCheckedInToday
-      ? checkinsData
-      : { ...checkinsData, [user.id]: [...myCheckins, today] };
-    localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
-    const newXp = (user.xp || 0) + checkInXpReward;
-    const newLevel = Math.floor(newXp / 500) + 1;
-    updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
-    addMonthlyXp(user.id, checkInXpReward);
-    const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-    const updatedUsers = users.map((item) =>
-      item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
-    );
-    localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
+    setIsSubmittingCheckin(true);
+    try {
+      const updatedCheckins = hasCheckedInToday
+        ? checkinsData
+        : { ...checkinsData, [user.id]: [...myCheckins, today] };
+      localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
+      const newXp = (user.xp || 0) + checkInXpReward;
+      const newLevel = Math.floor(newXp / 500) + 1;
+      updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
+      addMonthlyXp(user.id, checkInXpReward);
+      const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
+      const updatedUsers = users.map((item) =>
+        item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
+      );
+      localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
 
-    // Generate domination energy automatically
-    let energyMsg = '';
-    if (!hasGeneratedDominationEnergy(user.id, `checkin:${today}`)) {
-      const energyResult = generateDominationEnergyForActivity({
-        userId: user.id,
-        activityId: `checkin:${today}`,
-        activityType: 'checkin',
-        energy: 20,
-        clanEnergyBonus: 0,
-        participationValid: true,
-      });
-      if (energyResult.ok) {
-        const clanName = energyResult.clan?.name;
-        energyMsg = clanName ? ` e +${energyResult.claim.clanEnergy} energia ${clanName}` : '';
+      // Generate domination energy automatically
+      let energyMsg = '';
+      if (!hasGeneratedDominationEnergy(user.id, `checkin:${today}`)) {
+        const energyResult = generateDominationEnergyForActivity({
+          userId: user.id,
+          activityId: `checkin:${today}`,
+          activityType: 'checkin',
+          energy: 20,
+          clanEnergyBonus: 0,
+          participationValid: true,
+        });
+        if (energyResult.ok) {
+          const clanName = energyResult.clan?.name;
+          energyMsg = clanName ? ` e +${energyResult.claim.clanEnergy} energia ${clanName}` : '';
+        }
       }
+
+      const distanceLabel = '';
+
+      toast({
+        title: 'Presença confirmada ✅',
+        description:
+          `${distanceLabel}` +
+          (checkInXpReward > 25
+            ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
+            : `+${checkInXpReward} XP por check-in.${energyMsg}`),
+      });
+      setRefreshTick((prev) => prev + 1);
+    } finally {
+      setIsSubmittingCheckin(false);
     }
-
-    const distanceLabel = '';
-
-    toast({
-      title: 'Presença confirmada ✅',
-      description:
-        `${distanceLabel}` +
-        (checkInXpReward > 25
-          ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
-          : `+${checkInXpReward} XP por check-in.${energyMsg}`),
-    });
-    setRefreshTick((prev) => prev + 1);
   };
 
   const xpToNextLevel = (user?.level || 1) * 500;
@@ -341,7 +348,7 @@ const Dashboard = () => {
             Verificar localização
           </Button>
           {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
-          <Button onClick={handleCheckIn} disabled={checkInBlocked} size="lg" className="w-full sm:w-auto">
+          <Button onClick={handleCheckIn} disabled={checkInBlocked || isSubmittingCheckin} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
             {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP e energia)`}
           </Button>
