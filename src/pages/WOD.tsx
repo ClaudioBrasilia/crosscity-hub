@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Timer } from 'lucide-react';
+import { Trophy, Timer, Flame, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
@@ -136,6 +136,36 @@ const WOD = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold">WOD do Dia</h1>
+
+      {/* Warm-up */}
+      {dailyWod.warmup && (
+        <Card className="border-orange-500/20 bg-orange-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Flame className="h-5 w-5 text-orange-400" />
+              Warm-up
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-line text-muted-foreground">{dailyWod.warmup}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Skill */}
+      {dailyWod.skill && (
+        <Card className="border-blue-500/20 bg-blue-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-5 w-5 text-blue-400" />
+              Skill
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-line text-muted-foreground">{dailyWod.skill}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as WodCategory)}>
         <TabsList className="grid w-full grid-cols-3">
