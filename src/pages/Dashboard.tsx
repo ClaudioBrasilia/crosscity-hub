@@ -173,6 +173,7 @@ const Dashboard = () => {
   const hasCheckedInToday = myCheckins.includes(today);
   const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
   const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
+  const monthXp = useMemo(() => user ? getCurrentMonthXp(user.id) : 0, [user, refreshTick]);
 
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user, refreshTick]);
