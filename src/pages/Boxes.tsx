@@ -24,6 +24,7 @@ const Boxes = () => {
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [newBoxName, setNewBoxName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const loadBoxes = () => {
@@ -39,7 +40,17 @@ const Boxes = () => {
 
   const handleCreateBox = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!isAdmin) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Apenas administradores podem criar Box.',
+        variant: 'destructive',
+      });
+      setShowCreateDialog(false);
+      return;
+    }
+
     const newBox: Box = {
       id: `box_${Date.now()}`,
       name: newBoxName,
@@ -107,7 +118,9 @@ const Boxes = () => {
           Boxes
         </h1>
         <p className="text-muted-foreground">
-          Crie ou entre em um box para treinar com sua comunidade
+          {isAdmin
+            ? 'Crie ou entre em um box para treinar com sua comunidade'
+            : 'Entre em um box para treinar com sua comunidade'}
         </p>
       </div>
 
@@ -138,37 +151,39 @@ const Boxes = () => {
       )}
 
       <div className="flex gap-4 mb-6">
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="flex-1">
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Novo Box
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Novo Box</DialogTitle>
-              <DialogDescription>
-                Crie um box e convide seus amigos usando o código gerado.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateBox} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="box-name">Nome do Box</Label>
-                <Input
-                  id="box-name"
-                  placeholder="CrossFit Elite"
-                  value={newBoxName}
-                  onChange={(e) => setNewBoxName(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Criar Box
+        {isAdmin && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="flex-1">
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Novo Box
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Criar Novo Box</DialogTitle>
+                <DialogDescription>
+                  Crie um box e convide seus amigos usando o código gerado.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateBox} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="box-name">Nome do Box</Label>
+                  <Input
+                    id="box-name"
+                    placeholder="CrossFit Elite"
+                    value={newBoxName}
+                    onChange={(e) => setNewBoxName(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Criar Box
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
           <DialogTrigger asChild>
