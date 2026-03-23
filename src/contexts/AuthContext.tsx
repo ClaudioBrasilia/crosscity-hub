@@ -206,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: p.name,
         email: p.email,
         avatar: p.avatar || '👤',
+        avatarUrl: p.avatar_url || undefined,
         boxId: p.box_id || 'box_1',
         xp: p.xp || 0,
         individualEnergy: p.xp || 0,
