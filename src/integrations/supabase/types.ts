@@ -14,23 +14,497 @@ export type Database = {
   }
   public: {
     Tables: {
-      monthly_xp: {
+      app_clans: {
+        Row: {
+          banner: string
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          motto: string
+          name: string
+        }
+        Insert: {
+          banner?: string
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id: string
+          motto?: string
+          name: string
+        }
+        Update: {
+          banner?: string
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motto?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      app_duels: {
+        Row: {
+          accepted_by: string[] | null
+          bet_canceled_at: number | null
+          bet_items: string[] | null
+          bet_mode: boolean
+          bet_reserved: boolean | null
+          bet_reserved_at: number | null
+          bet_settled_at: number | null
+          bet_type: string | null
+          bet_xp_amount: number | null
+          category: string
+          challenger_id: string
+          created_at: number
+          id: string
+          opponent_ids: string[]
+          results: Json
+          status: string
+          winner_id: string | null
+          wod_id: string
+          wod_name: string
+        }
+        Insert: {
+          accepted_by?: string[] | null
+          bet_canceled_at?: number | null
+          bet_items?: string[] | null
+          bet_mode?: boolean
+          bet_reserved?: boolean | null
+          bet_reserved_at?: number | null
+          bet_settled_at?: number | null
+          bet_type?: string | null
+          bet_xp_amount?: number | null
+          category?: string
+          challenger_id: string
+          created_at?: number
+          id: string
+          opponent_ids?: string[]
+          results?: Json
+          status?: string
+          winner_id?: string | null
+          wod_id: string
+          wod_name: string
+        }
+        Update: {
+          accepted_by?: string[] | null
+          bet_canceled_at?: number | null
+          bet_items?: string[] | null
+          bet_mode?: boolean
+          bet_reserved?: boolean | null
+          bet_reserved_at?: number | null
+          bet_settled_at?: number | null
+          bet_type?: string | null
+          bet_xp_amount?: number | null
+          category?: string
+          challenger_id?: string
+          created_at?: number
+          id?: string
+          opponent_ids?: string[]
+          results?: Json
+          status?: string
+          winner_id?: string | null
+          wod_id?: string
+          wod_name?: string
+        }
+        Relationships: []
+      }
+      benchmark_history: {
+        Row: {
+          exercise_id: string
+          id: string
+          recorded_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          recorded_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          recorded_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      benchmarks: {
+        Row: {
+          exercise_id: string
+          id: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      challenge_completions: {
+        Row: {
+          challenge_id: string
+          completed_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_completions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_progress: {
+        Row: {
+          challenge_id: string
+          id: string
+          progress: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          id?: string
+          progress?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          id?: string
+          progress?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_proofs: {
+        Row: {
+          challenge_id: string
+          id: string
+          step: number
+          uploaded_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          id?: string
+          step: number
+          uploaded_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          id?: string
+          step?: number
+          uploaded_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_proofs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
         Row: {
           created_at: string
+          created_by: string | null
+          description: string
+          end_date: string
+          icon: string
+          id: string
+          name: string
+          start_date: string
+          target: number
+          type: string
+          unit: string
+          xp_reward: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          end_date: string
+          icon?: string
+          id: string
+          name: string
+          start_date: string
+          target?: number
+          type?: string
+          unit?: string
+          xp_reward?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          end_date?: string
+          icon?: string
+          id?: string
+          name?: string
+          start_date?: string
+          target?: number
+          type?: string
+          unit?: string
+          xp_reward?: number
+        }
+        Relationships: []
+      }
+      checkins: {
+        Row: {
+          check_date: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          check_date: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          check_date?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      clan_memberships: {
+        Row: {
+          clan_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          clan_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          clan_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clan_memberships_clan_id_fkey"
+            columns: ["clan_id"]
+            isOneToOne: false
+            referencedRelation: "app_clans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      domination_events: {
+        Row: {
+          battle_id: string
+          clan_id: string
+          created_at: string
+          energy: number
+          id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          battle_id: string
+          clan_id: string
+          created_at?: string
+          energy?: number
+          id: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          battle_id?: string
+          clan_id?: string
+          created_at?: string
+          energy?: number
+          id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domination_events_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "territory_battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domination_events_clan_id_fkey"
+            columns: ["clan_id"]
+            isOneToOne: false
+            referencedRelation: "app_clans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_comments: {
+        Row: {
+          content: string
+          created_at: number
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: number
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: number
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_posts: {
+        Row: {
+          content: string
+          created_at: number
+          id: string
+          time_display: string | null
+          user_id: string
+          wod_name: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: number
+          id: string
+          time_display?: string | null
+          user_id: string
+          wod_name?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: number
+          id?: string
+          time_display?: string | null
+          user_id?: string
+          wod_name?: string | null
+        }
+        Relationships: []
+      }
+      feed_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monthly_xp: {
+        Row: {
+          id: string
           month_key: string
           updated_at: string
           user_id: string
           xp: number
         }
         Insert: {
-          created_at?: string
+          id?: string
           month_key: string
           updated_at?: string
           user_id: string
           xp?: number
         }
         Update: {
-          created_at?: string
+          id?: string
           month_key?: string
           updated_at?: string
           user_id?: string
@@ -89,6 +563,39 @@ export type Database = {
         }
         Relationships: []
       }
+      territory_battles: {
+        Row: {
+          created_at: string
+          ends_at: string
+          energy_by_clan: Json
+          id: string
+          period: string
+          starts_at: string
+          territory_id: string
+          winner_clan_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          energy_by_clan?: Json
+          id: string
+          period?: string
+          starts_at: string
+          territory_id: string
+          winner_clan_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          energy_by_clan?: Json
+          id?: string
+          period?: string
+          starts_at?: string
+          territory_id?: string
+          winner_clan_id?: string | null
+        }
+        Relationships: []
+      }
       training_locations: {
         Row: {
           box_id: string | null
@@ -125,6 +632,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_goals: {
+        Row: {
+          frequency: string | null
+          id: string
+          level: string | null
+          objective: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          frequency?: string | null
+          id?: string
+          level?: string | null
+          objective?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          frequency?: string | null
+          id?: string
+          level?: string | null
+          objective?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -143,14 +677,88 @@ export type Database = {
         }
         Relationships: []
       }
+      wod_results: {
+        Row: {
+          category: string
+          id: string
+          result: string
+          submitted_at: number
+          unit: string
+          user_id: string
+          wod_id: string
+        }
+        Insert: {
+          category?: string
+          id: string
+          result: string
+          submitted_at?: number
+          unit?: string
+          user_id: string
+          wod_id: string
+        }
+        Update: {
+          category?: string
+          id?: string
+          result?: string
+          submitted_at?: number
+          unit?: string
+          user_id?: string
+          wod_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wod_results_wod_id_fkey"
+            columns: ["wod_id"]
+            isOneToOne: false
+            referencedRelation: "wods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wods: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          name: string
+          skill: string | null
+          type: string
+          versions: Json
+          warmup: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date: string
+          id: string
+          name: string
+          skill?: string | null
+          type: string
+          versions?: Json
+          warmup?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          name?: string
+          skill?: string | null
+          type?: string
+          versions?: Json
+          warmup?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      increment_monthly_xp: {
-        Args: { p_amount: number; p_month_key: string; p_user_id: string }
-        Returns: number
+      add_monthly_xp: {
+        Args: { _amount: number; _month_key: string; _user_id: string }
+        Returns: undefined
       }
       get_user_role: {
         Args: { _user_id: string }
@@ -162,6 +770,25 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      record_checkin: {
+        Args: { _check_date: string; _user_id: string }
+        Returns: boolean
+      }
+      upsert_benchmark: {
+        Args: { _exercise_id: string; _user_id: string; _value: number }
+        Returns: undefined
+      }
+      upsert_wod_result: {
+        Args: {
+          _category: string
+          _id: string
+          _result: string
+          _unit: string
+          _user_id: string
+          _wod_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

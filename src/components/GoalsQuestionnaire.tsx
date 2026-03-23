@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Target } from 'lucide-react';
+import { saveUserGoals } from '@/lib/supabaseData';
 
 interface GoalsQuestionnaireProps {
   userId: string;
@@ -34,9 +35,8 @@ const GoalsQuestionnaire = ({ userId, onComplete }: GoalsQuestionnaireProps) => 
   const [frequency, setFrequency] = useState('');
   const [level, setLevel] = useState('');
 
-  const handleFinish = () => {
-    const goals = { objective, frequency, level };
-    localStorage.setItem(`crosscity_goals_${userId}`, JSON.stringify(goals));
+  const handleFinish = async () => {
+    await saveUserGoals(userId, { objective, frequency, level });
     onComplete();
   };
 
@@ -54,55 +54,29 @@ const GoalsQuestionnaire = ({ userId, onComplete }: GoalsQuestionnaireProps) => 
             {step === 0 && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground mb-3">Qual seu objetivo principal?</p>
-                {objectives.map((o) => (
-                  <button
-                    key={o.id}
-                    onClick={() => setObjective(o.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                      objective === o.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/40'
-                    }`}
-                  >
+                {objectives.map(o => (
+                  <button key={o.id} onClick={() => setObjective(o.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${objective === o.id ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}>
                     <span className="text-2xl">{o.icon}</span>
                     <span className="font-medium text-sm">{o.label}</span>
                   </button>
                 ))}
               </div>
             )}
-
             {step === 1 && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground mb-3">Com que frequência você treina?</p>
-                {frequencies.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setFrequency(f.id)}
-                    className={`w-full p-3 rounded-lg border text-left text-sm font-medium transition-all ${
-                      frequency === f.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/40'
-                    }`}
-                  >
+                <p className="text-sm text-muted-foreground mb-3">Frequência de treino?</p>
+                {frequencies.map(f => (
+                  <button key={f.id} onClick={() => setFrequency(f.id)} className={`w-full p-3 rounded-lg border text-left text-sm font-medium transition-all ${frequency === f.id ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}>
                     {f.label}
                   </button>
                 ))}
               </div>
             )}
-
             {step === 2 && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground mb-3">Qual seu nível de experiência?</p>
-                {levels.map((l) => (
-                  <button
-                    key={l.id}
-                    onClick={() => setLevel(l.id)}
-                    className={`w-full p-3 rounded-lg border text-left transition-all ${
-                      level === l.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/40'
-                    }`}
-                  >
+                <p className="text-sm text-muted-foreground mb-3">Nível de experiência?</p>
+                {levels.map(l => (
+                  <button key={l.id} onClick={() => setLevel(l.id)} className={`w-full p-3 rounded-lg border text-left transition-all ${level === l.id ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}>
                     <span className="font-medium text-sm">{l.label}</span>
                     <span className="text-xs text-muted-foreground ml-2">{l.desc}</span>
                   </button>
@@ -110,35 +84,18 @@ const GoalsQuestionnaire = ({ userId, onComplete }: GoalsQuestionnaireProps) => 
               </div>
             )}
 
-            {/* Progress + actions */}
             <div className="flex items-center justify-between mt-5">
               <div className="flex gap-1.5">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === step ? 'w-5 bg-primary' : i < step ? 'w-1.5 bg-primary/50' : 'w-1.5 bg-muted'
-                    }`}
-                  />
+                {[0, 1, 2].map(i => (
+                  <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-5 bg-primary' : i < step ? 'w-1.5 bg-primary/50' : 'w-1.5 bg-muted'}`} />
                 ))}
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={onComplete} className="text-xs">
-                  Pular
-                </Button>
+                <Button variant="ghost" size="sm" onClick={onComplete} className="text-xs">Pular</Button>
                 {step < 2 ? (
-                  <Button
-                    size="sm"
-                    className="text-xs"
-                    disabled={(step === 0 && !objective) || (step === 1 && !frequency)}
-                    onClick={() => setStep(step + 1)}
-                  >
-                    Próximo
-                  </Button>
+                  <Button size="sm" className="text-xs" disabled={(step === 0 && !objective) || (step === 1 && !frequency)} onClick={() => setStep(step + 1)}>Próximo</Button>
                 ) : (
-                  <Button size="sm" className="text-xs" disabled={!level} onClick={handleFinish}>
-                    Concluir
-                  </Button>
+                  <Button size="sm" className="text-xs" disabled={!level} onClick={handleFinish}>Concluir</Button>
                 )}
               </div>
             </div>

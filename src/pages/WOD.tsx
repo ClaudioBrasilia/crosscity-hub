@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,372 +6,132 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
 import { Trophy, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { generateDominationEnergyForActivity } from '@/lib/clanSystem';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
-import type { DailyWod, DailyWodResult, Duel, WodCategory, WodScoreUnit } from '@/lib/mockData';
-import { normalizeDuel, checkAllResultsSubmitted, settleBet, calculateWinner } from '@/lib/duelLogic';
-import { filterEntriesByKnownUsers, getStoredUsers, safeParse } from '@/lib/realUsers';
+import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
+import * as db from '@/lib/supabaseData';
 
 const categoryLabels: Record<WodCategory, string> = {
-  rx: 'RX',
-  scaled: 'Scaled',
-  beginner: 'Iniciante',
+  rx: 'RX', scaled: 'Scaled', beginner: 'Iniciante',
 };
-
-const getResultCategory = (result: DailyWodResult): WodCategory => result.category || 'beginner';
 
 const toTimeValue = (value: string) => toDurationSeconds(value);
-
-const toRoundsValue = (value: string) => {
-  const n = Number(value);
-  return Number.isNaN(n) ? 0 : n;
-};
-
-const formatTimeInput = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (!digits) return '';
-
-  if (digits.length <= 2) {
-    return `0:${digits.padStart(2, '0')}`;
-  }
-
-  const minutes = digits.slice(0, -2).replace(/^0+(?=\d)/, '');
-  const seconds = digits.slice(-2);
-  return `${minutes || '0'}:${seconds}`;
-};
-
-const getTimeValidationError = (value: string) => {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) return 'Preencha seu tempo para registrar.';
-  if (!/^\d+:[0-5]\d$/.test(trimmedValue)) {
-    return 'Tempo inválido. Use o formato m:ss ou mm:ss com segundos entre 00 e 59.';
-  }
-
-  return null;
-};
-
-const parseStorage = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-};
-
-const sanitizeDailyWodStorage = () => {
-  try {
-    const raw = localStorage.getItem('crosscity_daily_wod');
-    const parsed = raw ? JSON.parse(raw) : null;
-
-    if (!parsed || !parsed.versions || !parsed.name) {
-      localStorage.removeItem('crosscity_daily_wod');
-    }
-  } catch {
-    localStorage.removeItem('crosscity_daily_wod');
-  }
-};
-
-const toValue = (result: string) => {
-  if (result.includes(':')) {
-    return { kind: 'time' as const, value: toDurationSeconds(result) };
-  }
-
-  const rounds = Number(result);
-  return { kind: 'rounds' as const, value: Number.isNaN(rounds) ? 0 : rounds };
-};
-
-const pickWinnerLocal = (results: Record<string, string>, participantIds: string[]) => {
-  const validResults = participantIds.filter((id) => results[id]);
-  if (validResults.length === 0) return null;
-
-  let winnerId = validResults[0];
-  let winnerValue = toValue(results[winnerId]);
-
-  for (let i = 1; i < validResults.length; i++) {
-    const id = validResults[i];
-    const value = toValue(results[id]);
-
-    if (winnerValue.kind === 'time' && value.kind === 'time') {
-      if (value.value < winnerValue.value) {
-        winnerId = id;
-        winnerValue = value;
-      }
-    } else if (winnerValue.kind === 'rounds' && value.kind === 'rounds') {
-      if (value.value > winnerValue.value) {
-        winnerId = id;
-        winnerValue = value;
-      }
-    }
-  }
-
-  return winnerId;
-};
+const toRoundsValue = (value: string) => { const n = Number(value); return Number.isNaN(n) ? 0 : n; };
 
 const WOD = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
-  const [dailyWod, setDailyWod] = useState<DailyWod | null>(null);
+  const [dailyWod, setDailyWod] = useState<db.WodData | null>(null);
   const [hasLoadedWod, setHasLoadedWod] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<WodCategory>('rx');
   const [scoreUnit, setScoreUnit] = useState<WodScoreUnit>('time');
   const [resultValue, setResultValue] = useState('');
-  const [submitToDuel, setSubmitToDuel] = useState(true);
-  const [results, setResults] = useState<DailyWodResult[]>([]);
-  const [duels, setDuels] = useState<Duel[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [results, setResults] = useState<db.WodResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const syncStorage = () => {
-      sanitizeDailyWodStorage();
-      const storedUsers = getStoredUsers();
-      setDailyWod(safeParse(localStorage.getItem('crosscity_daily_wod'), null));
-      setResults(filterEntriesByKnownUsers(safeParse<DailyWodResult[]>(localStorage.getItem('crosscity_wod_results'), []), (item) => [item.userId]));
-      setDuels(filterEntriesByKnownUsers(safeParse<any[]>(localStorage.getItem('crosscity_duels'), []), (item) => [item?.challengerId, ...(Array.isArray(item?.opponentIds) ? item.opponentIds : [])]).map(normalizeDuel));
-      setUsers(storedUsers as any[]);
-      setHasLoadedWod(true);
-    };
-
-    syncStorage();
-
-    // Listen for storage changes (updates from other tabs/windows)
-    const handleStorageChange = () => {
-      syncStorage();
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+  const loadData = useCallback(async () => {
+    const wod = await db.getLatestWod();
+    setDailyWod(wod);
+    if (wod) {
+      const res = await db.getWodResults(wod.id);
+      setResults(res);
+    }
+    setHasLoadedWod(true);
   }, []);
 
-  const activeDuel = useMemo(() => {
-    if (!dailyWod || !user) return null;
-    return duels.find(
-      (duel) =>
-        duel.wodId === dailyWod.id &&
-        duel.category === selectedCategory &&
-        duel.status === 'active' &&
-        (duel.challengerId === user.id || duel.opponentIds.includes(user.id))
-    );
-  }, [dailyWod, duels, selectedCategory, user, results]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const categoryRanking = useMemo(() => {
     if (!dailyWod) return [];
-    const entries = results.filter((item) => item.wodId === dailyWod.id && getResultCategory(item) === selectedCategory);
-    const sorted = [...entries].sort((a, b) => {
+    const entries = results.filter(item => item.wodId === dailyWod.id && item.category === selectedCategory);
+    return [...entries].sort((a, b) => {
       if (a.unit === 'time' && b.unit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
       if (a.unit === 'rounds' && b.unit === 'rounds') return toRoundsValue(b.result) - toRoundsValue(a.result);
       return a.submittedAt - b.submittedAt;
     });
-    return sorted;
-  }, [dailyWod, results, selectedCategory, user]);
+  }, [dailyWod, results, selectedCategory]);
 
-  const userEntry = categoryRanking.find((item) => item.userId === user?.id);
-  const userPosition = userEntry ? categoryRanking.findIndex((item) => item.id === userEntry.id) + 1 : null;
+  const userEntry = categoryRanking.find(item => item.userId === user?.id);
+  const userPosition = userEntry ? categoryRanking.findIndex(item => item.id === userEntry.id) + 1 : null;
 
-  // Check if user already submitted for this WOD in the selected category
   const existingResult = useMemo(() => {
     if (!dailyWod || !user) return null;
-    return results.find((r) => r.wodId === dailyWod.id && r.userId === user.id && getResultCategory(r) === selectedCategory) || null;
+    return results.find(r => r.wodId === dailyWod.id && r.userId === user.id && r.category === selectedCategory) || null;
   }, [dailyWod, results, user, selectedCategory]);
 
-  // Pre-fill form when existing result is found for the selected category
   useEffect(() => {
     if (existingResult) {
       setResultValue(existingResult.result);
-      setScoreUnit(existingResult.unit);
+      setScoreUnit(existingResult.unit as WodScoreUnit);
     } else {
-      // Clear form if no result for this category
       setResultValue('');
     }
   }, [existingResult, selectedCategory]);
 
-  const submitResult = () => {
-    if (isSubmitting) return;
-
-    if (!dailyWod || !user || !resultValue.trim()) {
-      toast({ title: 'Resultado inválido', description: 'Preencha seu resultado para registrar.', variant: 'destructive' });
+  const submitResult = async () => {
+    if (isSubmitting || !dailyWod || !user || !resultValue.trim()) {
+      toast({ title: 'Resultado inválido', description: 'Preencha seu resultado.', variant: 'destructive' });
       return;
     }
-
     if (scoreUnit === 'time') {
       const timeError = getDurationValidationError(resultValue);
-      if (timeError) {
-        toast({ title: 'Tempo inválido', description: timeError, variant: 'destructive' });
-        return;
-      }
+      if (timeError) { toast({ title: 'Tempo inválido', description: timeError, variant: 'destructive' }); return; }
     }
 
     setIsSubmitting(true);
+    try {
+      const isEdit = !!existingResult;
+      const resultId = existingResult?.id || `res_${Date.now()}`;
 
-    const existing = results.find((item) => item.wodId === dailyWod.id && item.userId === user.id);
-    const isEdit = !!existing;
-
-    const payload: DailyWodResult = {
-      id: existing?.id || `res_${Date.now()}`,
-      wodId: dailyWod.id,
-      userId: user.id,
-      userName: user.name,
-      avatar: user.avatar,
-      category: selectedCategory,
-      result: resultValue,
-      unit: scoreUnit,
-      submittedAt: Date.now(),
-    };
-
-    const updatedResults = existing
-      ? results.map((item) => (item.id === existing.id ? payload : item))
-      : [payload, ...results];
-
-    localStorage.setItem('crosscity_wod_results', JSON.stringify(updatedResults));
-    setResults(updatedResults);
-    // Force a re-render to update the ranking immediately
-    window.dispatchEvent(new Event('storage'));
-
-    const currentCategoryResults = updatedResults
-      .filter((item) => item.wodId === dailyWod.id && getResultCategory(item) === selectedCategory)
-      .sort((a, b) => {
-        if (scoreUnit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
-        return toRoundsValue(b.result) - toRoundsValue(a.result);
+      await db.saveWodResult({
+        id: resultId,
+        wodId: dailyWod.id,
+        userId: user.id,
+        category: selectedCategory,
+        result: resultValue,
+        unit: scoreUnit,
       });
 
-    const rank = currentCategoryResults.findIndex((item) => item.userId === user.id) + 1;
+      // Reload results
+      const updatedResults = await db.getWodResults(dailyWod.id);
+      setResults(updatedResults);
 
-    if (!isEdit) {
-      const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
-      const xpGained = 50 + xpBonus;
-      const newXp = (user.xp || 0) + xpGained;
-      updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
+      const currentCategoryResults = updatedResults
+        .filter(item => item.wodId === dailyWod.id && item.category === selectedCategory)
+        .sort((a, b) => scoreUnit === 'time' ? toTimeValue(a.result) - toTimeValue(b.result) : toRoundsValue(b.result) - toRoundsValue(a.result));
+      const rank = currentCategoryResults.findIndex(item => item.userId === user.id) + 1;
 
-      if (rank === 1) {
-        const userWins = Number(localStorage.getItem(`crosscity_wins_${user.id}`) || '0') + 1;
-        localStorage.setItem(`crosscity_wins_${user.id}`, String(userWins));
+      if (!isEdit) {
+        const xpBonus = rank === 1 ? 150 : rank <= 3 ? 75 : 0;
+        const xpGained = 50 + xpBonus;
+        const newXp = (user.xp || 0) + xpGained;
+        await updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
+
+        // Create feed post
+        await db.createFeedPost({
+          id: `post_${Date.now()}`,
+          userId: user.id,
+          content: `Registrou ${resultValue} no ${dailyWod.name} (${categoryLabels[selectedCategory]}).`,
+          wodName: `${dailyWod.name} • ${categoryLabels[selectedCategory]}`,
+          timeDisplay: scoreUnit === 'time' ? resultValue : `${resultValue} rounds`,
+        });
       }
-    }
 
-    let updatedDuels = duels;
-    if (activeDuel && submitToDuel) {
-      updatedDuels = duels.map((duel) => {
-        if (duel.id !== activeDuel.id) return duel;
-        return {
-          ...duel,
-          results: {
-            ...duel.results,
-            [user.id]: resultValue
-          }
-        };
+      toast({
+        title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!',
+        description: isEdit ? `Posição #${rank} na categoria.` : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank}.`,
       });
-
-      // Verificar se todos os resultados foram enviados
-      const changedDuel = updatedDuels.find((d) => d.id === activeDuel.id);
-      if (changedDuel && checkAllResultsSubmitted(changedDuel) && changedDuel.status !== 'finished') {
-        const allParticipants = [changedDuel.challengerId, ...changedDuel.opponentIds];
-        const winnerId = pickWinnerLocal(changedDuel.results, allParticipants);
-
-        if (winnerId) {
-          // Liquidar a aposta
-          let storedUsers = parseStorage<any[]>('crosscity_users', []);
-          const { updatedUsers, updatedDuel } = settleBet(changedDuel, winnerId, storedUsers);
-          
-          updatedDuels = updatedDuels.map((d) =>
-            d.id === changedDuel.id ? updatedDuel : d
-          );
-
-          localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
-          setUsers(updatedUsers);
-
-          // Atualizar o usuário atual se ele for o vencedor
-          if (winnerId === user.id) {
-            const updatedUser = updatedUsers.find((u) => u.id === user.id);
-            if (updatedUser) {
-              const xpGain = 150;
-              const finalXp = updatedUser.xp + xpGain;
-              updateUser({ xp: finalXp, level: Math.floor(finalXp / 500) + 1 });
-              toast({ title: 'Vitória no duelo! 🏆', description: `Duelo finalizado. XP da aposta liquidado.` });
-            }
-          } else {
-            toast({ title: 'Duelo finalizado', description: `${updatedUsers.find((u) => u.id === winnerId)?.name || 'Outro atleta'} venceu.` });
-          }
-
-          // Adicionar ao feed
-          const feed = parseStorage<any[]>('crosscity_feed', []);
-          feed.unshift({
-            id: `post_${Date.now()}`,
-            userId: winnerId,
-            userName: updatedUsers.find((u) => u.id === winnerId)?.name || 'Atleta',
-            userAvatar: updatedUsers.find((u) => u.id === winnerId)?.avatar || '🏆',
-            content: `Venceu duelo em ${changedDuel.wodName} (${categoryLabels[changedDuel.category]}).`,
-            wodName: 'Duelos',
-            time: 'Vitória',
-            reactions: { fire: 0, clap: 0, muscle: 0 },
-            comments: 0,
-            timestamp: Date.now(),
-          });
-          localStorage.setItem('crosscity_feed', JSON.stringify(feed));
-        }
-      }
-
-      localStorage.setItem('crosscity_duels', JSON.stringify(updatedDuels));
-      setDuels(updatedDuels);
-      // Force a re-render
-      window.dispatchEvent(new Event('storage'));
+      if (!isEdit) setResultValue('');
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao salvar resultado.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
-    feed.unshift({
-      id: `post_${Date.now()}`,
-      userId: user.id,
-      userName: user.name,
-      userAvatar: user.avatar,
-      content: `Registrou ${resultValue} no ${dailyWod.name} (${categoryLabels[selectedCategory]}).`,
-      wodName: `${dailyWod.name} • ${categoryLabels[selectedCategory]}`,
-      time: scoreUnit === 'time' ? resultValue : `${resultValue} rounds`,
-      reactions: { fire: 0, clap: 0, muscle: 0 },
-      comments: 0,
-      timestamp: Date.now(),
-    });
-    localStorage.setItem('crosscity_feed', JSON.stringify(feed));
-    // Force a re-render
-    window.dispatchEvent(new Event('storage'));
-
-    const energyResult = generateDominationEnergyForActivity({
-      userId: user.id,
-      activityId: dailyWod.id,
-      activityType: 'wod',
-      energy: 20,
-      participationValid: true,
-    });
-
-    const successDescription = isEdit
-      ? `Posição #${rank} na categoria.`
-      : `+${50 + (rank === 1 ? 150 : rank <= 3 ? 75 : 0)} XP e posição #${rank} na categoria.`;
-
-    const energyDescription = energyResult.ok
-      ? ' Energia gerada automaticamente.'
-      : energyResult.status === 409
-        ? ' Energia já havia sido gerada.'
-        : '';
-
-    toast({ title: isEdit ? 'Resultado atualizado!' : 'Resultado registrado!', description: `${successDescription}${energyDescription}` });
-    if (!isEdit) setResultValue('');
-    // Reload results from storage to ensure UI updates
-    setTimeout(() => {
-      setResults(JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]'));
-    }, 100);
-    setIsSubmitting(false);
   };
 
-  if (!hasLoadedWod) {
-    return <div>Carregando WOD do dia...</div>;
-  }
-
-  if (!dailyWod) {
-    return <div>Nenhum WOD do dia cadastrado.</div>;
-  }
+  if (!hasLoadedWod) return <div>Carregando WOD do dia...</div>;
+  if (!dailyWod) return <div>Nenhum WOD do dia cadastrado.</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -395,8 +155,8 @@ const WOD = () => {
                 <CardDescription>{dailyWod.type} • {dailyWod.date}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p>{dailyWod.versions[category].description}</p>
-                <p className="text-sm text-muted-foreground">Carga referência: {dailyWod.versions[category].weight}</p>
+                <p>{dailyWod.versions[category]?.description}</p>
+                <p className="text-sm text-muted-foreground">Carga referência: {dailyWod.versions[category]?.weight}</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -426,14 +186,6 @@ const WOD = () => {
               />
             </div>
           </div>
-
-          {activeDuel && (
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
-              <p className="text-sm">Há um duelo ativo nesta categoria. Submeter também no duelo?</p>
-              <Switch checked={submitToDuel} onCheckedChange={setSubmitToDuel} />
-            </div>
-          )}
-
           <Button onClick={submitResult} className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Salvando...' : existingResult ? 'Atualizar resultado' : 'Salvar resultado'}
           </Button>
