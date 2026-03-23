@@ -183,6 +183,11 @@ export default function TvMode() {
     [now]
   );
 
+  const currentClass = getCurrentClass();
+  const classLabel = currentClass
+    ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
+    : 'Sem aula no momento';
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white">
       {/* Background gradient */}
@@ -198,6 +203,9 @@ export default function TvMode() {
             <p className="mt-1 text-sm text-white/60">{dateLabel}</p>
           </div>
           <div className="text-right">
+            <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
+            <p className="mt-1 text-sm text-white/50">{classLabel}</p>
+          </div>
             <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
           </div>
         </header>
