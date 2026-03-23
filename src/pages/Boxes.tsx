@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { createBox, fetchBoxes, joinBoxByCode, readBoxesCache } from '@/lib/boxes';
 import { Plus, Users } from 'lucide-react';
 
 interface Box {
@@ -16,6 +17,14 @@ interface Box {
   points: number;
 }
 
+const mapBox = (box: { id: string; name: string; invite_code: string; member_count: number; points: number; }) => ({
+  id: box.id,
+  name: box.name,
+  code: box.invite_code,
+  members: box.member_count,
+  points: box.points,
+});
+
 const Boxes = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
@@ -24,21 +33,35 @@ const Boxes = () => {
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [newBoxName, setNewBoxName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [loadingBoxes, setLoadingBoxes] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const isAdmin = user?.role === 'admin';
 
+  const loadBoxes = useCallback(async () => {
+    setLoadingBoxes(true);
+
+    try {
+      const remoteBoxes = await fetchBoxes();
+      setBoxes(remoteBoxes.map(mapBox));
+    } catch (error) {
+      console.error('Erro ao carregar boxes:', error);
+      toast({
+        title: 'Erro ao carregar boxes',
+        description: 'Não foi possível sincronizar os boxes agora.',
+        variant: 'destructive',
+      });
+      setBoxes(readBoxesCache().map(mapBox));
+    } finally {
+      setLoadingBoxes(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
-    const loadBoxes = () => {
-      const boxesData = localStorage.getItem('crosscity_boxes') || '[]';
-      setBoxes(JSON.parse(boxesData));
-    };
+    setBoxes(readBoxesCache().map(mapBox));
     loadBoxes();
-  }, []);
+  }, [loadBoxes]);
 
-  const generateBoxCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  };
-
-  const handleCreateBox = (e: React.FormEvent) => {
+  const handleCreateBox = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isAdmin) {
@@ -51,62 +74,69 @@ const Boxes = () => {
       return;
     }
 
-    const newBox: Box = {
-      id: `box_${Date.now()}`,
-      name: newBoxName,
-      code: generateBoxCode(),
-      members: 1,
-      points: 0,
-    };
+    setSubmitting(true);
 
-    const updatedBoxes = [...boxes, newBox];
-    localStorage.setItem('crosscity_boxes', JSON.stringify(updatedBoxes));
-    setBoxes(updatedBoxes);
-    
-    if (user) {
-      updateUser({ boxId: newBox.id });
-    }
+    try {
+      const createdBox = mapBox(await createBox(newBoxName));
 
-    toast({
-      title: 'Box criado!',
-      description: `Código de convite: ${newBox.code}`,
-    });
+      if (user) {
+        updateUser({ boxId: createdBox.id });
+      }
 
-    setShowCreateDialog(false);
-    setNewBoxName('');
-  };
+      await loadBoxes();
 
-  const handleJoinBox = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const box = boxes.find(b => b.code === joinCode.toUpperCase());
-    
-    if (!box) {
+      toast({
+        title: 'Box criado!',
+        description: `Código de convite: ${createdBox.code}`,
+      });
+
+      setShowCreateDialog(false);
+      setNewBoxName('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível criar o box';
       toast({
         title: 'Erro',
-        description: 'Código de convite inválido',
+        description: message.includes('Apenas administradores podem criar Box.')
+          ? 'Apenas administradores podem criar Box.'
+          : message,
         variant: 'destructive',
       });
-      return;
+      setShowCreateDialog(false);
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    const updatedBoxes = boxes.map(b => 
-      b.id === box.id ? { ...b, members: b.members + 1 } : b
-    );
-    localStorage.setItem('crosscity_boxes', JSON.stringify(updatedBoxes));
-    setBoxes(updatedBoxes);
+  const handleJoinBox = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
 
-    if (user) {
-      updateUser({ boxId: box.id });
+    try {
+      const box = mapBox(await joinBoxByCode(joinCode));
+
+      if (user) {
+        updateUser({ boxId: box.id });
+      }
+
+      await loadBoxes();
+
+      toast({
+        title: 'Sucesso!',
+        description: `Você entrou no box ${box.name}`,
+      });
+
+      setShowJoinDialog(false);
+      setJoinCode('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Código de convite inválido';
+      toast({
+        title: 'Erro',
+        description: message.includes('Código de convite inválido') ? 'Código de convite inválido' : message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
     }
-
-    toast({
-      title: 'Sucesso!',
-      description: `Você entrou no box ${box.name}`,
-    });
-
-    setShowJoinDialog(false);
-    setJoinCode('');
   };
 
   const currentBox = boxes.find(b => b.id === user?.boxId);
@@ -177,7 +207,7 @@ const Boxes = () => {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={submitting}>
                   Criar Box
                 </Button>
               </form>
@@ -211,7 +241,7 @@ const Boxes = () => {
                   className="uppercase"
                 />
               </div>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={submitting}>
                 Entrar no Box
               </Button>
             </form>
@@ -220,7 +250,13 @@ const Boxes = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {boxes.map((box) => (
+        {loadingBoxes && boxes.length === 0 ? (
+          <Card className="md:col-span-2 lg:col-span-3">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Carregando boxes...
+            </CardContent>
+          </Card>
+        ) : boxes.map((box) => (
           <Card key={box.id} className="hover:border-primary/40 transition-colors">
             <CardHeader>
               <CardTitle>{box.name}</CardTitle>
