@@ -3,19 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Trophy, Target, Flame, TrendingUp, Swords, Warehouse, CalendarCheck, Award, BarChart3 } from 'lucide-react';
+import { Trophy, Target, Flame, TrendingUp, Swords, CalendarCheck, Award, BarChart3 } from 'lucide-react';
 import { equipmentCatalog } from '@/lib/equipmentData';
 import { useToast } from '@/hooks/use-toast';
-import { useMemo, useState, useEffect, useRef } from 'react';
-import type { DailyWod, DailyWodResult } from '@/lib/mockData';
-import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
-import { benchmarkExercises } from '@/lib/battleSimulator';
-import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
-import { ensureClanData, getCheckInXpReward, getUserClan, generateDominationEnergyForActivity, hasGeneratedDominationEnergy } from '@/lib/clanSystem';
-import { getCurrentMonthXp, addMonthlyXp } from '@/lib/checkinHistory';
-import type { UserProfile } from '@/lib/clanSystem';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { benchmarkExercises } from '@/lib/battleSimulator';
+import * as db from '@/lib/supabaseData';
 
 const useAnimatedCounter = (end: number, duration = 800) => {
   const [count, setCount] = useState(0);
@@ -54,49 +49,16 @@ const toTimeValue = (value: string) => {
   return minutes * 60 + seconds;
 };
 
-const sanitizeDailyWodStorage = () => {
-  try {
-    const raw = localStorage.getItem('crosscity_daily_wod');
-    const parsed = raw ? JSON.parse(raw) : null;
-
-    if (!parsed || !parsed.versions || !parsed.name) {
-      localStorage.removeItem('crosscity_daily_wod');
-    }
-  } catch {
-    localStorage.removeItem('crosscity_daily_wod');
-  }
-};
-
-const getStoredDailyWod = (): DailyWod | null => {
-  sanitizeDailyWodStorage();
-
-  try {
-    return JSON.parse(localStorage.getItem('crosscity_daily_wod') || 'null') as DailyWod | null;
-  } catch {
-    return null;
-  }
-};
-
 const formatDateKey = (date = new Date()) => date.toISOString().split('T')[0];
 
 const calculateDistanceMeters = (
-  fromLat: number,
-  fromLng: number,
-  toLat: number,
-  toLng: number,
+  fromLat: number, fromLng: number, toLat: number, toLng: number,
 ) => {
   const earthRadiusMeters = 6371000;
   const dLat = ((toLat - fromLat) * Math.PI) / 180;
   const dLng = ((toLng - fromLng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((fromLat * Math.PI) / 180) *
-      Math.cos((toLat * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return earthRadiusMeters * c;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((fromLat * Math.PI) / 180) * Math.cos((toLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
 const getAthleteTitle = (level: number) => {
@@ -105,8 +67,10 @@ const getAthleteTitle = (level: number) => {
   return 'Atleta Bronze';
 };
 
+const isSaturday = (date: Date) => date.getDay() === 6;
+const getCheckInXpReward = (date = new Date(), baseXp = 25) => (isSaturday(date) ? baseXp * 2 : baseXp);
+
 type ActiveTrainingLocation = { id: string; latitude: number; longitude: number; radius_meters: number };
-type StoredUserProgress = { id: string; xp?: number; level?: number; checkins?: number; category?: string };
 
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
@@ -117,121 +81,117 @@ const Dashboard = () => {
   const [locationCheck, setLocationCheck] = useState<{ latitude: number; longitude: number } | null>(null);
   const [activeLocation, setActiveLocation] = useState<ActiveTrainingLocation | null>(null);
 
-  useEffect(() => {
-    const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-    ensureClanData(users as UserProfile[]);
-  }, []);
+  // Supabase-backed state
+  const [myCheckins, setMyCheckins] = useState<string[]>([]);
+  const [monthXp, setMonthXp] = useState(0);
+  const [dailyWod, setDailyWod] = useState<db.WodData | null>(null);
+  const [wodResults, setWodResults] = useState<db.WodResult[]>([]);
+  const [prChartData, setPrChartData] = useState<Array<{ name: string; value: number }>>([]);
+  const [userGoals, setUserGoals] = useState<any>(null);
+  const [challenges, setChallenges] = useState<db.ChallengeData[]>([]);
+  const [challengeProgress, setChallengeProgress] = useState<Record<string, number>>({});
+  const [completedChallengeIds, setCompletedChallengeIds] = useState<string[]>([]);
+  const [feedPosts, setFeedPosts] = useState<db.FeedPost[]>([]);
+  const [myClanName, setMyClanName] = useState<string | null>(null);
+  const [myClanBanner, setMyClanBanner] = useState<string>('');
 
-  useEffect(() => {
-    const sync = () => setRefreshTick((prev) => prev + 1);
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, []);
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    const [checkins, xp, wod, goals, challs, completed, feed] = await Promise.all([
+      db.getUserCheckins(user.id),
+      db.getCurrentMonthXp(user.id),
+      db.getLatestWod(),
+      db.getUserGoals(user.id),
+      db.getActiveChallenges(),
+      db.getCompletedChallenges(user.id),
+      db.getFeedPosts(3),
+    ]);
+    setMyCheckins(checkins);
+    setMonthXp(xp);
+    setDailyWod(wod);
+    setUserGoals(goals);
+    setChallenges(challs);
+    setCompletedChallengeIds(completed);
+    setFeedPosts(feed);
+
+    if (wod) {
+      const results = await db.getWodResults(wod.id);
+      setWodResults(results);
+    }
+
+    // Load benchmarks for chart
+    const bm = await db.getUserBenchmarks(user.id);
+    setPrChartData(
+      benchmarkExercises
+        .filter(ex => bm[ex.id])
+        .map(ex => ({
+          name: ex.name.length > 8 ? ex.name.slice(0, 8) + '…' : ex.name,
+          value: bm[ex.id],
+        }))
+    );
+
+    // Load challenge progress
+    const progressMap: Record<string, number> = {};
+    for (const c of challs.slice(0, 3)) {
+      progressMap[c.id] = await db.getChallengeProgress(c.id, user.id);
+    }
+    setChallengeProgress(progressMap);
+
+    // Load clan
+    const clan = await db.getUserClan(user.id);
+    setMyClanName(clan?.name || null);
+    setMyClanBanner(clan?.banner || '');
+  }, [user]);
+
+  useEffect(() => { loadData(); }, [loadData, refreshTick]);
 
   useEffect(() => {
     const loadActiveLocation = async () => {
       const { data, error } = await supabase
-        .from('training_locations' as any)
+        .from('training_locations')
         .select('id, latitude, longitude, radius_meters')
         .eq('is_active', true)
         .limit(1)
-        .single();
-
-      if (!error && data) {
-        setActiveLocation(data as unknown as ActiveTrainingLocation);
-      }
+        .maybeSingle();
+      if (!error && data) setActiveLocation(data as unknown as ActiveTrainingLocation);
     };
-
-    sanitizeDailyWodStorage();
     loadActiveLocation();
   }, []);
 
-  const userWins = Number(localStorage.getItem(`crosscity_wins_${user?.id}`) || '0');
-  const userInventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${user?.id}`) || '[]');
-  const unlockedCount = equipmentCatalog.filter((eq) => userWins >= eq.winsRequired || userInventory.includes(eq.id)).length;
+  const userWins = user?.wins || 0;
+  const today = formatDateKey();
+  const checkInXpReward = getCheckInXpReward(new Date());
+  const monthPrefix = today.slice(0, 7);
+  const hasCheckedInToday = myCheckins.includes(today);
+  const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
+  const monthCheckins = useMemo(() => myCheckins.filter(date => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix]);
 
-  const dailyWod = getStoredDailyWod();
-  const dailyResults: DailyWodResult[] = JSON.parse(localStorage.getItem('crosscity_wod_results') || '[]');
-  const myTodayResult = dailyResults.find((item) => item.wodId === dailyWod?.id && item.userId === user?.id);
-
+  const myTodayResult = wodResults.find(item => item.wodId === dailyWod?.id && item.userId === user?.id);
   const todayRanking = myTodayResult
-    ? dailyResults
-        .filter((item) => item.wodId === dailyWod?.id && item.category === myTodayResult.category)
+    ? wodResults
+        .filter(item => item.wodId === dailyWod?.id && item.category === myTodayResult.category)
         .sort((a, b) => {
           if (a.unit === 'time' && b.unit === 'time') return toTimeValue(a.result) - toTimeValue(b.result);
           return Number(b.result) - Number(a.result);
         })
     : [];
-
-  const myPosition = myTodayResult ? todayRanking.findIndex((item) => item.id === myTodayResult.id) + 1 : null;
-
-  const today = formatDateKey();
-  const checkInXpReward = getCheckInXpReward(new Date());
-  const checkinsData: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
-  const myCheckins = user ? checkinsData[user.id] || [] : [];
-  const monthPrefix = today.slice(0, 7);
-  const hasCheckedInToday = myCheckins.includes(today);
-  const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
-  const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
-  const monthXp = useMemo(() => user ? getCurrentMonthXp(user.id) : 0, [user, refreshTick]);
-
-  // Badges
-  const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user, refreshTick]);
-  const unlockedBadges = badgeResults.filter(b => b.unlocked);
-  const recentBadges = unlockedBadges.slice(-4);
-
-  // PR chart data
-  const prChartData = useMemo(() => {
-    if (!user) return [];
-    const stored = JSON.parse(localStorage.getItem('crosscity_benchmarks') || '{}');
-    const userBm = stored[user.id] || {};
-    return benchmarkExercises
-      .filter(ex => userBm[ex.id])
-      .map(ex => ({
-        name: ex.name.length > 8 ? ex.name.slice(0, 8) + '…' : ex.name,
-        value: userBm[ex.id],
-      }));
-  }, [user]);
-
-  // Community feed (recent activities)
-  const communityFeed = useMemo(() => {
-    const feed = JSON.parse(localStorage.getItem('crosscity_feed') || '[]');
-    return feed.slice(0, 3);
-  }, []);
+  const myPosition = myTodayResult ? todayRanking.findIndex(item => item.id === myTodayResult.id) + 1 : null;
 
   const handleVerifyLocation = () => {
-    if (!activeLocation) {
-      setLocationStatus('localização indisponível');
-      return;
-    }
-
-    if (!navigator.geolocation) {
-      setLocationStatus('localização indisponível');
-      return;
-    }
-
+    if (!activeLocation) { setLocationStatus('localização indisponível'); return; }
+    if (!navigator.geolocation) { setLocationStatus('localização indisponível'); return; }
     setLocationStatus('verificando localização');
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const distance = calculateDistanceMeters(
-          activeLocation.latitude,
-          activeLocation.longitude,
-          latitude,
-          longitude,
-        );
+        const distance = calculateDistanceMeters(activeLocation.latitude, activeLocation.longitude, latitude, longitude);
         const inside = distance <= activeLocation.radius_meters;
-
         setLocationCheck({ latitude, longitude });
         setIsInsideAllowedArea(inside);
         setLocationStatus(inside ? 'dentro da área permitida' : 'fora da área permitida');
       },
       (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setLocationStatus('permissão negada');
-        } else {
-          setLocationStatus('localização indisponível');
-        }
+        setLocationStatus(error.code === error.PERMISSION_DENIED ? 'permissão negada' : 'localização indisponível');
         setIsInsideAllowedArea(false);
         setLocationCheck(null);
       },
@@ -243,60 +203,28 @@ const Dashboard = () => {
 
   const handleCheckIn = async () => {
     if (!user || checkInBlocked || !activeLocation || !locationCheck || isSubmittingCheckin) return;
-
     if (!isInsideAllowedArea) {
-      toast({
-        title: 'Check-in não autorizado',
-        description: 'Você está fora da área permitida para check-in. Verifique sua localização primeiro.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Check-in não autorizado', description: 'Você está fora da área permitida.', variant: 'destructive' });
       return;
     }
 
     setIsSubmittingCheckin(true);
     try {
-      const updatedCheckins = hasCheckedInToday
-        ? checkinsData
-        : { ...checkinsData, [user.id]: [...myCheckins, today] };
-      localStorage.setItem('crosscity_checkins', JSON.stringify(updatedCheckins));
+      await db.recordCheckin(user.id, today);
+      await db.addMonthlyXp(user.id, checkInXpReward);
       const newXp = (user.xp || 0) + checkInXpReward;
       const newLevel = Math.floor(newXp / 500) + 1;
-      updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
-      addMonthlyXp(user.id, checkInXpReward);
-      const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-      const updatedUsers = users.map((item) =>
-        item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
-      );
-      localStorage.setItem('crosscity_users', JSON.stringify(updatedUsers));
-
-      // Generate domination energy automatically
-      let energyMsg = '';
-      if (!hasGeneratedDominationEnergy(user.id, `checkin:${today}`)) {
-        const energyResult = generateDominationEnergyForActivity({
-          userId: user.id,
-          activityId: `checkin:${today}`,
-          activityType: 'checkin',
-          energy: 20,
-          clanEnergyBonus: 0,
-          participationValid: true,
-        });
-        if (energyResult.ok) {
-          const clanName = energyResult.clan?.name;
-          energyMsg = clanName ? ` e +${energyResult.claim.clanEnergy} energia ${clanName}` : '';
-        }
-      }
-
-      const distanceLabel = '';
+      await updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
 
       toast({
         title: 'Presença confirmada ✅',
-        description:
-          `${distanceLabel}` +
-          (checkInXpReward > 25
-            ? `+${checkInXpReward} XP por check-in de sábado!${energyMsg}`
-            : `+${checkInXpReward} XP por check-in.${energyMsg}`),
+        description: checkInXpReward > 25
+          ? `+${checkInXpReward} XP por check-in de sábado!`
+          : `+${checkInXpReward} XP por check-in.`,
       });
-      setRefreshTick((prev) => prev + 1);
+      setRefreshTick(prev => prev + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro no check-in', description: err.message || 'Tente novamente.', variant: 'destructive' });
     } finally {
       setIsSubmittingCheckin(false);
     }
@@ -305,20 +233,10 @@ const Dashboard = () => {
   const xpToNextLevel = (user?.level || 1) * 500;
   const xpProgress = ((user?.xp || 0) % 500) / 5;
   const [xpAnimated, setXpAnimated] = useState(0);
-
   useEffect(() => {
     const t = setTimeout(() => setXpAnimated(xpProgress), 300);
     return () => clearTimeout(t);
   }, [xpProgress]);
-
-  // Goals
-  const userGoals = useMemo(() => {
-    if (!user) return null;
-    const raw = localStorage.getItem(`crosscity_goals_${user.id}`);
-    return raw ? JSON.parse(raw) : null;
-  }, [user]);
-
-  const myClan = useMemo(() => (user ? getUserClan(user.id) : null), [user, refreshTick]);
 
   return (
     <div className="space-y-6">
@@ -332,7 +250,7 @@ const Dashboard = () => {
               CrossUberlandia • Nível {user?.level} - {getAthleteTitle(user?.level || 1)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-            Status do Time: {myClan ? `${myClan.banner} ${myClan.name}` : 'Sem time'}
+              Status do Time: {myClanName ? `${myClanBanner} ${myClanName}` : 'Sem time'}
             </p>
             <div className="mt-2 space-y-1 max-w-sm">
               <div className="flex justify-between text-sm">
@@ -350,7 +268,7 @@ const Dashboard = () => {
           {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
           <Button onClick={handleCheckIn} disabled={checkInBlocked || isSubmittingCheckin} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
-            {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP e energia)`}
+            {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP)`}
           </Button>
         </div>
       </div>
@@ -418,7 +336,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <p className="text-sm text-muted-foreground">{dailyWod.versions.rx.description}</p>
+              <p className="text-sm text-muted-foreground">{dailyWod.versions?.rx?.description}</p>
               {myTodayResult ? (
                 <p className="mt-1 text-sm font-semibold text-primary">✓ {myTodayResult.result} ({myTodayResult.category.toUpperCase()}) • #{myPosition}</p>
               ) : (
@@ -433,33 +351,6 @@ const Dashboard = () => {
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Badges Recentes */}
-        <Card className="border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Award className="h-5 w-5 text-secondary" />
-              Conquistas ({unlockedBadges.length}/{badgeResults.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {unlockedBadges.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma conquista ainda. Continue treinando!</p>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                {recentBadges.map(({ badge }) => (
-                  <div key={badge.id} className="flex flex-col items-center p-2 rounded-lg bg-primary/10 border border-primary/20 text-center">
-                    <span className="text-2xl">{badge.icon}</span>
-                    <span className="text-[10px] font-semibold mt-1 leading-tight">{badge.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Link to="/profile" className="block mt-3">
-              <Button variant="ghost" size="sm" className="w-full text-xs">Ver todas as conquistas →</Button>
-            </Link>
-          </CardContent>
-        </Card>
-
         {/* Mini PR Chart */}
         <Card className="border-primary/20">
           <CardHeader className="pb-2">
@@ -489,6 +380,21 @@ const Dashboard = () => {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Badges placeholder */}
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Award className="h-5 w-5 text-secondary" />
+              Conquistas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link to="/profile" className="block">
+              <Button variant="ghost" size="sm" className="w-full text-xs">Ver todas as conquistas →</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Active Challenges */}
@@ -500,10 +406,9 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {getActiveChallenges().slice(0, 3).map(c => {
-            const progress = user ? getChallengeProgress(c.id, user.id) : 0;
-            const completed = user ? getCompletedChallenges(user.id) : [];
-            const isClaimed = completed.includes(c.id);
+          {challenges.slice(0, 3).map(c => {
+            const progress = challengeProgress[c.id] || 0;
+            const isClaimed = completedChallengeIds.includes(c.id);
             const pct = Math.min((progress / c.target) * 100, 100);
             return (
               <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
@@ -527,7 +432,6 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-
       <Card className="border-primary/20">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -544,13 +448,13 @@ const Dashboard = () => {
       </Card>
 
       {/* Community Feed */}
-      {communityFeed.length > 0 && (
+      {feedPosts.length > 0 && (
         <Card className="border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Atividade da Comunidade</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {communityFeed.map((post: any) => (
+            {feedPosts.map((post) => (
               <div key={post.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
                 <span className="text-2xl">{post.userAvatar}</span>
                 <div className="flex-1 min-w-0">
