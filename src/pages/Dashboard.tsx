@@ -352,11 +352,11 @@ const Dashboard = () => {
       <div className="grid grid-cols-3 lg:grid-cols-6 gap-3" style={{ animationDelay: '0.1s' }}>
         {[
           { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
-          { icon: Target, label: 'XP', value: user?.xp || 0, color: 'text-secondary' },
+          { icon: Target, label: 'XP Total', value: user?.xp || 0, color: 'text-secondary' },
+          { icon: TrendingUp, label: 'XP Mês', value: monthXp, color: 'text-primary' },
+          { icon: CalendarCheck, label: 'Check-ins Mês', value: monthCheckins, color: 'text-secondary' },
           { icon: Flame, label: 'Sequência', value: `${user?.streak || 0}d`, color: 'text-primary' },
-          { icon: CalendarCheck, label: 'Mês', value: monthCheckins, color: 'text-secondary' },
-          { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-primary' },
-          { icon: Warehouse, label: 'Equip.', value: `${unlockedCount}/24`, color: 'text-secondary' },
+          { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-secondary' },
         ].map((stat, i) => (
           <Card key={i} className="border-primary/20 animate-fade-in" style={{ animationDelay: `${0.05 * i}s`, animationFillMode: 'backwards' }}>
             <CardContent className="p-3 text-center">
