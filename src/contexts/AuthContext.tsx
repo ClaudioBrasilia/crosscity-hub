@@ -298,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+    if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
     if (updates.xp !== undefined) dbUpdates.xp = updates.xp;
     if (updates.level !== undefined) dbUpdates.level = updates.level;
     if (updates.streak !== undefined) dbUpdates.streak = updates.streak;

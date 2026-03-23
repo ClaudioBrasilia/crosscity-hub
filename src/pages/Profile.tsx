@@ -306,9 +306,37 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Avatar */}
+      {/* Foto de Perfil */}
       <Card className="border-primary/20">
-        <CardHeader><CardTitle>Personalizar Avatar</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Camera className="h-5 w-5 text-primary" /> Foto de Perfil</CardTitle></CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <div className="relative">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.name} className="h-24 w-24 rounded-full object-cover border-2 border-primary/40" />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center text-5xl border-2 border-border">
+                {user?.avatar}
+              </div>
+            )}
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+              <Camera className="h-4 w-4 mr-1" /> {uploading ? 'Enviando...' : 'Enviar Foto'}
+            </Button>
+            {user?.avatarUrl && (
+              <Button variant="ghost" size="sm" disabled={uploading} onClick={handleRemovePhoto}>
+                <Trash2 className="h-4 w-4 mr-1" /> Remover
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">JPG, PNG ou WebP. Máx 2MB.</p>
+        </CardContent>
+      </Card>
+
+      {/* Avatar Emoji */}
+      <Card className="border-primary/20">
+        <CardHeader><CardTitle>Personalizar Avatar Emoji</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-5 gap-4 mb-6">
             {avatarEmojis.map(emoji => (

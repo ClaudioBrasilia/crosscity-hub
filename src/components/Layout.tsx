@@ -109,7 +109,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-full border border-primary/30 px-2 py-1">
-                <span className="text-lg">{user?.avatar}</span>
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} className="h-7 w-7 rounded-full object-cover" />
+                ) : (
+                  <span className="text-lg">{user?.avatar}</span>
+                )}
                 <p className="text-xs font-medium hidden sm:block">Nível {user?.level}</p>
               </div>
 
