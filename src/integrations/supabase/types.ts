@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      monthly_xp: {
+        Row: {
+          created_at: string
+          month_key: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          month_key: string
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          month_key?: string
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -124,6 +148,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_monthly_xp: {
+        Args: { p_amount: number; p_month_key: string; p_user_id: string }
+        Returns: number
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

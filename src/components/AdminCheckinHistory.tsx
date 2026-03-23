@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarCheck } from 'lucide-react';
@@ -16,8 +16,22 @@ interface Props {
 
 const AdminCheckinHistory = ({ users }: Props) => {
   const checkins = useMemo(() => getAllCheckins(), []);
-  const monthlyXp = useMemo(() => getAllMonthlyXp(), []);
+  const [monthlyXp, setMonthlyXp] = useState<Record<string, Record<string, number>>>({});
   const currentMonth = getCurrentMonthKey();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMonthlyXp = async () => {
+      const nextMonthlyXp = await getAllMonthlyXp();
+      if (mounted) setMonthlyXp(nextMonthlyXp);
+    };
+
+    loadMonthlyXp();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Collect all unique months across all users (checkins + xp)
   const allMonths = useMemo(() => {

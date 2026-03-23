@@ -173,7 +173,26 @@ const Dashboard = () => {
   const hasCheckedInToday = myCheckins.includes(today);
   const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
   const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
-  const monthXp = useMemo(() => user ? getCurrentMonthXp(user.id) : 0, [user, refreshTick]);
+  const [monthXp, setMonthXp] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMonthXp = async () => {
+      if (!user) {
+        if (mounted) setMonthXp(0);
+        return;
+      }
+
+      const xp = await getCurrentMonthXp(user.id);
+      if (mounted) setMonthXp(xp);
+    };
+
+    loadMonthXp();
+    return () => {
+      mounted = false;
+    };
+  }, [user, refreshTick]);
 
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user, refreshTick]);
@@ -262,7 +281,7 @@ const Dashboard = () => {
       const newXp = (user.xp || 0) + checkInXpReward;
       const newLevel = Math.floor(newXp / 500) + 1;
       updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
-      addMonthlyXp(user.id, checkInXpReward);
+      await addMonthlyXp(user.id, checkInXpReward);
       const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
       const updatedUsers = users.map((item) =>
         item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item

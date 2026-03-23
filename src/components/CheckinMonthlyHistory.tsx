@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarCheck } from 'lucide-react';
-import { getMonthlyHistory, getCurrentMonthKey, getMonthlyXpHistory, type MonthlyCheckinSummary, type MonthlyXpSummary } from '@/lib/checkinHistory';
+import { getMonthlyHistory, getCurrentMonthKey, getMonthlyXpHistory } from '@/lib/checkinHistory';
 
 interface Props {
   /** Array of date strings "YYYY-MM-DD" for the user */
@@ -12,8 +12,27 @@ interface Props {
 
 const CheckinMonthlyHistory = ({ dates, userId }: Props) => {
   const history = useMemo(() => getMonthlyHistory(dates), [dates]);
-  const xpHistory = useMemo(() => userId ? getMonthlyXpHistory(userId) : [], [userId]);
+  const [xpHistory, setXpHistory] = useState<Array<{ monthKey: string; label: string; xp: number }>>([]);
   const currentMonth = getCurrentMonthKey();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadXpHistory = async () => {
+      if (!userId) {
+        if (mounted) setXpHistory([]);
+        return;
+      }
+
+      const nextHistory = await getMonthlyXpHistory(userId);
+      if (mounted) setXpHistory(nextHistory);
+    };
+
+    loadXpHistory();
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
 
   // Build merged data: checkins + xp per month (excluding current month)
   const mergedMonths = useMemo(() => {
