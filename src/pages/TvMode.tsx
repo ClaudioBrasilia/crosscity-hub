@@ -206,8 +206,6 @@ export default function TvMode() {
             <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
             <p className="mt-1 text-sm text-white/50">{classLabel}</p>
           </div>
-            <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
-          </div>
         </header>
 
         {/* Main grid: fills remaining height */}
