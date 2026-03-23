@@ -198,7 +198,7 @@ export default function TvMode() {
         {/* Header */}
         <header className="mb-4 flex flex-shrink-0 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-3 backdrop-blur-md">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-red-400">CrossCity Hub</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-red-400">BOX LINK</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">WOD DO DIA</h1>
             <p className="mt-1 text-sm text-white/60">{dateLabel}</p>
           </div>
@@ -210,11 +210,15 @@ export default function TvMode() {
 
         {/* Main grid: fills remaining height */}
         <main className="grid min-h-0 flex-1 grid-cols-12 gap-4">
-          {/* Left column: Warm-up, Skill, WOD */}
-          <div className="col-span-8 flex min-h-0 flex-col gap-4">
-            {/* Warm-up: fixed max height */}
-            <Panel title="Warm-up" subtitle="Preparação e ativação" className="flex-shrink-0">
-              <div className="max-h-[12vh] overflow-hidden">
+          {/* Left column: single scrollable area for Warm-up + Skill + WOD */}
+          <div className="col-span-8 min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm">
+            <div className="space-y-6 p-5">
+              {/* Warm-up */}
+              <div>
+                <div className="mb-2 border-b border-white/10 pb-2">
+                  <h2 className="text-xl font-bold text-white">Warm-up</h2>
+                  <p className="mt-0.5 text-xs text-white/50">Preparação e ativação</p>
+                </div>
                 {dailyWod?.warmup ? (
                   <div className="whitespace-pre-line text-lg leading-relaxed text-white/90">
                     {dailyWod.warmup}
@@ -223,11 +227,13 @@ export default function TvMode() {
                   <Empty text="Warm-up não definido" />
                 )}
               </div>
-            </Panel>
 
-            {/* Skill: fixed max height */}
-            <Panel title="Skill" subtitle="Técnica e desenvolvimento" className="flex-shrink-0">
-              <div className="max-h-[12vh] overflow-hidden">
+              {/* Skill */}
+              <div>
+                <div className="mb-2 border-b border-white/10 pb-2">
+                  <h2 className="text-xl font-bold text-white">Skill</h2>
+                  <p className="mt-0.5 text-xs text-white/50">Técnica e desenvolvimento</p>
+                </div>
                 {dailyWod?.skill ? (
                   <div className="whitespace-pre-line text-lg leading-relaxed text-white/90">
                     {dailyWod.skill}
@@ -236,40 +242,42 @@ export default function TvMode() {
                   <Empty text="Skill não definido" />
                 )}
               </div>
-            </Panel>
 
-            {/* WOD: takes remaining space, scrollable internally */}
-            <Panel
-              title={dailyWod?.name || 'WOD do Dia'}
-              subtitle={dailyWod?.type ? `Formato: ${dailyWod.type}` : 'Treino principal'}
-              className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto"
-            >
-              {dailyWod?.versions?.rx?.description ? (
-                <div className="space-y-4">
-                  <div className="rounded-2xl bg-gradient-to-r from-red-500/15 to-orange-400/10 p-5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-300">RX</p>
-                    <div className="whitespace-pre-line text-2xl font-semibold leading-relaxed text-white">
-                      {dailyWod.versions.rx.description}
-                    </div>
-                  </div>
-                  {dailyWod.versions.rx.weight ? (
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
-                      <p className="mt-1 text-xl font-bold text-white/90">
-                        {dailyWod.versions.rx.weight}
-                      </p>
-                    </div>
-                  ) : null}
+              {/* WOD */}
+              <div>
+                <div className="mb-2 border-b border-white/10 pb-2">
+                  <h2 className="text-xl font-bold text-white">{dailyWod?.name || 'WOD do Dia'}</h2>
+                  <p className="mt-0.5 text-xs text-white/50">
+                    {dailyWod?.type ? `Formato: ${dailyWod.type}` : 'Treino principal'}
+                  </p>
                 </div>
-              ) : (
-                <Empty text="WOD não cadastrado" />
-              )}
-            </Panel>
+                {dailyWod?.versions?.rx?.description ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl bg-gradient-to-r from-red-500/15 to-orange-400/10 p-5">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-300">RX</p>
+                      <div className="whitespace-pre-line text-2xl font-semibold leading-relaxed text-white">
+                        {dailyWod.versions.rx.description}
+                      </div>
+                    </div>
+                    {dailyWod.versions.rx.weight ? (
+                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
+                        <p className="mt-1 text-xl font-bold text-white/90">
+                          {dailyWod.versions.rx.weight}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Empty text="WOD não cadastrado" />
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Right column: Check-ins + Duels, always visible */}
+          {/* Right column: Check-ins + Duels, each with independent scroll */}
           <div className="col-span-4 flex min-h-0 flex-col gap-4">
-            {/* Check-ins: scrollable if many */}
+            {/* Check-ins */}
             <Panel title="Check-ins" subtitle={currentClass ? `${currentClass.start} – ${currentClass.end}` : 'Sem aula'} className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
               {checkins.length ? (
                 <div className="space-y-2">
@@ -296,7 +304,7 @@ export default function TvMode() {
               )}
             </Panel>
 
-            {/* Duels: scrollable if many */}
+            {/* Duels */}
             <Panel title="Duelos" subtitle="Confrontos ativos" className="flex min-h-0 flex-shrink-0 max-h-[35%] flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
               {duels.length ? (
                 <div className="space-y-2">
