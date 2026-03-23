@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 type WodVersion = {
   description: string;
@@ -32,29 +33,6 @@ type TvDuel = {
   status?: string;
 };
 
-const safeParse = <T,>(value: string | null, fallback: T): T => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-};
-
-const getStoredDailyWod = (): DailyWod | null => {
-  try {
-    const raw = localStorage.getItem('crosscity_daily_wod');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DailyWod | null;
-    if (!parsed || !parsed.name || !parsed.versions?.rx?.description) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
   { start: '07:00', end: '08:00' },
@@ -73,51 +51,117 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
   });
 };
 
-const getTvCheckins = (): TvCheckin[] => {
+const getTodayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const fetchDailyWod = async (): Promise<DailyWod | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('wods')
+      .select('id, date, name, type, warmup, skill, versions')
+      .eq('date', getTodayISO())
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const versions = (data.versions || {}) as any;
+    if (!versions.rx?.description) return null;
+    return {
+      id: data.id,
+      date: data.date,
+      name: data.name,
+      type: data.type as DailyWod['type'],
+      warmup: data.warmup ?? undefined,
+      skill: data.skill ?? undefined,
+      versions: {
+        rx: versions.rx || { description: '' },
+        scaled: versions.scaled || { description: '' },
+        beginner: versions.beginner || { description: '' },
+      },
+    };
+  } catch {
+    return null;
+  }
+};
+
+const fetchTvCheckins = async (): Promise<TvCheckin[]> => {
   const currentClass = getCurrentClass();
   if (!currentClass) return [];
 
-  const [startH, startM] = currentClass.start.split(':').map(Number);
-  const [endH, endM] = currentClass.end.split(':').map(Number);
-  const classStartMin = startH * 60 + startM;
-  const classEndMin = endH * 60 + endM;
+  try {
+    const today = getTodayISO();
+    const { data, error } = await supabase
+      .from('checkins')
+      .select('id, user_id, created_at')
+      .eq('check_date', today);
+    if (error || !data || data.length === 0) return [];
 
-  const users = safeParse<any[]>(localStorage.getItem('crosscity_users'), []);
-  const checkins = safeParse<any[]>(localStorage.getItem('crosscity_checkins'), []);
-  const userMap = new Map(
-    users.map((u) => [u.id, u.name || u.username || 'Atleta'])
-  );
-  return checkins
-    .filter((item) => {
-      const rawDate = item?.createdAt || item?.created_at || item?.timestamp || item?.date;
-      if (!rawDate) return false;
-      const d = new Date(rawDate);
+    const [startH, startM] = currentClass.start.split(':').map(Number);
+    const [endH, endM] = currentClass.end.split(':').map(Number);
+    const classStartMin = startH * 60 + startM;
+    const classEndMin = endH * 60 + endM;
+
+    const filtered = data.filter((item) => {
+      if (!item.created_at) return false;
+      const d = new Date(item.created_at);
       if (Number.isNaN(d.getTime())) return false;
       const checkinMin = d.getHours() * 60 + d.getMinutes();
       return checkinMin >= classStartMin && checkinMin < classEndMin;
-    })
-    .map((item) => ({
-      id: item.userId || item.user_id || item.id,
-      name: userMap.get(item.userId || item.user_id) || item.userName || 'Atleta',
-      time: item.createdAt || item.created_at || item.timestamp || '',
-    }))
-    .slice(0, 12);
+    });
+
+    if (filtered.length === 0) return [];
+
+    const userIds = [...new Set(filtered.map((c) => c.user_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
+
+    return filtered.slice(0, 12).map((item) => ({
+      id: item.user_id,
+      name: nameMap.get(item.user_id) || 'Atleta',
+      time: item.created_at || '',
+    }));
+  } catch {
+    return [];
+  }
 };
 
-const getTvDuels = (): TvDuel[] => {
-  const duels = safeParse<any[]>(localStorage.getItem('crosscity_duels'), []);
-  return duels
-    .filter((duel) => {
-      const status = String(duel?.status || '').toLowerCase();
-      return !status || status === 'active' || status === 'pending';
-    })
-    .map((duel) => ({
+const fetchTvDuels = async (): Promise<TvDuel[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('app_duels')
+      .select('id, challenger_id, opponent_ids, status, wod_name')
+      .in('status', ['pending', 'active'])
+      .limit(8);
+    if (error || !data || data.length === 0) return [];
+
+    const allUserIds = new Set<string>();
+    data.forEach((d) => {
+      allUserIds.add(d.challenger_id);
+      (d.opponent_ids || []).forEach((id: string) => allUserIds.add(id));
+    });
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', [...allUserIds]);
+    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
+
+    return data.map((duel) => ({
       id: duel.id,
-      challengerName: duel.challengerName || duel.challenger_name,
-      challengedName: duel.challengedName || duel.challenged_name,
+      challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
+      challengedName:
+        duel.opponent_ids && duel.opponent_ids.length > 0
+          ? nameMap.get(duel.opponent_ids[0]) || 'Atleta 2'
+          : 'Atleta 2',
       status: duel.status || 'Ativo',
-    }))
-    .slice(0, 8);
+    }));
+  } catch {
+    return [];
+  }
 };
 
 const Panel = ({
@@ -153,10 +197,19 @@ export default function TvMode() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    const load = () => {
-      setDailyWod(getStoredDailyWod());
-      setCheckins(getTvCheckins());
-      setDuels(getTvDuels());
+    const load = async () => {
+      try {
+        const [wod, ci, du] = await Promise.all([
+          fetchDailyWod(),
+          fetchTvCheckins(),
+          fetchTvDuels(),
+        ]);
+        setDailyWod(wod);
+        setCheckins(ci);
+        setDuels(du);
+      } catch {
+        // silently ignore network errors to keep TV stable
+      }
       setNow(new Date());
     };
     load();
