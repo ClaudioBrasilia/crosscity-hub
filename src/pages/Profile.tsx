@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { avatarEmojis } from '@/lib/mockData';
-import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X, Camera, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getUserBadgesAsync, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
 import CheckinMonthlyHistory from '@/components/CheckinMonthlyHistory';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
 import * as db from '@/lib/supabaseData';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -32,6 +33,8 @@ const Profile = () => {
   const [myCheckins, setMyCheckins] = useState<Set<string>>(new Set());
   const [monthXp, setMonthXp] = useState(0);
   const [badgeResults, setBadgeResults] = useState<{ badge: Badge; unlocked: boolean }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -67,6 +70,56 @@ const Profile = () => {
   
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: 'Formato inválido', description: 'Use JPG, PNG ou WebP.', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Máximo 2MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${user.id}/profile.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      await updateUser({ avatarUrl });
+      toast({ title: 'Foto atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!user?.avatarUrl) return;
+    setUploading(true);
+    try {
+      const { data: files } = await supabase.storage.from('avatars').list(user.id);
+      if (files?.length) {
+        await supabase.storage.from('avatars').remove(files.map(f => `${user.id}/${f.name}`));
+      }
+      await updateUser({ avatarUrl: '' });
+      toast({ title: 'Foto removida!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSaveAvatar = () => {
     if (selectedAvatar) {
@@ -253,9 +306,37 @@ const Profile = () => {
         </CardContent>
       </Card>
 
-      {/* Avatar */}
+      {/* Foto de Perfil */}
       <Card className="border-primary/20">
-        <CardHeader><CardTitle>Personalizar Avatar</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Camera className="h-5 w-5 text-primary" /> Foto de Perfil</CardTitle></CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <div className="relative">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.name} className="h-24 w-24 rounded-full object-cover border-2 border-primary/40" />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center text-5xl border-2 border-border">
+                {user?.avatar}
+              </div>
+            )}
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+              <Camera className="h-4 w-4 mr-1" /> {uploading ? 'Enviando...' : 'Enviar Foto'}
+            </Button>
+            {user?.avatarUrl && (
+              <Button variant="ghost" size="sm" disabled={uploading} onClick={handleRemovePhoto}>
+                <Trash2 className="h-4 w-4 mr-1" /> Remover
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">JPG, PNG ou WebP. Máx 2MB.</p>
+        </CardContent>
+      </Card>
+
+      {/* Avatar Emoji */}
+      <Card className="border-primary/20">
+        <CardHeader><CardTitle>Personalizar Avatar Emoji</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-5 gap-4 mb-6">
             {avatarEmojis.map(emoji => (

@@ -12,6 +12,7 @@ interface User {
   name: string;
   email: string;
   avatar: string;
+  avatarUrl?: string;
   boxId: string;
   xp: number;
   individualEnergy?: number;
@@ -169,6 +170,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     name: profile.name,
     email: profile.email,
     avatar: profile.avatar || '👤',
+    avatarUrl: (profile as any).avatar_url || undefined,
     boxId: profile.box_id || 'box_1',
     xp: profile.xp || 0,
     individualEnergy: profile.xp || 0,
@@ -204,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: p.name,
         email: p.email,
         avatar: p.avatar || '👤',
+        avatarUrl: p.avatar_url || undefined,
         boxId: p.box_id || 'box_1',
         xp: p.xp || 0,
         individualEnergy: p.xp || 0,
@@ -295,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar;
+    if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl || null;
     if (updates.xp !== undefined) dbUpdates.xp = updates.xp;
     if (updates.level !== undefined) dbUpdates.level = updates.level;
     if (updates.streak !== undefined) dbUpdates.streak = updates.streak;
