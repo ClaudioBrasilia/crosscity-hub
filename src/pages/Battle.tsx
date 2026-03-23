@@ -306,9 +306,9 @@ const Battle = () => {
       const winnerId = pickWinner(newResults as Record<string, string>, allParticipants);
 
       if (winnerId) {
-        const updates: Record<string, any> = {
+        const updates: Partial<DuelData> & Record<string, any> = {
           results: newResults,
-          status: 'finished',
+          status: 'finished' as const,
           winnerId,
         };
 
