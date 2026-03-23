@@ -9,6 +9,7 @@ import { avatarEmojis } from '@/lib/mockData';
 import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
+import { getCurrentMonthXp, getCurrentMonthCheckins } from '@/lib/checkinHistory';
 import AchievementCard from '@/components/AchievementCard';
 import CheckinMonthlyHistory from '@/components/CheckinMonthlyHistory';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
