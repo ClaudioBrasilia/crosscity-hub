@@ -6,18 +6,18 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Swords, Map, Users, Sparkles, Crown, Plus } from 'lucide-react';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
-import {
-  assignUserToClan,
-  clanRewards,
-  createClan,
-  ensureClanData,
-  getClanLeaderboard,
-  getTerritoryOfDay,
-  getTerritoryState,
-  getUserClan,
-  territories,
-} from '@/lib/clanSystem';
+import { territories, clanRewards, getTerritoryOfDay } from '@/lib/clanSystem';
 import { useToast } from '@/hooks/use-toast';
+import {
+  getClans,
+  createClan as createClanApi,
+  getClanMemberships,
+  joinClan,
+  getUserClan as getUserClanApi,
+  getTerritoryBattle,
+  upsertTerritoryBattle,
+  type ClanData,
+} from '@/lib/supabaseData';
 
 const Clans = () => {
   const { user, getAllUsers } = useAuth();
@@ -25,38 +25,77 @@ const Clans = () => {
   const [tick, setTick] = useState(0);
 
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [clans, setClans] = useState<ClanData[]>([]);
+  const [memberships, setMemberships] = useState<Record<string, string>>({});
+  const [myClan, setMyClan] = useState<ClanData | null>(null);
+  const [territoryState, setTerritoryState] = useState<any>(null);
 
-  useEffect(() => {
-    getAllUsers().then((users) => setAllUsers(users));
-  }, []);
-
-  useEffect(() => {
-    ensureClanData(allUsers);
-  }, [allUsers]);
-
-  const territoryState = useMemo(() => getTerritoryState(), [tick]);
-  const leaderboard = useMemo(() => getClanLeaderboard(allUsers), [allUsers, tick]);
-  const myClan = user ? getUserClan(user.id) : null;
+  const dayKey = new Date().toISOString().split('T')[0];
   const territoryOfDay = getTerritoryOfDay();
+
+  useEffect(() => {
+    const load = async () => {
+      const [users, loadedClans, loadedMemberships, battle] = await Promise.all([
+        getAllUsers(),
+        getClans(),
+        getClanMemberships(),
+        getTerritoryBattle(dayKey),
+      ]);
+      setAllUsers(users);
+      setClans(loadedClans);
+      setMemberships(loadedMemberships);
+      setTerritoryState(battle);
+
+      if (user) {
+        const userClan = await getUserClanApi(user.id);
+        setMyClan(userClan);
+      }
+    };
+    load();
+  }, [tick, user?.id]);
+
+  const leaderboard = useMemo(() => {
+    const energyByClan: Record<string, number> = territoryState?.energy_by_clan || {};
+    return clans
+      .map((clan) => {
+        const members = allUsers.filter((u) => memberships[u.id] === clan.id);
+        const avgLevel = members.length ? members.reduce((sum: number, u: any) => sum + (u.level || 1), 0) / members.length : 0;
+        return {
+          clan,
+          members,
+          avgLevel,
+          energy: energyByClan[clan.id] || 0,
+        };
+      })
+      .sort((a, b) => b.energy - a.energy);
+  }, [clans, allUsers, memberships, territoryState]);
 
   const maxEnergy = Math.max(...leaderboard.map((item) => item.energy), 1);
 
-  const handleCreateMyClan = () => {
+  const handleCreateMyClan = async () => {
     if (!user) return;
 
-   const clanName = window.prompt('Nome do seu time:');    if (!clanName?.trim()) return;
+    const clanName = window.prompt('Nome do seu time:');
+    if (!clanName?.trim()) return;
 
-    const motto = window.prompt('Mote do time (opcional):')?.trim() || 'Juntos dominamos o território.'; const newClan = createClan({
-      name: clanName,
-      motto,
-      color: 'slate',
-      banner: '🛡️',
-    });
+    const motto = window.prompt('Mote do time (opcional):')?.trim() || 'Juntos dominamos o território.';
 
-    assignUserToClan(user.id, newClan.id);
-    toast({ title: 'Time criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });   setTick((value) => value + 1);
+    try {
+      const newClan = await createClanApi({
+        name: clanName.trim(),
+        motto,
+        color: 'slate',
+        banner: '🛡️',
+        createdBy: user.id,
+      });
+
+      await joinClan(user.id, newClan.id);
+      toast({ title: 'Time criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao criar time.', variant: 'destructive' });
+    }
   };
-
 
   return (
     <div className="space-y-6">
@@ -67,7 +106,8 @@ const Clans = () => {
 
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> {myClan ? 'Meu Time' : 'Sem Time'}</CardTitle>         <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Swords className="h-5 w-5 text-primary" /> {myClan ? 'Meu Time' : 'Sem Time'}</CardTitle>
+          <CardDescription>Formação mista para promover mentoria e evolução coletiva.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-between gap-4 flex-wrap">
           {myClan ? (
@@ -79,7 +119,7 @@ const Clans = () => {
               {user && (
                 <DominationEnergyButton
                   userId={user.id}
-                  activityId={`territory:${territoryState?.dayKey || new Date().toISOString().split('T')[0]}`}
+                  activityId={`territory:${dayKey}`}
                   activityType="event"
                   energy={25}
                   participationValid
@@ -117,7 +157,7 @@ const Clans = () => {
                 </div>
               ))}
             </div>
-            {territoryState?.winnerClanId && (
+            {territoryState?.winner_clan_id && (
               <Badge variant="secondary">Time líder atualizado em tempo real</Badge>
             )}
           </CardContent>

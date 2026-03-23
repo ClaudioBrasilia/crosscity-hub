@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export interface Badge {
   id: string;
   name: string;
@@ -63,28 +65,46 @@ export const categoryIcons: Record<Badge['category'], string> = {
   exploration: '🗺️',
 };
 
-export function getUserBadges(userId: string): { badge: Badge; unlocked: boolean }[] {
-  const checkinsData: Record<string, string[]> = JSON.parse(localStorage.getItem('crosscity_checkins') || '{}');
-  const benchmarksData: Record<string, Record<string, number>> = JSON.parse(localStorage.getItem('crosscity_benchmarks') || '{}');
-  const users = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
-  const user = users.find((u: any) => u.id === userId);
-  const wins = Number(localStorage.getItem(`crosscity_wins_${userId}`) || '0');
-  const battles = Number(localStorage.getItem(`crosscity_battles_${userId}`) || '0');
-  const inventory: string[] = JSON.parse(localStorage.getItem(`crosscity_inventory_${userId}`) || '[]');
+/**
+ * Async version: fetches badge context from Supabase.
+ */
+export async function getUserBadgesAsync(userId: string): Promise<{ badge: Badge; unlocked: boolean }[]> {
+  const [checkinsRes, benchmarksRes, profileRes] = await Promise.all([
+    supabase.from('checkins').select('check_date').eq('user_id', userId),
+    supabase.from('benchmarks').select('exercise_id, value').eq('user_id', userId),
+    supabase.from('profiles').select('level, xp, streak, wins, battles').eq('id', userId).single(),
+  ]);
+
+  const checkins = (checkinsRes.data || []).map((r: any) => r.check_date);
+  const benchmarks: Record<string, number> = {};
+  (benchmarksRes.data || []).forEach((r: any) => { benchmarks[r.exercise_id] = Number(r.value); });
+
+  const profile = profileRes.data as any;
 
   const ctx: BadgeContext = {
-    checkins: checkinsData[userId] || [],
-    benchmarks: benchmarksData[userId] || {},
-    wins,
-    battles,
-    level: user?.level || 0,
-    xp: user?.xp || 0,
-    streak: user?.streak || 0,
-    equipmentCount: inventory.length,
+    checkins,
+    benchmarks,
+    wins: profile?.wins || 0,
+    battles: profile?.battles || 0,
+    level: profile?.level || 0,
+    xp: profile?.xp || 0,
+    streak: profile?.streak || 0,
+    equipmentCount: 0, // Equipment system is localStorage-only (cosmetic)
   };
 
   return allBadges.map((badge) => ({
     badge,
     unlocked: badge.check(ctx),
+  }));
+}
+
+/**
+ * @deprecated Use getUserBadgesAsync instead. Kept for backward compatibility.
+ */
+export function getUserBadges(userId: string): { badge: Badge; unlocked: boolean }[] {
+  // Fallback: return all badges as locked when called synchronously
+  return allBadges.map((badge) => ({
+    badge,
+    unlocked: false,
   }));
 }
