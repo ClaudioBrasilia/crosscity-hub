@@ -33,6 +33,8 @@ const Profile = () => {
   const [myCheckins, setMyCheckins] = useState<Set<string>>(new Set());
   const [monthXp, setMonthXp] = useState(0);
   const [badgeResults, setBadgeResults] = useState<{ badge: Badge; unlocked: boolean }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
