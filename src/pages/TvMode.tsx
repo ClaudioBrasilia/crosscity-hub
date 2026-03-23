@@ -270,7 +270,7 @@ export default function TvMode() {
           {/* Right column: Check-ins + Duels, always visible */}
           <div className="col-span-4 flex min-h-0 flex-col gap-4">
             {/* Check-ins: scrollable if many */}
-            <Panel title="Check-ins" subtitle="Turma atual" className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
+            <Panel title="Check-ins" subtitle={currentClass ? `${currentClass.start} – ${currentClass.end}` : 'Sem aula'} className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
               {checkins.length ? (
                 <div className="space-y-2">
                   {checkins.map((athlete, index) => (
