@@ -12,6 +12,7 @@ interface User {
   name: string;
   email: string;
   avatar: string;
+  avatarUrl?: string;
   boxId: string;
   xp: number;
   individualEnergy?: number;
