@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Timer } from 'lucide-react';
+import { Trophy, Timer, Flame, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
