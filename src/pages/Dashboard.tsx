@@ -326,28 +326,28 @@ const Dashboard = () => {
 
       {/* WOD do Dia */}
       {dailyWod && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              WOD do Dia: {dailyWod.name}
-            </CardTitle>
-            <CardDescription>{dailyWod.type} • {dailyWod.date}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">{dailyWod.versions?.rx?.description}</p>
-              {myTodayResult ? (
-                <p className="mt-1 text-sm font-semibold text-primary">✓ {myTodayResult.result} ({myTodayResult.category.toUpperCase()}) • #{myPosition}</p>
-              ) : (
-                <p className="mt-1 text-sm font-semibold text-muted-foreground">Ainda sem resultado hoje</p>
-              )}
-            </div>
-            <Link to="/wod">
-              <Button size="sm">Registrar</Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <Link to="/wod" className="block group">
+          <Card className="border-primary/30 bg-primary/5 cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-md hover:shadow-primary/10 focus-within:ring-2 focus-within:ring-primary/40 focus-within:ring-offset-2 focus-within:ring-offset-background">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                WOD do Dia: {dailyWod.name}
+              </CardTitle>
+              <CardDescription>{dailyWod.type} • {dailyWod.date}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">{dailyWod.versions?.rx?.description}</p>
+                {myTodayResult ? (
+                  <p className="mt-1 text-sm font-semibold text-primary">✓ {myTodayResult.result} ({myTodayResult.category.toUpperCase()}) • #{myPosition}</p>
+                ) : (
+                  <p className="mt-1 text-sm font-semibold text-muted-foreground">Ainda sem resultado hoje</p>
+                )}
+              </div>
+              <Button size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = '/wod'; }}>Registrar</Button>
+            </CardContent>
+          </Card>
+        </Link>
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
