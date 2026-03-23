@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import * as db from '@/lib/supabaseData';
 
 type WodVersion = {
   description: string;
@@ -32,35 +34,25 @@ type TvDuel = {
   status?: string;
 };
 
-const safeParse = <T,>(value: string | null, fallback: T): T => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+type CheckinRow = {
+  id: string;
+  user_id: string;
+  created_at: string;
 };
 
-const getStoredDailyWod = (): DailyWod | null => {
-  try {
-    const raw = localStorage.getItem('crosscity_daily_wod');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as DailyWod | null;
-    if (!parsed || !parsed.name || !parsed.versions?.rx?.description) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+type ProfileNameRow = {
+  id: string;
+  name: string;
 };
 
 const CLASS_SCHEDULE = [
-  { start: '06:00', end: '07:00' },
-  { start: '07:00', end: '08:00' },
-  { start: '12:00', end: '13:00' },
-  { start: '18:00', end: '19:00' },
-  { start: '19:00', end: '20:00' },
+  { start: '06:10', end: '07:10' },
+  { start: '07:10', end: '08:10' },
+  { start: '11:10', end: '12:10' },
+  { start: '17:15', end: '18:15' },
+  { start: '18:15', end: '19:15' },
+  { start: '19:15', end: '20:15' },
+  { start: '20:15', end: '21:15' },
 ];
 
 const getCurrentClass = (): { start: string; end: string } | undefined => {
@@ -73,51 +65,89 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
   });
 };
 
-const getTvCheckins = (): TvCheckin[] => {
+const getClassRange = (cls: { start: string; end: string }) => {
+  const today = new Date();
+  const start = new Date(today);
+  const end = new Date(today);
+  const [startH, startM] = cls.start.split(':').map(Number);
+  const [endH, endM] = cls.end.split(':').map(Number);
+  start.setHours(startH, startM, 0, 0);
+  end.setHours(endH, endM, 0, 0);
+  return { start, end };
+};
+
+const getTvCheckins = async (): Promise<TvCheckin[]> => {
   const currentClass = getCurrentClass();
   if (!currentClass) return [];
 
-  const [startH, startM] = currentClass.start.split(':').map(Number);
-  const [endH, endM] = currentClass.end.split(':').map(Number);
-  const classStartMin = startH * 60 + startM;
-  const classEndMin = endH * 60 + endM;
+  const { start, end } = getClassRange(currentClass);
+  const { data, error } = await supabase
+    .from('checkins')
+    .select('id, user_id, created_at')
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(12);
 
-  const users = safeParse<any[]>(localStorage.getItem('crosscity_users'), []);
-  const checkins = safeParse<any[]>(localStorage.getItem('crosscity_checkins'), []);
-  const userMap = new Map(
-    users.map((u) => [u.id, u.name || u.username || 'Atleta'])
-  );
-  return checkins
-    .filter((item) => {
-      const rawDate = item?.createdAt || item?.created_at || item?.timestamp || item?.date;
-      if (!rawDate) return false;
-      const d = new Date(rawDate);
-      if (Number.isNaN(d.getTime())) return false;
-      const checkinMin = d.getHours() * 60 + d.getMinutes();
-      return checkinMin >= classStartMin && checkinMin < classEndMin;
-    })
-    .map((item) => ({
-      id: item.userId || item.user_id || item.id,
-      name: userMap.get(item.userId || item.user_id) || item.userName || 'Atleta',
-      time: item.createdAt || item.created_at || item.timestamp || '',
-    }))
-    .slice(0, 12);
+  if (error) {
+    console.error('Error fetching TV check-ins:', error);
+    return [];
+  }
+
+  const checkinRows = (data || []) as CheckinRow[];
+  const userIds = Array.from(new Set(checkinRows.map((item) => item.user_id).filter(Boolean)));
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, name')
+    .in('id', userIds.length ? userIds : ['__none__']);
+
+  if (profilesError) {
+    console.error('Error fetching TV check-in profiles:', profilesError);
+  }
+
+  const nameMap = new Map(((profiles || []) as ProfileNameRow[]).map((profile) => [profile.id, profile.name || 'Atleta']));
+
+  return checkinRows.map((item) => ({
+    id: item.id,
+    name: nameMap.get(item.user_id) || 'Atleta',
+    time: item.created_at,
+  }));
 };
 
-const getTvDuels = (): TvDuel[] => {
-  const duels = safeParse<any[]>(localStorage.getItem('crosscity_duels'), []);
-  return duels
+const getTvDuels = async (): Promise<TvDuel[]> => {
+  const duels = await db.getDuels();
+  const visibleDuels = duels
     .filter((duel) => {
       const status = String(duel?.status || '').toLowerCase();
       return !status || status === 'active' || status === 'pending';
     })
-    .map((duel) => ({
-      id: duel.id,
-      challengerName: duel.challengerName || duel.challenger_name,
-      challengedName: duel.challengedName || duel.challenged_name,
-      status: duel.status || 'Ativo',
-    }))
     .slice(0, 8);
+
+  if (!visibleDuels.length) return [];
+
+  const participantIds = Array.from(
+    new Set(
+      visibleDuels.flatMap((duel) => [duel.challengerId, ...duel.opponentIds]).filter(Boolean)
+    )
+  );
+
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, name')
+    .in('id', participantIds);
+
+  if (error) {
+    console.error('Error fetching TV duel participants:', error);
+  }
+
+  const nameMap = new Map(((profiles || []) as ProfileNameRow[]).map((profile) => [profile.id, profile.name || 'Atleta']));
+
+  return visibleDuels.map((duel) => ({
+    id: duel.id,
+    challengerName: nameMap.get(duel.challengerId) || 'Atleta 1',
+    challengedName: duel.opponentIds.map((id) => nameMap.get(id) || 'Atleta').join(', ') || 'Atleta 2',
+    status: duel.status || 'Ativo',
+  }));
 };
 
 const Panel = ({
@@ -151,18 +181,93 @@ export default function TvMode() {
   const [checkins, setCheckins] = useState<TvCheckin[]>([]);
   const [duels, setDuels] = useState<TvDuel[]>([]);
   const [now, setNow] = useState(new Date());
+  const isMountedRef = useRef(true);
+  const isLoadingRef = useRef(false);
+  const pendingRefreshRef = useRef(false);
+  const lastSnapshotRef = useRef('');
+
+  const refreshTvData = useCallback(async () => {
+    if (isLoadingRef.current) {
+      pendingRefreshRef.current = true;
+      return;
+    }
+
+    isLoadingRef.current = true;
+
+    try {
+      const [wod, nextCheckins, nextDuels] = await Promise.all([
+        db.getLatestWod(),
+        getTvCheckins(),
+        getTvDuels(),
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      const normalizedWod = (wod as DailyWod | null) || null;
+      const snapshot = JSON.stringify({
+        dailyWod: normalizedWod,
+        checkins: nextCheckins,
+        duels: nextDuels,
+      });
+
+      if (snapshot !== lastSnapshotRef.current) {
+        lastSnapshotRef.current = snapshot;
+        setDailyWod(normalizedWod);
+        setCheckins(nextCheckins);
+        setDuels(nextDuels);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setNow(new Date());
+      }
+      isLoadingRef.current = false;
+
+      if (pendingRefreshRef.current) {
+        pendingRefreshRef.current = false;
+        void refreshTvData();
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    const load = () => {
-      setDailyWod(getStoredDailyWod());
-      setCheckins(getTvCheckins());
-      setDuels(getTvDuels());
-      setNow(new Date());
+    isMountedRef.current = true;
+    void refreshTvData();
+
+    const pollInterval = window.setInterval(() => {
+      void refreshTvData();
+    }, 10000);
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshTvData();
+      }
     };
-    load();
-    const interval = window.setInterval(load, 10000);
-    return () => window.clearInterval(interval);
-  }, []);
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    const channel = supabase
+      .channel('tv-mode-live-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wods' }, () => {
+        void refreshTvData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, () => {
+        void refreshTvData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_duels' }, () => {
+        void refreshTvData();
+      })
+      .subscribe();
+
+    return () => {
+      isMountedRef.current = false;
+      pendingRefreshRef.current = false;
+      window.clearInterval(pollInterval);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshTvData]);
 
   const dateLabel = useMemo(
     () =>
@@ -258,15 +363,15 @@ export default function TvMode() {
                       <div className="whitespace-pre-line text-2xl font-semibold leading-relaxed text-white">
                         {dailyWod.versions.rx.description}
                       </div>
+                      {dailyWod.versions.rx.weight ? (
+                        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 mt-4">
+                          <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
+                          <p className="mt-1 text-xl font-bold text-white/90">
+                            {dailyWod.versions.rx.weight}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
-                    {dailyWod.versions.rx.weight ? (
-                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
-                        <p className="mt-1 text-xl font-bold text-white/90">
-                          {dailyWod.versions.rx.weight}
-                        </p>
-                      </div>
-                    ) : null}
                   </div>
                 ) : (
                   <Empty text="WOD não cadastrado" />
