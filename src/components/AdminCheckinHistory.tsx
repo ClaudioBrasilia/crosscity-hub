@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarCheck } from 'lucide-react';
-import { getAllCheckins, getCurrentMonthKey, type MonthlyCheckinSummary } from '@/lib/checkinHistory';
+import { getAllCheckins, getCurrentMonthKey, getAllMonthlyXp } from '@/lib/checkinHistory';
 
 interface UserInfo {
   id: string;
@@ -16,9 +16,10 @@ interface Props {
 
 const AdminCheckinHistory = ({ users }: Props) => {
   const checkins = useMemo(() => getAllCheckins(), []);
+  const monthlyXp = useMemo(() => getAllMonthlyXp(), []);
   const currentMonth = getCurrentMonthKey();
 
-  // Collect all unique months across all users
+  // Collect all unique months across all users (checkins + xp)
   const allMonths = useMemo(() => {
     const set = new Set<string>();
     Object.values(checkins).forEach((dates) => {
@@ -26,8 +27,11 @@ const AdminCheckinHistory = ({ users }: Props) => {
         if (d && d.length >= 7) set.add(d.slice(0, 7));
       });
     });
+    Object.values(monthlyXp).forEach((months) => {
+      Object.keys(months).forEach((k) => set.add(k));
+    });
     return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [checkins]);
+  }, [checkins, monthlyXp]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
 
@@ -37,17 +41,18 @@ const AdminCheckinHistory = ({ users }: Props) => {
     return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
-  // For selected month, compute per-user totals
+  // For selected month, compute per-user totals (checkins + xp)
   const userTotals = useMemo(() => {
     return users
       .map((u) => {
         const dates = checkins[u.id] || [];
         const count = dates.filter((d) => d.startsWith(selectedMonth)).length;
-        return { ...u, count };
+        const xp = monthlyXp[u.id]?.[selectedMonth] || 0;
+        return { ...u, count, xp };
       })
-      .filter((u) => u.count > 0)
-      .sort((a, b) => b.count - a.count);
-  }, [users, checkins, selectedMonth]);
+      .filter((u) => u.count > 0 || u.xp > 0)
+      .sort((a, b) => b.xp - a.xp || b.count - a.count);
+  }, [users, checkins, monthlyXp, selectedMonth]);
 
   if (allMonths.length === 0) {
     return null;
@@ -58,7 +63,7 @@ const AdminCheckinHistory = ({ users }: Props) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CalendarCheck className="h-5 w-5 text-primary" />
-          Frequência Mensal de Check-ins
+          Frequência e XP Mensal
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -78,7 +83,7 @@ const AdminCheckinHistory = ({ users }: Props) => {
 
         {userTotals.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            Nenhum check-in neste mês.
+            Nenhum dado neste mês.
           </p>
         ) : (
           <div className="space-y-2">
@@ -91,9 +96,16 @@ const AdminCheckinHistory = ({ users }: Props) => {
                   <span className="text-xl">{u.avatar || '👤'}</span>
                   <span className="font-medium">{u.name}</span>
                 </div>
-                <span className="text-sm font-bold text-primary">
-                  {u.count} check-in{u.count !== 1 ? 's' : ''}
-                </span>
+                <div className="flex items-center gap-4 text-sm font-bold">
+                  <span className="text-primary">
+                    {u.count} check-in{u.count !== 1 ? 's' : ''}
+                  </span>
+                  {u.xp > 0 && (
+                    <span className="text-secondary">
+                      {u.xp} XP
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
