@@ -170,6 +170,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     name: profile.name,
     email: profile.email,
     avatar: profile.avatar || '👤',
+    avatarUrl: (profile as any).avatar_url || undefined,
     boxId: profile.box_id || 'box_1',
     xp: profile.xp || 0,
     individualEnergy: profile.xp || 0,
