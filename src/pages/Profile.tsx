@@ -71,6 +71,56 @@ const Profile = () => {
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: 'Formato inválido', description: 'Use JPG, PNG ou WebP.', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Máximo 2MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${user.id}/profile.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      await updateUser({ avatarUrl });
+      toast({ title: 'Foto atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!user?.avatarUrl) return;
+    setUploading(true);
+    try {
+      const { data: files } = await supabase.storage.from('avatars').list(user.id);
+      if (files?.length) {
+        await supabase.storage.from('avatars').remove(files.map(f => `${user.id}/${f.name}`));
+      }
+      await updateUser({ avatarUrl: '' });
+      toast({ title: 'Foto removida!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSaveAvatar = () => {
     if (selectedAvatar) {
       updateUser({ avatar: selectedAvatar });
