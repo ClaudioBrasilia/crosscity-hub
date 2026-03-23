@@ -159,7 +159,7 @@ const Profile = () => {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
             <div>
               <p className="text-sm text-muted-foreground">Nível</p>
               <p className="text-2xl font-bold text-primary">{user?.level}</p>
@@ -169,8 +169,12 @@ const Profile = () => {
               <p className="text-2xl font-bold text-secondary">{user?.xp}</p>
             </div>
             <div>
+              <p className="text-sm text-muted-foreground">XP do Mês</p>
+              <p className="text-2xl font-bold text-primary">{user ? getCurrentMonthXp(user.id) : 0}</p>
+            </div>
+            <div>
               <p className="text-sm text-muted-foreground">Sequência</p>
-              <p className="text-2xl font-bold text-primary">{user?.streak} dias</p>
+              <p className="text-2xl font-bold text-secondary">{user?.streak} dias</p>
             </div>
           </div>
         </CardContent>
