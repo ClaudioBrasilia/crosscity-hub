@@ -31,15 +31,18 @@ const Profile = () => {
 
   const [myCheckins, setMyCheckins] = useState<Set<string>>(new Set());
   const [monthXp, setMonthXp] = useState(0);
+  const [badgeResults, setBadgeResults] = useState<{ badge: Badge; unlocked: boolean }[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [checkins, xp] = await Promise.all([
+    const [checkins, xp, badges] = await Promise.all([
       db.getUserCheckins(user.id),
       db.getCurrentMonthXp(user.id),
+      getUserBadgesAsync(user.id),
     ]);
     setMyCheckins(new Set(checkins));
     setMonthXp(xp);
+    setBadgeResults(badges);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
