@@ -12,6 +12,7 @@ import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { ensureClanData, getCheckInXpReward, getUserClan, generateDominationEnergyForActivity, hasGeneratedDominationEnergy } from '@/lib/clanSystem';
+import { getCurrentMonthXp, addMonthlyXp } from '@/lib/checkinHistory';
 import type { UserProfile } from '@/lib/clanSystem';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
