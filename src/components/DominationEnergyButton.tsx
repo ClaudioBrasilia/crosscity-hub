@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { generateDominationEnergyForActivity, hasGeneratedDominationEnergy, type ActivityEnergyClaim } from '@/lib/clanSystem';
+import { supabase } from '@/integrations/supabase/client';
+import { getUserClan, type ClanData } from '@/lib/supabaseData';
+
+interface ActivityEnergyClaim {
+  activityType: 'checkin' | 'wod' | 'challenge' | 'event';
+}
 
 interface DominationEnergyButtonProps {
   userId: string;
@@ -34,15 +39,22 @@ export const DominationEnergyButton = ({
 
   const isBlocked = !participationValid;
 
+  // Check if energy was already generated for this activity (from Supabase)
   useEffect(() => {
-    setGenerated(hasGeneratedDominationEnergy(userId, activityId));
-  }, [userId, activityId]);
-
-  useEffect(() => {
-    const sync = () => setGenerated(hasGeneratedDominationEnergy(userId, activityId));
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, [userId, activityId]);
+    const check = async () => {
+      const dayKey = new Date().toISOString().split('T')[0];
+      const battleId = dayKey;
+      const { data } = await supabase
+        .from('domination_events')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('battle_id', battleId)
+        .eq('source', activityType)
+        .limit(1);
+      if (data && data.length > 0) setGenerated(true);
+    };
+    check();
+  }, [userId, activityId, activityType]);
 
   const buttonLabel = useMemo(() => {
     if (generated) return 'Energia Gerada';
@@ -55,24 +67,63 @@ export const DominationEnergyButton = ({
     if (isLoading || generated || isBlocked) return;
     setIsLoading(true);
 
-    const response = generateDominationEnergyForActivity({
-      userId,
-      activityId,
-      activityType,
-      energy,
-      clanEnergyBonus,
-      participationValid,
-    });
+    try {
+      const clan = await getUserClan(userId);
+      const dayKey = new Date().toISOString().split('T')[0];
+      const battleId = dayKey;
+      const clanEnergy = clan ? energy + clanEnergyBonus : 0;
 
-    if (response.ok) {
+      // Record domination event in Supabase
+      if (clan) {
+        const eventId = `energy_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
+        await supabase.from('domination_events').insert({
+          id: eventId,
+          battle_id: battleId,
+          user_id: userId,
+          clan_id: clan.id,
+          source: activityType,
+          energy: clanEnergy,
+        } as any);
+
+        // Update territory battle energy
+        const { data: battle } = await supabase
+          .from('territory_battles')
+          .select('*')
+          .eq('id', battleId)
+          .maybeSingle();
+
+        if (battle) {
+          const currentEnergy = (battle as any).energy_by_clan || {};
+          currentEnergy[clan.id] = (currentEnergy[clan.id] || 0) + clanEnergy;
+          await supabase.from('territory_battles').update({
+            energy_by_clan: currentEnergy,
+          }).eq('id', battleId);
+        }
+      }
+
+      // Update user XP in profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp')
+        .eq('id', userId)
+        .single();
+      if (profile) {
+        const newXp = ((profile as any).xp || 0) + energy;
+        await supabase.from('profiles').update({
+          xp: newXp,
+          level: Math.floor(newXp / 500) + 1,
+        }).eq('id', userId);
+      }
+
       setGenerated(true);
-      const clanName = response.clan?.name;
-      const clanPart = clanName ? ` e +${response.claim.clanEnergy} Energia ${clanName}` : '';
-      setGainFeedback(`+${response.claim.individualEnergy} XP Pessoal${clanPart}`);
-      toast({ title: 'Energia gerada! ⚡', description: response.message });
+      const clanPart = clan ? ` e +${clanEnergy} Energia ${clan.name}` : '';
+      setGainFeedback(`+${energy} XP Pessoal${clanPart}`);
+      toast({ title: 'Energia gerada! ⚡', description: clan
+        ? `+${energy} XP pessoal e +${clanEnergy} energia para ${clan.name}.`
+        : 'Você ganhou XP pessoal! Entre em um time para contribuir com energia.' });
       onSuccess?.();
-    } else {
-      toast({ title: 'Não foi possível gerar energia', description: response.message, variant: 'destructive' });
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao gerar energia no servidor.', variant: 'destructive' });
     }
 
     setIsLoading(false);
