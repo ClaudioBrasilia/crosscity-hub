@@ -257,6 +257,7 @@ const Dashboard = () => {
     const newXp = (user.xp || 0) + checkInXpReward;
     const newLevel = Math.floor(newXp / 500) + 1;
     updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
+    addMonthlyXp(user.id, checkInXpReward);
     const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     const updatedUsers = users.map((item) =>
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
