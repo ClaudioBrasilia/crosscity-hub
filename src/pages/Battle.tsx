@@ -275,7 +275,7 @@ const Battle = () => {
       }
     }
 
-    const updates = { status: 'finished', winnerId: null, betCanceledAt: Date.now() };
+    const updates = { status: 'finished' as const, winnerId: null, betCanceledAt: Date.now() };
     try {
       await updateDuelApi(duelId, updates);
       setDuels((prev) => prev.map((d) => d.id === duelId ? { ...d, ...updates } : d));
