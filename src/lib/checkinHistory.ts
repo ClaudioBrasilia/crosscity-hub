@@ -3,6 +3,8 @@
  * Does NOT modify any existing data — read-only aggregation.
  */
 
+import { supabase } from '@/integrations/supabase/client';
+
 export interface MonthlyCheckinSummary {
   /** Format: "YYYY-MM" */
   monthKey: string;
@@ -77,35 +79,102 @@ export interface MonthlyXpSummary {
   xp: number;
 }
 
-/**
- * Reads the monthly XP store: Record<userId, Record<monthKey, number>>
- */
-export const getAllMonthlyXp = (): Record<string, Record<string, number>> => {
+type MonthlyXpMap = Record<string, Record<string, number>>;
+type MonthlyXpRow = { user_id: string; month_key: string; xp: number | null };
+
+const getMonthLabel = (monthKey: string) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+};
+
+const readLocalMonthlyXp = (): MonthlyXpMap => {
   try {
     const raw = localStorage.getItem(MONTHLY_XP_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as Record<string, Record<string, number>>;
+    return JSON.parse(raw) as MonthlyXpMap;
   } catch {
     return {};
   }
 };
 
-/**
- * Adds XP to a user's current month tally.
- */
-export const addMonthlyXp = (userId: string, amount: number): void => {
-  const all = getAllMonthlyXp();
-  const monthKey = getCurrentMonthKey();
-  if (!all[userId]) all[userId] = {};
-  all[userId][monthKey] = (all[userId][monthKey] || 0) + amount;
+const writeLocalMonthlyXp = (all: MonthlyXpMap): void => {
   localStorage.setItem(MONTHLY_XP_KEY, JSON.stringify(all));
+};
+
+const mergeMonthlyXpRows = (rows: MonthlyXpRow[]): MonthlyXpMap => {
+  const map: MonthlyXpMap = {};
+
+  rows.forEach((row) => {
+    if (!row.user_id || !row.month_key) return;
+    if (!map[row.user_id]) map[row.user_id] = {};
+    map[row.user_id][row.month_key] = Number(row.xp) || 0;
+  });
+
+  return map;
+};
+
+const mergeWithLocalFallback = (remote: MonthlyXpMap, local: MonthlyXpMap): MonthlyXpMap => {
+  const merged: MonthlyXpMap = { ...local };
+
+  Object.entries(remote).forEach(([userId, months]) => {
+    merged[userId] = { ...(merged[userId] || {}), ...months };
+  });
+
+  return merged;
+};
+
+/**
+ * Reads the monthly XP store, prioritizing Supabase and falling back to localStorage.
+ */
+export const getAllMonthlyXp = async (): Promise<MonthlyXpMap> => {
+  const local = readLocalMonthlyXp();
+
+  const { data, error } = await supabase
+    .from('monthly_xp')
+    .select('user_id, month_key, xp');
+
+  if (error || !data) {
+    return local;
+  }
+
+  const remote = mergeMonthlyXpRows(data as MonthlyXpRow[]);
+  const merged = mergeWithLocalFallback(remote, local);
+  writeLocalMonthlyXp(merged);
+  return merged;
+};
+
+/**
+ * Adds XP to a user's current month tally in Supabase and keeps localStorage as cache/fallback.
+ */
+export const addMonthlyXp = async (userId: string, amount: number): Promise<number> => {
+  const monthKey = getCurrentMonthKey();
+  const local = readLocalMonthlyXp();
+
+  const { data, error } = await supabase.rpc('increment_monthly_xp', {
+    p_user_id: userId,
+    p_month_key: monthKey,
+    p_amount: amount,
+  });
+
+  if (error || typeof data !== 'number') {
+    if (!local[userId]) local[userId] = {};
+    local[userId][monthKey] = (local[userId][monthKey] || 0) + amount;
+    writeLocalMonthlyXp(local);
+    return local[userId][monthKey];
+  }
+
+  if (!local[userId]) local[userId] = {};
+  local[userId][monthKey] = data;
+  writeLocalMonthlyXp(local);
+  return data;
 };
 
 /**
  * Returns the XP for a user in the current month.
  */
-export const getCurrentMonthXp = (userId: string): number => {
-  const all = getAllMonthlyXp();
+export const getCurrentMonthXp = async (userId: string): Promise<number> => {
+  const all = await getAllMonthlyXp();
   const monthKey = getCurrentMonthKey();
   return all[userId]?.[monthKey] || 0;
 };
@@ -113,15 +182,15 @@ export const getCurrentMonthXp = (userId: string): number => {
 /**
  * Returns the monthly XP history for a user (most recent first).
  */
-export const getMonthlyXpHistory = (userId: string): MonthlyXpSummary[] => {
-  const all = getAllMonthlyXp();
+export const getMonthlyXpHistory = async (userId: string): Promise<MonthlyXpSummary[]> => {
+  const all = await getAllMonthlyXp();
   const userXp = all[userId] || {};
+
   return Object.entries(userXp)
     .sort((a, b) => b[0].localeCompare(a[0]))
-    .map(([monthKey, xp]) => {
-      const [year, month] = monthKey.split('-').map(Number);
-      const date = new Date(year, month - 1, 1);
-      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      return { monthKey, label, xp };
-    });
+    .map(([monthKey, xp]) => ({
+      monthKey,
+      label: getMonthLabel(monthKey),
+      xp,
+    }));
 };

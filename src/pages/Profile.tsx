@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,26 @@ const Profile = () => {
 
   const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthCheckinCount = calendarDays.days.filter((d) => d.isPresent).length;
+  const [monthXp, setMonthXp] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMonthXp = async () => {
+      if (!user) {
+        if (mounted) setMonthXp(0);
+        return;
+      }
+
+      const xp = await getCurrentMonthXp(user.id);
+      if (mounted) setMonthXp(xp);
+    };
+
+    loadMonthXp();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
@@ -170,7 +190,7 @@ const Profile = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">XP do Mês</p>
-              <p className="text-2xl font-bold text-primary">{user ? getCurrentMonthXp(user.id) : 0}</p>
+              <p className="text-2xl font-bold text-primary">{monthXp}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Sequência</p>
