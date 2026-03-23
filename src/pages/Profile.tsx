@@ -64,7 +64,7 @@ const Profile = () => {
   const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthCheckinCount = calendarDays.days.filter(d => d.isPresent).length;
 
-  const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
+  
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
