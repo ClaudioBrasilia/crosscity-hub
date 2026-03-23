@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { avatarEmojis } from '@/lib/mockData';
 import { CalendarCheck, ChevronLeft, ChevronRight, Award, Palette, Edit2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getUserBadges, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
+import { getUserBadgesAsync, categoryLabels, categoryIcons, type Badge } from '@/lib/badges';
 import AchievementCard from '@/components/AchievementCard';
 import CheckinMonthlyHistory from '@/components/CheckinMonthlyHistory';
 import { THEME_PRESETS, applyTheme } from '@/components/Layout';
@@ -31,15 +31,18 @@ const Profile = () => {
 
   const [myCheckins, setMyCheckins] = useState<Set<string>>(new Set());
   const [monthXp, setMonthXp] = useState(0);
+  const [badgeResults, setBadgeResults] = useState<{ badge: Badge; unlocked: boolean }[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [checkins, xp] = await Promise.all([
+    const [checkins, xp, badges] = await Promise.all([
       db.getUserCheckins(user.id),
       db.getCurrentMonthXp(user.id),
+      getUserBadgesAsync(user.id),
     ]);
     setMyCheckins(new Set(checkins));
     setMonthXp(xp);
+    setBadgeResults(badges);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -61,7 +64,7 @@ const Profile = () => {
   const monthLabel = calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const monthCheckinCount = calendarDays.days.filter(d => d.isPresent).length;
 
-  const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user]);
+  
   const categories: Badge['category'][] = ['consistency', 'performance', 'social', 'exploration'];
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
