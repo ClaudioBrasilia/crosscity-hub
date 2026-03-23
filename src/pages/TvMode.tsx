@@ -55,19 +55,46 @@ const getStoredDailyWod = (): DailyWod | null => {
   }
 };
 
+const CLASS_SCHEDULE = [
+  { start: '06:00', end: '07:00' },
+  { start: '07:00', end: '08:00' },
+  { start: '12:00', end: '13:00' },
+  { start: '18:00', end: '19:00' },
+  { start: '19:00', end: '20:00' },
+];
+
+const getCurrentClass = (): { start: string; end: string } | undefined => {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  return CLASS_SCHEDULE.find((cls) => {
+    const [startH, startM] = cls.start.split(':').map(Number);
+    const [endH, endM] = cls.end.split(':').map(Number);
+    return currentMinutes >= startH * 60 + startM && currentMinutes < endH * 60 + endM;
+  });
+};
+
 const getTvCheckins = (): TvCheckin[] => {
+  const currentClass = getCurrentClass();
+  if (!currentClass) return [];
+
+  const [startH, startM] = currentClass.start.split(':').map(Number);
+  const [endH, endM] = currentClass.end.split(':').map(Number);
+  const classStartMin = startH * 60 + startM;
+  const classEndMin = endH * 60 + endM;
+
   const users = safeParse<any[]>(localStorage.getItem('crosscity_users'), []);
   const checkins = safeParse<any[]>(localStorage.getItem('crosscity_checkins'), []);
   const userMap = new Map(
     users.map((u) => [u.id, u.name || u.username || 'Atleta'])
   );
-  const currentHour = new Date().getHours();
   return checkins
     .filter((item) => {
       const rawDate = item?.createdAt || item?.created_at || item?.timestamp || item?.date;
-      if (!rawDate) return true;
+      if (!rawDate) return false;
       const d = new Date(rawDate);
-      return !Number.isNaN(d.getTime()) && d.getHours() === currentHour;
+      if (Number.isNaN(d.getTime())) return false;
+      const checkinMin = d.getHours() * 60 + d.getMinutes();
+      return checkinMin >= classStartMin && checkinMin < classEndMin;
     })
     .map((item) => ({
       id: item.userId || item.user_id || item.id,
@@ -156,6 +183,11 @@ export default function TvMode() {
     [now]
   );
 
+  const currentClass = getCurrentClass();
+  const classLabel = currentClass
+    ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
+    : 'Sem aula no momento';
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white">
       {/* Background gradient */}
@@ -172,6 +204,7 @@ export default function TvMode() {
           </div>
           <div className="text-right">
             <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
+            <p className="mt-1 text-sm text-white/50">{classLabel}</p>
           </div>
         </header>
 
@@ -237,7 +270,7 @@ export default function TvMode() {
           {/* Right column: Check-ins + Duels, always visible */}
           <div className="col-span-4 flex min-h-0 flex-col gap-4">
             {/* Check-ins: scrollable if many */}
-            <Panel title="Check-ins" subtitle="Turma atual" className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
+            <Panel title="Check-ins" subtitle={currentClass ? `${currentClass.start} – ${currentClass.end}` : 'Sem aula'} className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
               {checkins.length ? (
                 <div className="space-y-2">
                   {checkins.map((athlete, index) => (
