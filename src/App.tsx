@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Install from "./pages/Install";
 import Clans from "./pages/Clans";
+import TvMode from "./pages/TvMode";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/tv" element={<TvMode />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
               <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
