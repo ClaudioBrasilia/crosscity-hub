@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import * as db from '@/lib/supabaseData';
 
 type WodVersion = {
   description: string;
@@ -34,17 +33,6 @@ type TvDuel = {
   status?: string;
 };
 
-type CheckinRow = {
-  id: string;
-  user_id: string;
-  created_at: string;
-};
-
-type ProfileNameRow = {
-  id: string;
-  name: string;
-};
-
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
   { start: '07:00', end: '08:00' },
@@ -63,89 +51,117 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
   });
 };
 
-const getClassRange = (cls: { start: string; end: string }) => {
-  const today = new Date();
-  const start = new Date(today);
-  const end = new Date(today);
-  const [startH, startM] = cls.start.split(':').map(Number);
-  const [endH, endM] = cls.end.split(':').map(Number);
-  start.setHours(startH, startM, 0, 0);
-  end.setHours(endH, endM, 0, 0);
-  return { start, end };
+const getTodayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const getTvCheckins = async (): Promise<TvCheckin[]> => {
+const fetchDailyWod = async (): Promise<DailyWod | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('wods')
+      .select('id, date, name, type, warmup, skill, versions')
+      .eq('date', getTodayISO())
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const versions = (data.versions || {}) as any;
+    if (!versions.rx?.description) return null;
+    return {
+      id: data.id,
+      date: data.date,
+      name: data.name,
+      type: data.type as DailyWod['type'],
+      warmup: data.warmup ?? undefined,
+      skill: data.skill ?? undefined,
+      versions: {
+        rx: versions.rx || { description: '' },
+        scaled: versions.scaled || { description: '' },
+        beginner: versions.beginner || { description: '' },
+      },
+    };
+  } catch {
+    return null;
+  }
+};
+
+const fetchTvCheckins = async (): Promise<TvCheckin[]> => {
   const currentClass = getCurrentClass();
   if (!currentClass) return [];
 
-  const { start, end } = getClassRange(currentClass);
-  const { data, error } = await supabase
-    .from('checkins')
-    .select('id, user_id, created_at')
-    .gte('created_at', start.toISOString())
-    .lt('created_at', end.toISOString())
-    .order('created_at', { ascending: false })
-    .limit(12);
+  try {
+    const today = getTodayISO();
+    const { data, error } = await supabase
+      .from('checkins')
+      .select('id, user_id, created_at')
+      .eq('check_date', today);
+    if (error || !data || data.length === 0) return [];
 
-  if (error) {
-    console.error('Error fetching TV check-ins:', error);
+    const [startH, startM] = currentClass.start.split(':').map(Number);
+    const [endH, endM] = currentClass.end.split(':').map(Number);
+    const classStartMin = startH * 60 + startM;
+    const classEndMin = endH * 60 + endM;
+
+    const filtered = data.filter((item) => {
+      if (!item.created_at) return false;
+      const d = new Date(item.created_at);
+      if (Number.isNaN(d.getTime())) return false;
+      const checkinMin = d.getHours() * 60 + d.getMinutes();
+      return checkinMin >= classStartMin && checkinMin < classEndMin;
+    });
+
+    if (filtered.length === 0) return [];
+
+    const userIds = [...new Set(filtered.map((c) => c.user_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
+
+    return filtered.slice(0, 12).map((item) => ({
+      id: item.user_id,
+      name: nameMap.get(item.user_id) || 'Atleta',
+      time: item.created_at || '',
+    }));
+  } catch {
     return [];
   }
-
-  const checkinRows = (data || []) as CheckinRow[];
-  const userIds = Array.from(new Set(checkinRows.map((item) => item.user_id).filter(Boolean)));
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id, name')
-    .in('id', userIds.length ? userIds : ['__none__']);
-
-  if (profilesError) {
-    console.error('Error fetching TV check-in profiles:', profilesError);
-  }
-
-  const nameMap = new Map(((profiles || []) as ProfileNameRow[]).map((profile) => [profile.id, profile.name || 'Atleta']));
-
-  return checkinRows.map((item) => ({
-    id: item.id,
-    name: nameMap.get(item.user_id) || 'Atleta',
-    time: item.created_at,
-  }));
 };
 
-const getTvDuels = async (): Promise<TvDuel[]> => {
-  const duels = await db.getDuels();
-  const visibleDuels = duels
-    .filter((duel) => {
-      const status = String(duel?.status || '').toLowerCase();
-      return !status || status === 'active' || status === 'pending';
-    })
-    .slice(0, 8);
+const fetchTvDuels = async (): Promise<TvDuel[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('app_duels')
+      .select('id, challenger_id, opponent_ids, status, wod_name')
+      .in('status', ['pending', 'active'])
+      .limit(8);
+    if (error || !data || data.length === 0) return [];
 
-  if (!visibleDuels.length) return [];
+    const allUserIds = new Set<string>();
+    data.forEach((d) => {
+      allUserIds.add(d.challenger_id);
+      (d.opponent_ids || []).forEach((id: string) => allUserIds.add(id));
+    });
 
-  const participantIds = Array.from(
-    new Set(
-      visibleDuels.flatMap((duel) => [duel.challengerId, ...duel.opponentIds]).filter(Boolean)
-    )
-  );
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', [...allUserIds]);
+    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
 
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('id, name')
-    .in('id', participantIds);
-
-  if (error) {
-    console.error('Error fetching TV duel participants:', error);
+    return data.map((duel) => ({
+      id: duel.id,
+      challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
+      challengedName:
+        duel.opponent_ids && duel.opponent_ids.length > 0
+          ? nameMap.get(duel.opponent_ids[0]) || 'Atleta 2'
+          : 'Atleta 2',
+      status: duel.status || 'Ativo',
+    }));
+  } catch {
+    return [];
   }
-
-  const nameMap = new Map(((profiles || []) as ProfileNameRow[]).map((profile) => [profile.id, profile.name || 'Atleta']));
-
-  return visibleDuels.map((duel) => ({
-    id: duel.id,
-    challengerName: nameMap.get(duel.challengerId) || 'Atleta 1',
-    challengedName: duel.opponentIds.map((id) => nameMap.get(id) || 'Atleta').join(', ') || 'Atleta 2',
-    status: duel.status || 'Ativo',
-  }));
 };
 
 const Panel = ({
@@ -181,28 +197,24 @@ export default function TvMode() {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
-    let isMounted = true;
-
     const load = async () => {
-      const [wod, nextCheckins, nextDuels] = await Promise.all([
-        db.getLatestWod(),
-        getTvCheckins(),
-        getTvDuels(),
-      ]);
-
-      if (!isMounted) return;
-      setDailyWod((wod as DailyWod | null) || null);
-      setCheckins(nextCheckins);
-      setDuels(nextDuels);
+      try {
+        const [wod, ci, du] = await Promise.all([
+          fetchDailyWod(),
+          fetchTvCheckins(),
+          fetchTvDuels(),
+        ]);
+        setDailyWod(wod);
+        setCheckins(ci);
+        setDuels(du);
+      } catch {
+        // silently ignore network errors to keep TV stable
+      }
       setNow(new Date());
     };
-
     load();
     const interval = window.setInterval(load, 10000);
-    return () => {
-      isMounted = false;
-      window.clearInterval(interval);
-    };
+    return () => window.clearInterval(interval);
   }, []);
 
   const dateLabel = useMemo(
@@ -299,15 +311,15 @@ export default function TvMode() {
                       <div className="whitespace-pre-line text-2xl font-semibold leading-relaxed text-white">
                         {dailyWod.versions.rx.description}
                       </div>
-                      {dailyWod.versions.rx.weight ? (
-                        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 mt-4">
-                          <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
-                          <p className="mt-1 text-xl font-bold text-white/90">
-                            {dailyWod.versions.rx.weight}
-                          </p>
-                        </div>
-                      ) : null}
                     </div>
+                    {dailyWod.versions.rx.weight ? (
+                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
+                        <p className="mt-1 text-xl font-bold text-white/90">
+                          {dailyWod.versions.rx.weight}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <Empty text="WOD não cadastrado" />
