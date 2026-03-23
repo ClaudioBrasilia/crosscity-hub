@@ -66,3 +66,62 @@ export const getAllCheckins = (): Record<string, string[]> => {
     return {};
   }
 };
+
+// ─── Monthly XP tracking ────────────────────────────────────────────────
+
+const MONTHLY_XP_KEY = 'crosscity_monthly_xp';
+
+export interface MonthlyXpSummary {
+  monthKey: string;
+  label: string;
+  xp: number;
+}
+
+/**
+ * Reads the monthly XP store: Record<userId, Record<monthKey, number>>
+ */
+export const getAllMonthlyXp = (): Record<string, Record<string, number>> => {
+  try {
+    const raw = localStorage.getItem(MONTHLY_XP_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, Record<string, number>>;
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Adds XP to a user's current month tally.
+ */
+export const addMonthlyXp = (userId: string, amount: number): void => {
+  const all = getAllMonthlyXp();
+  const monthKey = getCurrentMonthKey();
+  if (!all[userId]) all[userId] = {};
+  all[userId][monthKey] = (all[userId][monthKey] || 0) + amount;
+  localStorage.setItem(MONTHLY_XP_KEY, JSON.stringify(all));
+};
+
+/**
+ * Returns the XP for a user in the current month.
+ */
+export const getCurrentMonthXp = (userId: string): number => {
+  const all = getAllMonthlyXp();
+  const monthKey = getCurrentMonthKey();
+  return all[userId]?.[monthKey] || 0;
+};
+
+/**
+ * Returns the monthly XP history for a user (most recent first).
+ */
+export const getMonthlyXpHistory = (userId: string): MonthlyXpSummary[] => {
+  const all = getAllMonthlyXp();
+  const userXp = all[userId] || {};
+  return Object.entries(userXp)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([monthKey, xp]) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const date = new Date(year, month - 1, 1);
+      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      return { monthKey, label, xp };
+    });
+};

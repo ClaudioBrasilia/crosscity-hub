@@ -12,8 +12,8 @@ import { getUserBadges, categoryLabels, categoryIcons } from '@/lib/badges';
 import { benchmarkExercises } from '@/lib/battleSimulator';
 import { getActiveChallenges, getChallengeProgress, getCompletedChallenges } from '@/lib/challenges';
 import { ensureClanData, getCheckInXpReward, getUserClan, generateDominationEnergyForActivity, hasGeneratedDominationEnergy } from '@/lib/clanSystem';
+import { getCurrentMonthXp, addMonthlyXp } from '@/lib/checkinHistory';
 import type { UserProfile } from '@/lib/clanSystem';
-import UserAvatar from '@/components/UserAvatar';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -173,6 +173,7 @@ const Dashboard = () => {
   const hasCheckedInToday = myCheckins.includes(today);
   const checkInBlocked = hasCheckedInToday || !activeLocation || !isInsideAllowedArea || !locationCheck;
   const monthCheckins = useMemo(() => myCheckins.filter((date) => date.startsWith(monthPrefix)).length, [myCheckins, monthPrefix, refreshTick]);
+  const monthXp = useMemo(() => user ? getCurrentMonthXp(user.id) : 0, [user, refreshTick]);
 
   // Badges
   const badgeResults = useMemo(() => user ? getUserBadges(user.id) : [], [user, refreshTick]);
@@ -257,6 +258,7 @@ const Dashboard = () => {
     const newXp = (user.xp || 0) + checkInXpReward;
     const newLevel = Math.floor(newXp / 500) + 1;
     updateUser({ xp: newXp, level: newLevel, checkins: (user.checkins || 0) + 1 });
+    addMonthlyXp(user.id, checkInXpReward);
     const users: StoredUserProgress[] = JSON.parse(localStorage.getItem('crosscity_users') || '[]');
     const updatedUsers = users.map((item) =>
       item.id === user.id ? { ...item, xp: newXp, level: newLevel, checkins: (item.checkins || 0) + 1 } : item
@@ -316,7 +318,7 @@ const Dashboard = () => {
       {/* Hero + Check-in */}
       <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <UserAvatar name={user?.name} avatar={user?.avatar} avatarUrl={user?.avatarUrl} className="h-20 w-20 text-3xl" fallbackClassName="text-3xl" />
+          <div className="text-6xl">{user?.avatar}</div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
             <p className="text-muted-foreground">
@@ -350,11 +352,11 @@ const Dashboard = () => {
       <div className="grid grid-cols-3 lg:grid-cols-6 gap-3" style={{ animationDelay: '0.1s' }}>
         {[
           { icon: Trophy, label: 'Nível', value: user?.level || 0, color: 'text-primary' },
-          { icon: Target, label: 'XP', value: user?.xp || 0, color: 'text-secondary' },
+          { icon: Target, label: 'XP Total', value: user?.xp || 0, color: 'text-secondary' },
+          { icon: TrendingUp, label: 'XP Mês', value: monthXp, color: 'text-primary' },
+          { icon: CalendarCheck, label: 'Check-ins Mês', value: monthCheckins, color: 'text-secondary' },
           { icon: Flame, label: 'Sequência', value: `${user?.streak || 0}d`, color: 'text-primary' },
-          { icon: CalendarCheck, label: 'Mês', value: monthCheckins, color: 'text-secondary' },
-          { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-primary' },
-          { icon: Warehouse, label: 'Equip.', value: `${unlockedCount}/24`, color: 'text-secondary' },
+          { icon: Swords, label: 'Vitórias', value: userWins, color: 'text-secondary' },
         ].map((stat, i) => (
           <Card key={i} className="border-primary/20 animate-fade-in" style={{ animationDelay: `${0.05 * i}s`, animationFillMode: 'backwards' }}>
             <CardContent className="p-3 text-center">

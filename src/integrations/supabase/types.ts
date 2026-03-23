@@ -17,7 +17,6 @@ export type Database = {
       profiles: {
         Row: {
           avatar: string | null
-          avatar_url: string | null
           battles: number | null
           box_id: string | null
           category: string | null
@@ -34,7 +33,6 @@ export type Database = {
         }
         Insert: {
           avatar?: string | null
-          avatar_url?: string | null
           battles?: number | null
           box_id?: string | null
           category?: string | null
@@ -51,7 +49,6 @@ export type Database = {
         }
         Update: {
           avatar?: string | null
-          avatar_url?: string | null
           battles?: number | null
           box_id?: string | null
           category?: string | null
