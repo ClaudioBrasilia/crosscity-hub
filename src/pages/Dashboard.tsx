@@ -348,7 +348,7 @@ const Dashboard = () => {
             Verificar localização
           </Button>
           {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
-          <Button onClick={handleCheckIn} disabled={checkInBlocked} size="lg" className="w-full sm:w-auto">
+          <Button onClick={handleCheckIn} disabled={checkInBlocked || isSubmittingCheckin} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
             {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP e energia)`}
           </Button>
