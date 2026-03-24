@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
 import * as db from '@/lib/supabaseData';
+import { supabase } from '@/integrations/supabase/client';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX', scaled: 'Scaled', beginner: 'Iniciante',
@@ -30,17 +31,41 @@ const WOD = () => {
   const [results, setResults] = useState<db.WodResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const fetchResults = useCallback(async (wodId: string) => {
+    const res = await db.getWodResults(wodId);
+    setResults(res);
+    return res;
+  }, []);
+
   const loadData = useCallback(async () => {
     const wod = await db.getLatestWod();
     setDailyWod(wod);
     if (wod) {
-      const res = await db.getWodResults(wod.id);
-      setResults(res);
+      await fetchResults(wod.id);
     }
     setHasLoadedWod(true);
-  }, []);
+  }, [fetchResults]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (!dailyWod?.id) return;
+
+    const channel = supabase
+      .channel(`wod-results-${dailyWod.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wod_results', filter: `wod_id=eq.${dailyWod.id}` },
+        async () => {
+          await fetchResults(dailyWod.id);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [dailyWod?.id, fetchResults]);
 
   const categoryRanking = useMemo(() => {
     if (!dailyWod) return [];
@@ -94,8 +119,7 @@ const WOD = () => {
       });
 
       // Reload results
-      const updatedResults = await db.getWodResults(dailyWod.id);
-      setResults(updatedResults);
+      const updatedResults = await fetchResults(dailyWod.id);
 
       const currentCategoryResults = updatedResults
         .filter(item => item.wodId === dailyWod.id && item.category === selectedCategory)
