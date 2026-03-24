@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { cleanupLegacyMockData } from "@/lib/mockData";
 import Login from "./pages/Login";
@@ -29,8 +29,36 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" />;
+
+  const pendingAllowedPaths = new Set(['/', '/profile']);
+  const isPendingBlockedPath = user.approvalStatus === 'pending' && !pendingAllowedPaths.has(location.pathname);
+
+  if (user.approvalStatus === 'rejected') {
+    return (
+      <Layout>
+        <div className="max-w-xl mx-auto text-center py-16 space-y-2">
+          <h2 className="text-2xl font-bold">Acesso não liberado</h2>
+          <p className="text-muted-foreground">Seu cadastro foi rejeitado. Fale com um administrador para mais detalhes.</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (isPendingBlockedPath) {
+    return (
+      <Layout>
+        <div className="max-w-xl mx-auto text-center py-16 space-y-2">
+          <h2 className="text-2xl font-bold">Aguardando aprovação</h2>
+          <p className="text-muted-foreground">Seu cadastro ainda está em análise por um administrador.</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  return <Layout>{children}</Layout>;
 };
 
 const App = () => {

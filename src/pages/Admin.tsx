@@ -13,10 +13,11 @@ interface UserItem {
   email: string;
   avatar: string;
   role: 'athlete' | 'coach' | 'admin';
+  approvalStatus: 'pending' | 'approved' | 'rejected';
 }
 
 const Admin = () => {
-  const { user, getAllUsers, setUserRole } = useAuth();
+  const { user, getAllUsers, setUserRole, setUserApprovalStatus } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,21 @@ const Admin = () => {
     });
   };
 
+  const handleApprovalChange = async (userId: string, status: 'pending' | 'approved' | 'rejected') => {
+    await setUserApprovalStatus(userId, status);
+    const updated = await getAllUsers();
+    setUsers(updated as UserItem[]);
+    const statusLabels: Record<string, string> = {
+      pending: 'Pendente',
+      approved: 'Aprovado',
+      rejected: 'Rejeitado',
+    };
+    toast({
+      title: 'Status de aprovação atualizado!',
+      description: `Usuário agora está como ${statusLabels[status]}`,
+    });
+  };
+
   const roleColor = (role: string) => {
     if (role === 'admin') return 'destructive' as const;
     if (role === 'coach') return 'default' as const;
@@ -59,6 +75,18 @@ const Admin = () => {
     if (role === 'admin') return 'Admin';
     if (role === 'coach') return 'Professor';
     return 'Atleta';
+  };
+
+  const approvalColor = (status: string) => {
+    if (status === 'approved') return 'default' as const;
+    if (status === 'rejected') return 'destructive' as const;
+    return 'secondary' as const;
+  };
+
+  const approvalLabel = (status: string) => {
+    if (status === 'approved') return 'Aprovado';
+    if (status === 'rejected') return 'Rejeitado';
+    return 'Pendente';
   };
 
   return (
@@ -94,22 +122,38 @@ const Admin = () => {
                       <p className="text-sm text-muted-foreground">{u.email}</p>
                     </div>
                     <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
+                    <Badge variant={approvalColor(u.approvalStatus)}>{approvalLabel(u.approvalStatus)}</Badge>
                   </div>
 
                   {u.id !== user?.id && (
-                    <Select
-                      value={u.role}
-                      onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="athlete">Atleta</SelectItem>
-                        <SelectItem value="coach">Professor</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={u.approvalStatus}
+                        onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pendente</SelectItem>
+                          <SelectItem value="approved">Aprovar</SelectItem>
+                          <SelectItem value="rejected">Rejeitar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={u.role}
+                        onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="athlete">Atleta</SelectItem>
+                          <SelectItem value="coach">Professor</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
                 </div>
               ))}
