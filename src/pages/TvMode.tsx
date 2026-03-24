@@ -236,19 +236,71 @@ export default function TvMode() {
     [now]
   );
 
+  const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
+  type TabKey = typeof TABS[number];
+  const [activeTab, setActiveTab] = useState<TabKey>('WOD');
+
+  // Auto-rotate tabs every 15s
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveTab((prev) => {
+        const idx = TABS.indexOf(prev);
+        return TABS[(idx + 1) % TABS.length];
+      });
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const currentClass = getCurrentClass();
   const classLabel = currentClass
     ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
     : 'Sem aula no momento';
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'Warm-up':
+        return dailyWod?.warmup ? (
+          <div className="whitespace-pre-line text-3xl leading-relaxed text-white/90">
+            {dailyWod.warmup}
+          </div>
+        ) : (
+          <Empty text="Warm-up não definido" />
+        );
+      case 'Skill':
+        return dailyWod?.skill ? (
+          <div className="whitespace-pre-line text-3xl leading-relaxed text-white/90">
+            {dailyWod.skill}
+          </div>
+        ) : (
+          <Empty text="Skill não definido" />
+        );
+      case 'WOD':
+        return dailyWod?.versions?.rx?.description ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl bg-gradient-to-r from-red-500/15 to-orange-400/10 p-6">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-red-300">RX</p>
+              <div className="whitespace-pre-line text-3xl font-semibold leading-relaxed text-white">
+                {dailyWod.versions.rx.description}
+              </div>
+            </div>
+            {dailyWod.versions.rx.weight ? (
+              <div className="rounded-xl border border-white/10 bg-black/20 px-5 py-4">
+                <p className="text-sm uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
+                <p className="mt-1 text-2xl font-bold text-white/90">{dailyWod.versions.rx.weight}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Empty text="WOD não cadastrado" />
+        );
+    }
+  };
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white">
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.20),transparent_28%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.14),transparent_24%),linear-gradient(180deg,#0b0b10_0%,#111827_100%)]" />
 
-      {/* Full layout: fixed to viewport */}
       <div className="relative z-10 flex h-full flex-col p-4">
-        {/* Header */}
         <header className="mb-4 flex flex-shrink-0 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-3 backdrop-blur-md">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-red-400">BOX LINK</p>
@@ -261,70 +313,28 @@ export default function TvMode() {
           </div>
         </header>
 
-        {/* Main grid: fills remaining height */}
         <main className="grid min-h-0 flex-1 grid-cols-12 gap-4">
-          {/* Left column: single scrollable area for Warm-up + Skill + WOD */}
-          <div className="col-span-8 min-h-0 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm">
-            <div className="space-y-6 p-5">
-              {/* Warm-up */}
-              <div>
-                <div className="mb-2 border-b border-white/10 pb-2">
-                  <h2 className="text-xl font-bold text-white">Warm-up</h2>
-                  <p className="mt-0.5 text-xs text-white/50">Preparação e ativação</p>
-                </div>
-                {dailyWod?.warmup ? (
-                  <div className="whitespace-pre-line text-lg leading-relaxed text-white/90">
-                    {dailyWod.warmup}
-                  </div>
-                ) : (
-                  <Empty text="Warm-up não definido" />
-                )}
-              </div>
-
-              {/* Skill */}
-              <div>
-                <div className="mb-2 border-b border-white/10 pb-2">
-                  <h2 className="text-xl font-bold text-white">Skill</h2>
-                  <p className="mt-0.5 text-xs text-white/50">Técnica e desenvolvimento</p>
-                </div>
-                {dailyWod?.skill ? (
-                  <div className="whitespace-pre-line text-lg leading-relaxed text-white/90">
-                    {dailyWod.skill}
-                  </div>
-                ) : (
-                  <Empty text="Skill não definido" />
-                )}
-              </div>
-
-              {/* WOD */}
-              <div>
-                <div className="mb-2 border-b border-white/10 pb-2">
-                  <h2 className="text-xl font-bold text-white">{dailyWod?.name || 'WOD do Dia'}</h2>
-                  <p className="mt-0.5 text-xs text-white/50">
-                    {dailyWod?.type ? `Formato: ${dailyWod.type}` : 'Treino principal'}
-                  </p>
-                </div>
-                {dailyWod?.versions?.rx?.description ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl bg-gradient-to-r from-red-500/15 to-orange-400/10 p-5">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-300">RX</p>
-                      <div className="whitespace-pre-line text-2xl font-semibold leading-relaxed text-white">
-                        {dailyWod.versions.rx.description}
-                      </div>
-                    </div>
-                    {dailyWod.versions.rx.weight ? (
-                      <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
-                        <p className="mt-1 text-xl font-bold text-white/90">
-                          {dailyWod.versions.rx.weight}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <Empty text="WOD não cadastrado" />
-                )}
-              </div>
+          {/* Left: tabbed content */}
+          <div className="col-span-8 flex min-h-0 flex-col rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm">
+            {/* Tab bar */}
+            <div className="flex flex-shrink-0 border-b border-white/10">
+              {TABS.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-4 text-center text-lg font-bold uppercase tracking-widest transition-colors ${
+                    activeTab === tab
+                      ? 'border-b-2 border-red-400 text-white'
+                      : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {/* Tab content */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              {renderTabContent()}
             </div>
           </div>
 
