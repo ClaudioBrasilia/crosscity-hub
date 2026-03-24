@@ -33,6 +33,18 @@ const createInitialWodData = (): WodFormData => ({
   warmup: '', skill: '', description: '', rxWeights: '', scaledWeights: '', beginnerWeights: '',
 });
 
+const formatDateInput = (date: Date) => date.toISOString().split('T')[0];
+
+const getDefaultChallengeDates = (type: 'weekly' | 'monthly') => {
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() + (type === 'weekly' ? 7 : 30));
+  return {
+    startDate: formatDateInput(today),
+    endDate: formatDateInput(endDate),
+  };
+};
+
 const CoachDashboard = () => {
   const { user, getAllUsers } = useAuth();
   const { toast } = useToast();
@@ -42,9 +54,14 @@ const CoachDashboard = () => {
   const [selectedAthlete, setSelectedAthlete] = useState<any | null>(null);
   const [challengeProgress, setChallengeProgress] = useState<Record<string, number>>({});
 
-  const [newChallenge, setNewChallenge] = useState({
+  const [newChallenge, setNewChallenge] = useState(() => {
+    const defaults = getDefaultChallengeDates('weekly');
+    return {
     title: '', description: '', type: 'weekly' as 'weekly' | 'monthly',
     xpReward: 100, targetValue: 5, unit: 'treinos',
+    startDate: defaults.startDate,
+    endDate: defaults.endDate,
+    };
   });
 
   const loadData = useCallback(async () => {
@@ -118,9 +135,14 @@ const CoachDashboard = () => {
       toast({ title: 'Erro', description: 'Preencha todos os campos.', variant: 'destructive' });
       return;
     }
-    const today = new Date();
-    const endDate = new Date();
-    endDate.setDate(today.getDate() + (newChallenge.type === 'weekly' ? 7 : 30));
+    if (!newChallenge.startDate || !newChallenge.endDate) {
+      toast({ title: 'Erro', description: 'Preencha data de início e data de fim.', variant: 'destructive' });
+      return;
+    }
+    if (newChallenge.endDate < newChallenge.startDate) {
+      toast({ title: 'Erro', description: 'A data de fim não pode ser menor que a data de início.', variant: 'destructive' });
+      return;
+    }
 
     try {
       await db.addChallenge({
@@ -131,11 +153,21 @@ const CoachDashboard = () => {
         xpReward: newChallenge.xpReward || 100,
         target: newChallenge.targetValue || 5,
         unit: newChallenge.unit || 'treinos',
-        startDate: today.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: newChallenge.startDate || null,
+        endDate: newChallenge.endDate || null,
       }, user?.id);
       toast({ title: 'Desafio criado!' });
-      setNewChallenge({ title: '', description: '', type: 'weekly', xpReward: 100, targetValue: 5, unit: 'treinos' });
+      const defaults = getDefaultChallengeDates('weekly');
+      setNewChallenge({
+        title: '',
+        description: '',
+        type: 'weekly',
+        xpReward: 100,
+        targetValue: 5,
+        unit: 'treinos',
+        startDate: defaults.startDate,
+        endDate: defaults.endDate,
+      });
       loadData();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -241,7 +273,10 @@ const CoachDashboard = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={newChallenge.type} onValueChange={(value: 'weekly' | 'monthly') => setNewChallenge({ ...newChallenge, type: value })}>
+                  <Select value={newChallenge.type} onValueChange={(value: 'weekly' | 'monthly') => {
+                    const defaults = getDefaultChallengeDates(value);
+                    setNewChallenge({ ...newChallenge, type: value, startDate: defaults.startDate, endDate: defaults.endDate });
+                  }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="weekly">Semanal</SelectItem>
@@ -253,6 +288,16 @@ const CoachDashboard = () => {
               <div className="space-y-2">
                 <Label>Descrição</Label>
                 <Textarea placeholder="Descreva o desafio..." value={newChallenge.description} onChange={e => setNewChallenge({ ...newChallenge, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data de início</Label>
+                  <Input type="date" value={newChallenge.startDate} onChange={e => setNewChallenge({ ...newChallenge, startDate: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de fim</Label>
+                  <Input type="date" value={newChallenge.endDate} min={newChallenge.startDate} onChange={e => setNewChallenge({ ...newChallenge, endDate: e.target.value })} />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2"><Label>Meta</Label><Input type="number" value={newChallenge.targetValue} onChange={e => setNewChallenge({ ...newChallenge, targetValue: parseInt(e.target.value) })} /></div>
