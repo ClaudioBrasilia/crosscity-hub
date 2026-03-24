@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getActiveChallenges } from '@/lib/supabaseData';
+import type { ChallengeData } from '@/lib/supabaseData';
 
 type WodVersion = {
   description: string;
@@ -194,19 +196,22 @@ export default function TvMode() {
   const [dailyWod, setDailyWod] = useState<DailyWod | null>(null);
   const [checkins, setCheckins] = useState<TvCheckin[]>([]);
   const [duels, setDuels] = useState<TvDuel[]>([]);
+  const [, setActiveChallenges] = useState<ChallengeData[]>([]);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [wod, ci, du] = await Promise.all([
+        const [wod, ci, du, activeChallenges] = await Promise.all([
           fetchDailyWod(),
           fetchTvCheckins(),
           fetchTvDuels(),
+          getActiveChallenges(),
         ]);
         setDailyWod(wod);
         setCheckins(ci);
         setDuels(du);
+        setActiveChallenges(activeChallenges);
       } catch {
         // silently ignore network errors to keep TV stable
       }
