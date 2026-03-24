@@ -259,11 +259,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string
-          end_date: string | null
+          end_date: string
           icon: string
           id: string
           name: string
-          start_date: string | null
+          start_date: string
           target: number
           type: string
           unit: string
@@ -273,11 +273,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
-          end_date?: string | null
+          end_date: string
           icon?: string
           id: string
           name: string
-          start_date?: string | null
+          start_date: string
           target?: number
           type?: string
           unit?: string
@@ -287,11 +287,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
-          end_date?: string | null
+          end_date?: string
           icon?: string
           id?: string
           name?: string
-          start_date?: string | null
+          start_date?: string
           target?: number
           type?: string
           unit?: string
@@ -514,7 +514,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          approval_status: string
           avatar: string | null
           avatar_url: string | null
           battles: number | null
@@ -532,7 +531,6 @@ export type Database = {
           xp: number | null
         }
         Insert: {
-          approval_status?: string
           avatar?: string | null
           avatar_url?: string | null
           battles?: number | null
@@ -550,7 +548,6 @@ export type Database = {
           xp?: number | null
         }
         Update: {
-          approval_status?: string
           avatar?: string | null
           avatar_url?: string | null
           battles?: number | null
