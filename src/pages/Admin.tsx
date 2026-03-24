@@ -104,6 +104,9 @@ const Admin = () => {
       <div className="flex items-center gap-3">
         <Shield className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Painel Administrativo</h1>
+        <Badge variant="secondary" className={approvalBadgeClass('pending')}>
+          Pendências: {pendingUsers.length}
+        </Badge>
       </div>
 
       <Card>
