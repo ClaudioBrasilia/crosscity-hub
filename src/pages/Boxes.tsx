@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Box {
   id: string;
