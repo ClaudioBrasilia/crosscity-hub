@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,15 +9,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 
 const Login = () => {
   const { login, register, resetPassword, user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite')?.trim() || '';
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(inviteToken ? 'Convite detectado. Faça login ou cadastro para validar.' : null);
+  const [consumedToken, setConsumedToken] = useState<string | null>(null);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({
@@ -93,6 +98,29 @@ const Login = () => {
     }
   };
 
+  useEffect(() => {
+    if (!inviteToken || !user || consumedToken === inviteToken) return;
+
+    const consumeInvite = async () => {
+      const { data, error } = await supabase.rpc('consume_app_invite' as any, { p_token: inviteToken });
+
+      if (error) {
+        setInviteMessage('Convite inválido ou indisponível.');
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      if (result?.success) {
+        setInviteMessage('Convite válido e consumido com sucesso.');
+      } else {
+        setInviteMessage(result?.message || 'Convite inválido ou indisponível.');
+      }
+      setConsumedToken(inviteToken);
+    };
+
+    consumeInvite();
+  }, [inviteToken, user, consumedToken]);
+
   if (!loading && user) return <Navigate to="/" />;
 
   return (
@@ -102,6 +130,9 @@ const Login = () => {
           <div className="text-6xl mb-4">🏋️</div>
           <CardTitle className="text-3xl gradient-primary bg-clip-text text-transparent">BoxLink</CardTitle>
           <CardDescription>Conecte-se ao seu box e evolua junto</CardDescription>
+          {inviteMessage && (
+            <p className="text-xs text-muted-foreground pt-2">{inviteMessage}</p>
+          )}
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">

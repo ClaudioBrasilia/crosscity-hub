@@ -1,6 +1,9 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
@@ -13,13 +16,16 @@ interface UserItem {
   email: string;
   avatar: string;
   role: 'athlete' | 'coach' | 'admin';
+  approvalStatus: 'pending' | 'approved' | 'rejected';
 }
 
 const Admin = () => {
-  const { user, getAllUsers, setUserRole } = useAuth();
+  const { user, getAllUsers, setUserRole, setUserApprovalStatus } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inviteToken, setInviteToken] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
     getAllUsers().then((data) => {
@@ -49,6 +55,21 @@ const Admin = () => {
     });
   };
 
+  const handleApprovalChange = async (userId: string, status: 'pending' | 'approved' | 'rejected') => {
+    await setUserApprovalStatus(userId, status);
+    const updated = await getAllUsers();
+    setUsers(updated as UserItem[]);
+    const statusLabels: Record<string, string> = {
+      pending: 'Pendente',
+      approved: 'Aprovado',
+      rejected: 'Rejeitado',
+    };
+    toast({
+      title: 'Status de aprovação atualizado!',
+      description: `Usuário agora está como ${statusLabels[status]}`,
+    });
+  };
+
   const roleColor = (role: string) => {
     if (role === 'admin') return 'destructive' as const;
     if (role === 'coach') return 'default' as const;
@@ -61,12 +82,64 @@ const Admin = () => {
     return 'Atleta';
   };
 
+  const approvalColor = (status: string) => {
+    if (status === 'approved') return 'default' as const;
+    if (status === 'rejected') return 'destructive' as const;
+    return 'secondary' as const;
+  };
+
+  const approvalLabel = (status: string) => {
+    if (status === 'approved') return 'Aprovado';
+    if (status === 'rejected') return 'Rejeitado';
+    return 'Pendente';
+  };
+
+  const handleCreateInvite = async () => {
+    setInviteLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('create_app_invite' as any);
+      if (error) throw error;
+
+      const token = data?.token || '';
+      setInviteToken(token);
+      toast({
+        title: 'Convite gerado!',
+        description: 'Link único criado com sucesso.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao gerar convite',
+        description: error instanceof Error ? error.message : 'Não foi possível gerar convite',
+        variant: 'destructive',
+      });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Shield className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Painel Administrativo</h1>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Convite único do app</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button onClick={handleCreateInvite} disabled={inviteLoading}>
+            {inviteLoading ? 'Gerando...' : 'Gerar convite único'}
+          </Button>
+          {inviteToken && (
+            <Input
+              readOnly
+              value={`${window.location.origin}/login?invite=${inviteToken}`}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -94,22 +167,38 @@ const Admin = () => {
                       <p className="text-sm text-muted-foreground">{u.email}</p>
                     </div>
                     <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
+                    <Badge variant={approvalColor(u.approvalStatus)}>{approvalLabel(u.approvalStatus)}</Badge>
                   </div>
 
                   {u.id !== user?.id && (
-                    <Select
-                      value={u.role}
-                      onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="athlete">Atleta</SelectItem>
-                        <SelectItem value="coach">Professor</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={u.approvalStatus}
+                        onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pendente</SelectItem>
+                          <SelectItem value="approved">Aprovar</SelectItem>
+                          <SelectItem value="rejected">Rejeitar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={u.role}
+                        onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="athlete">Atleta</SelectItem>
+                          <SelectItem value="coach">Professor</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
                 </div>
               ))}
