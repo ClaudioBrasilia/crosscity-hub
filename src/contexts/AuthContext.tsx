@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js';
 type Gender = 'male' | 'female';
 type Category = 'rx' | 'scaled' | 'beginner';
 type UserRole = 'athlete' | 'coach' | 'admin';
+type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 interface User {
   id: string;
@@ -21,6 +22,7 @@ interface User {
   gender: Gender;
   category: Category;
   role: UserRole;
+  approvalStatus: ApprovalStatus;
   checkins?: number;
   wins?: number;
   battles?: number;
@@ -36,6 +38,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   getAllUsers: () => Promise<User[]>;
   setUserRole: (userId: string, role: UserRole) => Promise<void>;
+  setUserApprovalStatus: (userId: string, status: ApprovalStatus) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -179,6 +182,7 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
     gender: (profile.gender as Gender) || 'male',
     category: (profile.category as Category) || 'beginner',
     role: finalRole,
+    approvalStatus: ((profile as any).approval_status as ApprovalStatus) || 'pending',
     checkins: profile.checkins || 0,
     wins: profile.wins || 0,
     battles: profile.battles || 0,
@@ -215,6 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gender: (p.gender as Gender) || 'male',
         category: (p.category as Category) || 'beginner',
         role: finalRole,
+        approvalStatus: (p.approval_status as ApprovalStatus) || 'pending',
         checkins: p.checkins || 0,
         wins: p.wins || 0,
         battles: p.battles || 0,
@@ -341,8 +346,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setUserApprovalStatus = async (userId: string, status: ApprovalStatus) => {
+    await supabase
+      .from('profiles')
+      .update({ approval_status: status })
+      .eq('id', userId);
+
+    if (user && user.id === userId) {
+      setUser(prev => prev ? { ...prev, approvalStatus: status } : null);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, resetPassword, getAllUsers, setUserRole }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, resetPassword, getAllUsers, setUserRole, setUserApprovalStatus }}>
       {children}
     </AuthContext.Provider>
   );
