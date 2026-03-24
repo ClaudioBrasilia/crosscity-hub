@@ -110,6 +110,45 @@ export type Database = {
         }
         Relationships: []
       }
+      app_invites: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          max_uses: number
+          status: string
+          token: string
+          use_count: number
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          status?: string
+          token: string
+          use_count?: number
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          status?: string
+          token?: string
+          use_count?: number
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       benchmark_history: {
         Row: {
           exercise_id: string
@@ -762,6 +801,11 @@ export type Database = {
       add_monthly_xp: {
         Args: { _amount: number; _month_key: string; _user_id: string }
         Returns: undefined
+      }
+      consume_app_invite: { Args: { _token: string }; Returns: string }
+      create_app_invite: {
+        Args: { _expires_in_hours?: number }
+        Returns: string
       }
       get_user_role: {
         Args: { _user_id: string }

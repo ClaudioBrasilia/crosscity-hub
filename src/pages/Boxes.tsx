@@ -135,7 +135,7 @@ const Boxes = () => {
       return;
     }
 
-    const requests = ((data as BoxJoinRequest[]) || []);
+    const requests = ((data as unknown as BoxJoinRequest[]) || []);
     setPendingRequests(requests);
 
     if (requests.length > 0) {

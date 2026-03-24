@@ -24,6 +24,7 @@ import Admin from "./pages/Admin";
 import Install from "./pages/Install";
 import Clans from "./pages/Clans";
 import TvMode from "./pages/TvMode";
+import Invite from "./pages/Invite";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/tv" element={<TvMode />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/invite/:token" element={<Invite />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
               <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />

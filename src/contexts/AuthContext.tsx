@@ -349,7 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setUserApprovalStatus = async (userId: string, status: ApprovalStatus) => {
     await supabase
       .from('profiles')
-      .update({ approval_status: status })
+      .update({ approval_status: status } as any)
       .eq('id', userId);
 
     if (user && user.id === userId) {
