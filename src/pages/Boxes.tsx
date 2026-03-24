@@ -27,6 +27,7 @@ interface BoxJoinRequest {
 const Boxes = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
