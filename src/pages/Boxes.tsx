@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface Box {
   id: string;
@@ -26,6 +27,7 @@ interface BoxJoinRequest {
 const Boxes = () => {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
@@ -387,23 +389,37 @@ const Boxes = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {boxes.map((box) => (
-          <Card key={box.id} className="hover:border-primary/40 transition-colors">
-            <CardHeader>
-              <CardTitle>{box.name}</CardTitle>
-              <CardDescription>Código: {box.code}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{box.members} membros</span>
+        {boxes.map((box) => {
+          const isMember = user?.boxId === box.id;
+          return (
+            <Card
+              key={box.id}
+              className="hover:border-primary/40 transition-colors cursor-pointer hover:shadow-md"
+              onClick={() => {
+                if (isMember) {
+                  navigate('/mybox');
+                } else {
+                  setJoinCode(box.code);
+                  setShowJoinDialog(true);
+                }
+              }}
+            >
+              <CardHeader>
+                <CardTitle>{box.name}</CardTitle>
+                <CardDescription>Código: {box.code}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>{box.members} membros</span>
+                  </div>
+                  <span className="text-muted-foreground">{box.points} pts</span>
                 </div>
-                <span className="text-muted-foreground">{box.points} pts</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
