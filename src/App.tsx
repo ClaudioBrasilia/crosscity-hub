@@ -24,6 +24,7 @@ import Admin from "./pages/Admin";
 import Install from "./pages/Install";
 import Clans from "./pages/Clans";
 import TvMode from "./pages/TvMode";
+import Invite from "./pages/Invite";
 
 const queryClient = new QueryClient();
 
