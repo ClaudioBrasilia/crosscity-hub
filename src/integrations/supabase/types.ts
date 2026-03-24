@@ -259,11 +259,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string
-          end_date: string
+          end_date: string | null
           icon: string
           id: string
           name: string
-          start_date: string
+          start_date: string | null
           target: number
           type: string
           unit: string
@@ -273,11 +273,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
-          end_date: string
+          end_date?: string | null
           icon?: string
           id: string
           name: string
-          start_date: string
+          start_date?: string | null
           target?: number
           type?: string
           unit?: string
@@ -287,11 +287,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
-          end_date?: string
+          end_date?: string | null
           icon?: string
           id?: string
           name?: string
-          start_date?: string
+          start_date?: string | null
           target?: number
           type?: string
           unit?: string
