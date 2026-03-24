@@ -313,21 +313,32 @@ export interface ChallengeData {
   xpReward: number;
   target: number;
   unit: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export async function getActiveChallenges(): Promise<ChallengeData[]> {
+  const today = formatDateKey();
   const { data, error } = await supabase
     .from('challenges')
     .select('*')
-    .gte('end_date', formatDateKey())
     .order('created_at', { ascending: false });
   if (error) {
     console.error('Error fetching challenges:', error);
     return [];
   }
-  return (data || []).map((r: any) => ({
+
+  const isActive = (startDate?: string | null, endDate?: string | null) => {
+    // Legacy fallback: keep old rows visible while dates are being rolled out.
+    if (!startDate && !endDate) return true;
+    if (!startDate) return !!endDate && today <= endDate;
+    if (!endDate) return startDate <= today;
+    return startDate <= today && today <= endDate;
+  };
+
+  return (data || [])
+    .filter((r: any) => isActive(r.start_date, r.end_date))
+    .map((r: any) => ({
     id: r.id,
     name: r.name,
     description: r.description,
@@ -336,8 +347,8 @@ export async function getActiveChallenges(): Promise<ChallengeData[]> {
     xpReward: r.xp_reward,
     target: r.target,
     unit: r.unit,
-    startDate: r.start_date,
-    endDate: r.end_date,
+    startDate: r.start_date ?? null,
+    endDate: r.end_date ?? null,
   }));
 }
 
