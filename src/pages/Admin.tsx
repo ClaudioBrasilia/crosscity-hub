@@ -85,18 +85,70 @@ const Admin = () => {
     return 'secondary' as const;
   };
 
+  const approvalBadgeClass = (status: string) => {
+    if (status === 'pending') return 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100';
+    if (status === 'approved') return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-100';
+    return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-100';
+  };
+
   const approvalLabel = (status: string) => {
     if (status === 'approved') return 'Aprovado';
     if (status === 'rejected') return 'Rejeitado';
     return 'Pendente';
   };
 
+  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending');
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Shield className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Painel Administrativo</h1>
+        <Badge variant="secondary" className={approvalBadgeClass('pending')}>
+          Pendências: {pendingUsers.length}
+        </Badge>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tarefas pendentes ({pendingUsers.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : pendingUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum usuário pendente no momento.</p>
+          ) : (
+            <div className="space-y-3">
+              {pendingUsers.map((u) => (
+                <div key={`pending-${u.id}`} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{u.avatar || '👤'}</span>
+                    <div>
+                      <p className="font-medium">{u.name}</p>
+                      <p className="text-sm text-muted-foreground">{u.email}</p>
+                    </div>
+                    <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
+                    <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
+                      {approvalLabel(u.approvalStatus)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={() => handleApprovalChange(u.id, 'approved')}>
+                      Aprovar
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleApprovalChange(u.id, 'rejected')}>
+                      Recusar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -124,7 +176,9 @@ const Admin = () => {
                       <p className="text-sm text-muted-foreground">{u.email}</p>
                     </div>
                     <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
-                    <Badge variant={approvalColor(u.approvalStatus)}>{approvalLabel(u.approvalStatus)}</Badge>
+                    <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
+                      {approvalLabel(u.approvalStatus)}
+                    </Badge>
                   </div>
 
                   {u.id !== user?.id && (
