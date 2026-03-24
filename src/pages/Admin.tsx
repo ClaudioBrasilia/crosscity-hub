@@ -164,7 +164,72 @@ const Admin = () => {
         </CardContent>
       </Card>
       <AdminCheckinHistory users={users} />
+
+      <InviteSection />
     </div>
+  );
+};
+
+// ---- Invite section isolated ----
+const InviteSection = () => {
+  const { toast } = useToast();
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGeneratedToken(null);
+    try {
+      const { data, error } = await supabase.rpc('create_app_invite', { _expires_in_hours: 72 });
+      if (error) throw error;
+      setGeneratedToken(data as string);
+      toast({ title: 'Convite gerado!', description: 'Copie o link e envie para o convidado.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao gerar convite', description: e.message, variant: 'destructive' });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const inviteUrl = generatedToken
+    ? `${window.location.origin}/invite/${generatedToken}`
+    : null;
+
+  const handleCopy = async () => {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Link className="h-5 w-5" />
+          Convites
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Gere um link de convite único para um novo membro. O link expira em 72 horas e pode ser usado apenas uma vez.
+        </p>
+        <Button onClick={handleGenerate} disabled={generating}>
+          {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link className="h-4 w-4 mr-2" />}
+          Gerar Convite
+        </Button>
+
+        {inviteUrl && (
+          <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/50">
+            <code className="text-xs flex-1 break-all">{inviteUrl}</code>
+            <Button size="icon" variant="ghost" onClick={handleCopy}>
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
