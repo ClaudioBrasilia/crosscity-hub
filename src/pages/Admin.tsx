@@ -1,10 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import { Shield, Users, Loader2 } from 'lucide-react';
+import { Shield, Users, Loader2, Link, Copy, Check } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
 
 interface UserItem {
