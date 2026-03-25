@@ -1,0 +1,1 @@
+UPDATE public.profiles SET approval_status = 'approved' WHERE id IN (SELECT user_id FROM public.user_roles WHERE role = 'admin') AND approval_status != 'approved';

@@ -108,7 +108,7 @@ const Admin = () => {
     return 'Pendente';
   };
 
-  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending');
+  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
 
   return (
     <div className="space-y-6">
