@@ -122,47 +122,6 @@ const Admin = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Tarefas pendentes ({pendingUsers.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : pendingUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum usuário pendente no momento.</p>
-          ) : (
-            <div className="space-y-3">
-              {pendingUsers.map((u) => (
-                <div key={`pending-${u.id}`} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{u.avatar || '👤'}</span>
-                    <div>
-                      <p className="font-medium">{u.name}</p>
-                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                    </div>
-                    <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
-                    <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
-                      {approvalLabel(u.approvalStatus)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => handleApprovalChange(u.id, 'approved')}>
-                      Aprovar
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleApprovalChange(u.id, 'rejected')}>
-                      Recusar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Gerenciar Usuários ({users.length})
