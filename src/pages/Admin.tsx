@@ -121,11 +121,12 @@ const Admin = () => {
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {[
             { label: 'Total Membros', value: users.length, icon: '👥' },
             { label: 'Pendentes', value: users.filter(u => u.approvalStatus === 'pending' && u.role !== 'admin').length, icon: '⏳' },
             { label: 'Aprovados', value: users.filter(u => u.approvalStatus === 'approved').length, icon: '✅' },
+            { label: 'Recusados', value: users.filter(u => u.approvalStatus === 'rejected').length, icon: '❌' },
             { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: '🛡️' },
             { label: 'Atletas', value: users.filter(u => u.role === 'athlete').length, icon: '🏋️' },
           ].map((m) => (
