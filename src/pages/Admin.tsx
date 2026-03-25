@@ -218,6 +218,105 @@ const Admin = () => {
   );
 };
 
+// ---- Box Settings section ----
+const BoxSettingsSection = () => {
+  const { toast } = useToast();
+  const [location, setLocation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: '', radius_meters: 100, latitude: 0, longitude: 0 });
+
+  useEffect(() => {
+    supabase
+      .from('training_locations')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const loc = data[0];
+          setLocation(loc);
+          setForm({ name: loc.name, radius_meters: loc.radius_meters, latitude: loc.latitude, longitude: loc.longitude });
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  const handleSave = async () => {
+    if (!location) return;
+    const { error } = await supabase
+      .from('training_locations')
+      .update({ name: form.name, radius_meters: form.radius_meters, latitude: form.latitude, longitude: form.longitude })
+      .eq('id', location.id);
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+    } else {
+      setLocation({ ...location, ...form });
+      setEditing(false);
+      toast({ title: 'Configurações salvas!' });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Configurações do Box
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !location ? (
+          <p className="text-sm text-muted-foreground">Nenhum local de treino cadastrado.</p>
+        ) : editing ? (
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nome do local</label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Latitude</label>
+                <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Longitude</label>
+                <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Raio permitido (metros)</label>
+              <Input type="number" value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: parseInt(e.target.value) || 100 })} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave}>Salvar</Button>
+              <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{location.name}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Coordenadas: {location.latitude}, {location.longitude}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Raio de check-in: {location.radius_meters}m
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ---- Invite section isolated ----
 const InviteSection = () => {
   const { toast } = useToast();
