@@ -553,6 +553,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approval_status: string
           avatar: string | null
           avatar_url: string | null
           battles: number | null
@@ -570,6 +571,7 @@ export type Database = {
           xp: number | null
         }
         Insert: {
+          approval_status?: string
           avatar?: string | null
           avatar_url?: string | null
           battles?: number | null
@@ -587,6 +589,7 @@ export type Database = {
           xp?: number | null
         }
         Update: {
+          approval_status?: string
           avatar?: string | null
           avatar_url?: string | null
           battles?: number | null
