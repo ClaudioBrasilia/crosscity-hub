@@ -120,6 +120,26 @@ const Admin = () => {
         </Badge>
       </div>
 
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {[
+            { label: 'Total Membros', value: users.length, icon: '👥' },
+            { label: 'Pendentes', value: users.filter(u => u.approvalStatus === 'pending' && u.role !== 'admin').length, icon: '⏳' },
+            { label: 'Aprovados', value: users.filter(u => u.approvalStatus === 'approved').length, icon: '✅' },
+            { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: '🛡️' },
+            { label: 'Atletas', value: users.filter(u => u.role === 'athlete').length, icon: '🏋️' },
+          ].map((m) => (
+            <Card key={m.label}>
+              <CardContent className="p-4 text-center">
+                <span className="text-2xl">{m.icon}</span>
+                <p className="text-2xl font-bold mt-1">{m.value}</p>
+                <p className="text-xs text-muted-foreground">{m.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
