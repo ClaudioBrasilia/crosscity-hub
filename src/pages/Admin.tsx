@@ -18,6 +18,17 @@ interface UserItem {
   approvalStatus: 'pending' | 'approved' | 'rejected';
 }
 
+const normalizeApprovalStatus = (value: unknown): UserItem['approvalStatus'] => {
+  if (value === 'approved' || value === 'rejected' || value === 'pending') return value;
+  return 'pending';
+};
+
+const normalizeUsers = (items: any[]): UserItem[] =>
+  items.map((item) => ({
+    ...item,
+    approvalStatus: normalizeApprovalStatus(item.approvalStatus ?? item.approval_status),
+  }));
+
 const Admin = () => {
   const { user, getAllUsers, setUserRole, setUserApprovalStatus } = useAuth();
   const { toast } = useToast();
@@ -26,7 +37,7 @@ const Admin = () => {
 
   useEffect(() => {
     getAllUsers().then((data) => {
-      setUsers(data as UserItem[]);
+      setUsers(normalizeUsers(data as any[]));
       setLoading(false);
     });
   }, []);
@@ -44,7 +55,7 @@ const Admin = () => {
   const handleRoleChange = async (userId: string, newRole: 'athlete' | 'coach' | 'admin') => {
     await setUserRole(userId, newRole);
     const updated = await getAllUsers();
-    setUsers(updated as UserItem[]);
+    setUsers(normalizeUsers(updated as any[]));
     const roleLabels: Record<string, string> = { athlete: 'Atleta', coach: 'Professor', admin: 'Admin' };
     toast({
       title: 'Papel atualizado!',
@@ -55,7 +66,7 @@ const Admin = () => {
   const handleApprovalChange = async (userId: string, status: 'pending' | 'approved' | 'rejected') => {
     await setUserApprovalStatus(userId, status);
     const updated = await getAllUsers();
-    setUsers(updated as UserItem[]);
+    setUsers(normalizeUsers(updated as any[]));
     const statusLabels: Record<string, string> = {
       pending: 'Pendente',
       approved: 'Aprovado',
