@@ -34,10 +34,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (!user) return <Navigate to="/login" />;
 
+  const isAdmin = user.role === 'admin';
   const pendingAllowedPaths = new Set(['/', '/profile']);
-  const isPendingBlockedPath = user.approvalStatus === 'pending' && !pendingAllowedPaths.has(location.pathname);
+  const isPendingBlockedPath = !isAdmin && user.approvalStatus === 'pending' && !pendingAllowedPaths.has(location.pathname);
 
-  if (user.approvalStatus === 'rejected') {
+  if (!isAdmin && user.approvalStatus === 'rejected') {
     return (
       <Layout>
         <div className="max-w-xl mx-auto text-center py-16 space-y-2">
