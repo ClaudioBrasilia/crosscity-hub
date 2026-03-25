@@ -245,16 +245,6 @@ export default function TvMode() {
   type TabKey = typeof TABS[number];
   const [activeTab, setActiveTab] = useState<TabKey>('WOD');
 
-  // Auto-rotate tabs every 15s
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setActiveTab((prev) => {
-        const idx = TABS.indexOf(prev);
-        return TABS[(idx + 1) % TABS.length];
-      });
-    }, 15000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   const currentClass = getCurrentClass();
   const classLabel = currentClass
