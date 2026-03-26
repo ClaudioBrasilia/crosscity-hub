@@ -132,7 +132,7 @@ const Admin = () => {
           </CardHeader>
           <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {[
-              { label: 'Total Membros', value: boxUsers.length, icon: '👥' },
+              { label: 'Total Membros', value: users.length, icon: '👥' },
               { label: 'Atletas', value: athleteUsers.length, icon: '🏋️' },
               { label: 'Admins', value: adminUsers.length, icon: '🛡️' },
               { label: 'Aprovados', value: approvedUsers.length, icon: '✅' },
