@@ -1,13 +1,27 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/integrations/supabase/types';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
 
-export type AvatarShopItem = Tables<'avatar_items'>;
+export interface AvatarShopItem {
+  id: string;
+  name: string;
+  category: string;
+  rarity: string;
+  slot: string | null;
+  price_coins: number;
+  is_active: boolean;
+  created_at: string;
+  image_url: string | null;
+}
 
-type UserAvatarItemRow = Tables<'user_avatar_items'>;
+interface UserAvatarItemRow {
+  id: string;
+  user_id: string;
+  item_id: string;
+  acquired_at: string;
+}
 
 export async function getActiveAvatarShopItems(): Promise<AvatarShopItem[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('avatar_items')
     .select('*')
     .eq('is_active', true)
@@ -18,7 +32,7 @@ export async function getActiveAvatarShopItems(): Promise<AvatarShopItem[]> {
     return [];
   }
 
-  return data || [];
+  return (data || []) as AvatarShopItem[];
 }
 
 export async function getMyAvatarInventoryItemIds(): Promise<Set<string>> {
@@ -29,7 +43,7 @@ export async function getMyAvatarInventoryItemIds(): Promise<Set<string>> {
 
   if (userError || !user) return new Set<string>();
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('user_avatar_items')
     .select('*')
     .eq('user_id', user.id);
@@ -40,7 +54,7 @@ export async function getMyAvatarInventoryItemIds(): Promise<Set<string>> {
   }
 
   const ids = new Set<string>();
-  (data || []).forEach((entry: UserAvatarItemRow) => {
+  ((data || []) as UserAvatarItemRow[]).forEach((entry) => {
     if (entry.item_id) ids.add(entry.item_id);
   });
 
@@ -65,13 +79,16 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   }
 
   const avatar = await getMyAvatar();
-  const currentCoins = avatar?.avatar_coins ?? 0;
+  if (!avatar) {
+    return { success: false, message: 'Avatar não encontrado.' };
+  }
+  const currentCoins = avatar.avatar_coins ?? 0;
 
   if (currentCoins < item.price_coins) {
     return { success: false, message: 'Saldo insuficiente.' };
   }
 
-  const { data: debitData, error: debitError } = await supabase
+  const { data: debitData, error: debitError } = await (supabase as any)
     .from('user_avatars')
     .update({ avatar_coins: currentCoins - item.price_coins })
     .eq('user_id', user.id)
@@ -84,7 +101,7 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
     return { success: false, message: 'Não foi possível concluir a compra.' };
   }
 
-  const { error: insertError } = await supabase.from('user_avatar_items').insert({
+  const { error: insertError } = await (supabase as any).from('user_avatar_items').insert({
     user_id: user.id,
     item_id: item.id,
   });
@@ -92,7 +109,7 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   if (insertError) {
     console.error('Error adding purchased item to inventory:', insertError);
 
-    await supabase
+    await (supabase as any)
       .from('user_avatars')
       .update({ avatar_coins: currentCoins })
       .eq('user_id', user.id);
