@@ -2,21 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Shirt, Footprints, Crown, Watch, Sparkles, Star, Gem } from 'lucide-react';
+import { User, Star, Gem } from 'lucide-react';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
 import { buyAvatarItem, getActiveAvatarShopItems, getMyAvatarInventoryItemIds, type AvatarShopItem } from '@/lib/avatar-shop';
 import type { UserAvatarRow } from '@/lib/avatar';
-
-const EQUIPMENT_SLOTS = [
-  { key: 'base_outfit', label: 'Roupa Base', icon: Shirt, fallback: 'basic' },
-  { key: 'equipped_top', label: 'Parte Superior', icon: Shirt, fallback: null },
-  { key: 'equipped_bottom', label: 'Parte Inferior', icon: Shirt, fallback: null },
-  { key: 'equipped_shoes', label: 'Calçado', icon: Footprints, fallback: null },
-  { key: 'equipped_accessory', label: 'Acessório', icon: Gem, fallback: null },
-  { key: 'equipped_head_accessory', label: 'Acessório de Cabeça', icon: Crown, fallback: null },
-  { key: 'equipped_wrist_accessory', label: 'Acessório de Pulso', icon: Watch, fallback: null },
-  { key: 'equipped_special', label: 'Item Especial', icon: Sparkles, fallback: null },
-] as const;
+import AvatarRenderer from '@/components/avatar/AvatarRenderer';
+import AvatarSlotLegend from '@/components/avatar/AvatarSlotLegend';
 
 const MyBox = () => {
   const [avatar, setAvatar] = useState<UserAvatarRow | null>(null);
