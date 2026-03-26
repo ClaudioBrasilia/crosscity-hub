@@ -31,7 +31,7 @@ type TvCheckin = {
 type TvDuel = {
   id?: string;
   challengerName?: string;
-  challengedName?: string;
+  challengedNames?: string;
   status?: string;
 };
 
@@ -155,9 +155,9 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
     return data.map((duel) => ({
       id: duel.id,
       challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
-      challengedName:
+      challengedNames:
         duel.opponent_ids && duel.opponent_ids.length > 0
-          ? nameMap.get(duel.opponent_ids[0]) || 'Atleta 2'
+          ? duel.opponent_ids.map((opponentId: string) => nameMap.get(opponentId) || 'Atleta').join(', ')
           : 'Atleta 2',
       status: duel.status || 'Ativo',
     }));
@@ -373,7 +373,7 @@ export default function TvMode() {
                     >
                       <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">Duelo ativo</p>
                       <p className="mt-1 text-base font-bold text-white">
-                        {`${duel.challengerName || 'Atleta 1'} vs ${duel.challengedName || 'Atleta 2'}`}
+                        {`${duel.challengerName || 'Atleta 1'} vs ${duel.challengedNames || 'Atleta 2'}`}
                       </p>
                       <p className="mt-1 text-xs text-white/50">Status: {duel.status || 'Ativo'}</p>
                     </div>
