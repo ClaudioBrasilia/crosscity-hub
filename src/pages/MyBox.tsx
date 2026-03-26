@@ -122,50 +122,38 @@ const MyBox = () => {
             ))}
           </div>
 
-          {/* Equipment Slots */}
+          {/* Visual Avatar */}
           <Card className="border-primary/20">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Star className="h-5 w-5 text-primary" />
-                Visual do Avatar
+                Seu Avatar
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {EQUIPMENT_SLOTS.map((slot) => {
-                  const Icon = slot.icon;
-                  const value = getSlotValue(slot.key);
-                  const equipped = value && value !== 'basic' && slot.key !== 'base_outfit';
-                  const displayValue =
-                    slot.key === 'base_outfit'
-                      ? value || 'basic'
-                      : value || null;
-
-                  return (
-                    <div
-                      key={slot.key}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30"
-                    >
-                      <div className="flex items-center justify-center h-10 w-10 rounded-md bg-muted">
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{slot.label}</p>
-                        {displayValue ? (
-                          <Badge variant="secondary" className="mt-0.5 text-xs">
-                            {displayValue}
-                          </Badge>
-                        ) : (
-                          <p className="text-xs text-muted-foreground mt-0.5">Não equipado</p>
-                        )}
-                      </div>
-                      {equipped && (
-                        <span className="text-primary text-xs font-medium">Equipado</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            <CardContent className="flex flex-col items-center">
+              <AvatarRenderer
+                equipment={{
+                  base_outfit: getSlotValue('base_outfit'),
+                  equipped_top: getSlotValue('equipped_top'),
+                  equipped_bottom: getSlotValue('equipped_bottom'),
+                  equipped_shoes: getSlotValue('equipped_shoes'),
+                  equipped_accessory: getSlotValue('equipped_accessory'),
+                  equipped_head_accessory: getSlotValue('equipped_head_accessory'),
+                  equipped_wrist_accessory: getSlotValue('equipped_wrist_accessory'),
+                  equipped_special: getSlotValue('equipped_special'),
+                }}
+              />
+              <AvatarSlotLegend
+                equipment={{
+                  equipped_top: getSlotValue('equipped_top'),
+                  equipped_bottom: getSlotValue('equipped_bottom'),
+                  equipped_shoes: getSlotValue('equipped_shoes'),
+                  equipped_accessory: getSlotValue('equipped_accessory'),
+                  equipped_head_accessory: getSlotValue('equipped_head_accessory'),
+                  equipped_wrist_accessory: getSlotValue('equipped_wrist_accessory'),
+                  equipped_special: getSlotValue('equipped_special'),
+                }}
+              />
             </CardContent>
           </Card>
 
