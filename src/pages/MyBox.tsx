@@ -1,15 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { User, Shirt, Footprints, Crown, Watch, Sparkles, Star, Gem } from 'lucide-react';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
 import { buyAvatarItem, getActiveAvatarShopItems, getMyAvatarInventoryItemIds, type AvatarShopItem } from '@/lib/avatar-shop';
-import type { Database } from '@/integrations/supabase/types';
-import { Button } from '@/components/ui/button';
+import type { UserAvatarRow } from '@/lib/avatar';
 
-type UserAvatar = Database['public']['Tables']['user_avatars']['Row'];
+const EQUIPMENT_SLOTS = [
+  { key: 'base_outfit', label: 'Roupa Base', icon: Shirt, fallback: 'basic' },
+  { key: 'equipped_top', label: 'Parte Superior', icon: Shirt, fallback: null },
+  { key: 'equipped_bottom', label: 'Parte Inferior', icon: Shirt, fallback: null },
+  { key: 'equipped_shoes', label: 'Calçado', icon: Footprints, fallback: null },
+  { key: 'equipped_accessory', label: 'Acessório', icon: Gem, fallback: null },
+  { key: 'equipped_head_accessory', label: 'Acessório de Cabeça', icon: Crown, fallback: null },
+  { key: 'equipped_wrist_accessory', label: 'Acessório de Pulso', icon: Watch, fallback: null },
+  { key: 'equipped_special', label: 'Item Especial', icon: Sparkles, fallback: null },
+] as const;
 
 const MyBox = () => {
-  const [avatar, setAvatar] = useState<UserAvatar | null>(null);
+  const [avatar, setAvatar] = useState<UserAvatarRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [shopLoading, setShopLoading] = useState(true);
   const [shopItems, setShopItems] = useState<AvatarShopItem[]>([]);
@@ -17,16 +27,14 @@ const MyBox = () => {
   const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
   const [shopMessage, setShopMessage] = useState<string | null>(null);
 
-  const avatarCoins = avatar?.avatar_coins ?? 0;
+  const avatarCoins = (avatar as UserAvatarRow | null)?.avatar_coins ?? 0;
 
   const reloadAvatar = async () => {
     const ensured = await ensureMyAvatar();
-
     if (ensured) {
       setAvatar(ensured);
       return;
     }
-
     const loaded = await getMyAvatar();
     setAvatar(loaded);
   };
@@ -36,7 +44,6 @@ const MyBox = () => {
       getActiveAvatarShopItems(),
       getMyAvatarInventoryItemIds(),
     ]);
-
     setShopItems(items);
     setInventoryItemIds(inventory);
   };
@@ -62,6 +69,11 @@ const MyBox = () => {
     };
   }, []);
 
+  const getSlotValue = (key: string): string | null => {
+    if (!avatar) return null;
+    return (avatar as any)[key] ?? null;
+  };
+
   const sortedItems = useMemo(() => {
     return [...shopItems].sort((a, b) => a.price_coins - b.price_coins);
   }, [shopItems]);
@@ -82,6 +94,7 @@ const MyBox = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <User className="h-8 w-8 text-primary" />
         <div>
@@ -90,80 +103,140 @@ const MyBox = () => {
         </div>
       </div>
 
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Visão geral do Avatar</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {loading ? (
+      {loading ? (
+        <Card className="border-primary/20">
+          <CardContent className="p-6">
             <p className="text-muted-foreground">Carregando avatar...</p>
-          ) : (
-            <>
-              <p><span className="font-medium">Nome:</span> {avatar?.display_name || 'Não definido'}</p>
-              <p><span className="font-medium">Nível:</span> {avatar?.avatar_level ?? 1}</p>
-              <p><span className="font-medium">XP:</span> {avatar?.avatar_xp ?? 0}</p>
-              <p><span className="font-medium">Coins:</span> {avatarCoins}</p>
-              <p><span className="font-medium">Roupa base:</span> {avatar?.base_outfit ?? 'basic'}</p>
-              <p><span className="font-medium">Topo equipado:</span> {avatar?.equipped_top || 'Nenhum'}</p>
-              <p><span className="font-medium">Parte de baixo equipada:</span> {avatar?.equipped_bottom || 'Nenhuma'}</p>
-              <p><span className="font-medium">Calçado equipado:</span> {avatar?.equipped_shoes || 'Nenhum'}</p>
-              <p><span className="font-medium">Acessório equipado:</span> {avatar?.equipped_accessory || 'Nenhum'}</p>
-              <p><span className="font-medium">Acessório de cabeça:</span> {avatar?.equipped_head_accessory || 'Nenhum'}</p>
-              <p><span className="font-medium">Acessório de pulso:</span> {avatar?.equipped_wrist_accessory || 'Nenhum'}</p>
-              <p><span className="font-medium">Item especial:</span> {avatar?.equipped_special || 'Nenhum'}</p>
-              <p><span className="font-medium">Check-ins semanais:</span> {avatar?.weekly_checkins ?? 0}</p>
-              <p><span className="font-medium">Streak semanal:</span> {avatar?.weekly_streak ?? 0}</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {[
+              { label: 'Nome', value: avatar?.display_name || 'Não definido', icon: '🏷️' },
+              { label: 'Nível', value: avatar?.avatar_level ?? 1, icon: '⭐' },
+              { label: 'XP', value: avatar?.avatar_xp ?? 0, icon: '✨' },
+              { label: 'Coins', value: avatarCoins, icon: '🪙' },
+              { label: 'Check-ins Sem.', value: avatar?.weekly_checkins ?? 0, icon: '📅' },
+              { label: 'Streak Sem.', value: avatar?.weekly_streak ?? 0, icon: '🔥' },
+            ].map((stat) => (
+              <Card key={stat.label} className="border-border">
+                <CardContent className="p-3 text-center">
+                  <span className="text-xl">{stat.icon}</span>
+                  <p className="text-lg font-bold mt-1">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Loja do Avatar</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <p><span className="font-medium">Saldo atual:</span> {avatarCoins} coins</p>
-          {shopMessage && <p className="text-muted-foreground">{shopMessage}</p>}
+          {/* Equipment Slots */}
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary" />
+                Visual do Avatar
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {EQUIPMENT_SLOTS.map((slot) => {
+                  const Icon = slot.icon;
+                  const value = getSlotValue(slot.key);
+                  const equipped = value && value !== 'basic' && slot.key !== 'base_outfit';
+                  const displayValue =
+                    slot.key === 'base_outfit'
+                      ? value || 'basic'
+                      : value || null;
 
-          {shopLoading ? (
-            <p className="text-muted-foreground">Carregando loja...</p>
-          ) : sortedItems.length === 0 ? (
-            <p className="text-muted-foreground">Nenhum item ativo disponível no momento.</p>
-          ) : (
-            <div className="space-y-3">
-              {sortedItems.map((item) => {
-                const acquired = inventoryItemIds.has(item.id);
-                const insufficientCoins = avatarCoins < item.price_coins;
-
-                return (
-                  <div key={item.id} className="rounded-md border border-border p-3">
-                    <p><span className="font-medium">Nome:</span> {item.name}</p>
-                    <p><span className="font-medium">Categoria:</span> {item.category}</p>
-                    <p><span className="font-medium">Raridade:</span> {item.rarity}</p>
-                    <p><span className="font-medium">Preço:</span> {item.price_coins} coins</p>
-                    <p><span className="font-medium">Status:</span> {acquired ? 'Adquirido' : 'Disponível'}</p>
-
-                    <div className="mt-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={acquired || insufficientCoins || buyingItemId === item.id}
-                        onClick={() => handleBuy(item)}
-                      >
-                        {acquired ? 'Adquirido' : buyingItemId === item.id ? 'Comprando...' : 'Comprar'}
-                      </Button>
-                      {!acquired && insufficientCoins && (
-                        <p className="text-xs text-muted-foreground mt-1">Saldo insuficiente para este item.</p>
+                  return (
+                    <div
+                      key={slot.key}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30"
+                    >
+                      <div className="flex items-center justify-center h-10 w-10 rounded-md bg-muted">
+                        <Icon className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{slot.label}</p>
+                        {displayValue ? (
+                          <Badge variant="secondary" className="mt-0.5 text-xs">
+                            {displayValue}
+                          </Badge>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-0.5">Não equipado</p>
+                        )}
+                      </div>
+                      {equipped && (
+                        <span className="text-primary text-xs font-medium">Equipado</span>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Avatar Shop */}
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Gem className="h-5 w-5 text-primary" />
+                Loja do Avatar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Saldo atual: {avatarCoins} coins</p>
+                {shopMessage && <p className="text-sm text-primary font-medium">{shopMessage}</p>}
+              </div>
+
+              {shopLoading ? (
+                <p className="text-muted-foreground text-sm">Carregando loja...</p>
+              ) : sortedItems.length === 0 ? (
+                <p className="text-muted-foreground text-sm">Nenhum item ativo disponível no momento.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {sortedItems.map((item) => {
+                    const acquired = inventoryItemIds.has(item.id);
+                    const insufficientCoins = avatarCoins < item.price_coins;
+
+                    return (
+                      <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-muted/30">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-bold">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.category} • {item.rarity}</p>
+                          </div>
+                          <Badge variant="outline" className="text-xs font-bold">
+                            {item.price_coins} 🪙
+                          </Badge>
+                        </div>
+
+                        <div className="mt-auto pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            disabled={acquired || insufficientCoins || buyingItemId === item.id}
+                            onClick={() => handleBuy(item)}
+                          >
+                            {acquired ? 'Adquirido' : buyingItemId === item.id ? 'Comprando...' : 'Comprar'}
+                          </Button>
+                          {!acquired && insufficientCoins && (
+                            <p className="text-[10px] text-center text-muted-foreground mt-1">Saldo insuficiente</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
