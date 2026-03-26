@@ -218,7 +218,7 @@ const Admin = () => {
           )}
         </CardContent>
       </Card>
-      <AdminCheckinHistory users={boxUsers} />
+      <AdminCheckinHistory users={users} />
 
       <BoxSettingsSection />
     </div>

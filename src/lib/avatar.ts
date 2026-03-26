@@ -1,8 +1,25 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 
-type UserAvatarRow = Database['public']['Tables']['user_avatars']['Row'];
-type UserAvatarInsert = Database['public']['Tables']['user_avatars']['Insert'];
+export interface UserAvatarRow {
+  id: string;
+  user_id: string;
+  display_name: string | null;
+  avatar_level: number;
+  avatar_xp: number;
+  avatar_coins: number;
+  base_outfit: string;
+  equipped_top: string | null;
+  equipped_bottom: string | null;
+  equipped_shoes: string | null;
+  equipped_accessory: string | null;
+  equipped_head_accessory: string | null;
+  equipped_wrist_accessory: string | null;
+  equipped_special: string | null;
+  weekly_checkins: number;
+  weekly_streak: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export async function getMyAvatar(): Promise<UserAvatarRow | null> {
   const {
@@ -12,7 +29,7 @@ export async function getMyAvatar(): Promise<UserAvatarRow | null> {
 
   if (userError || !user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('user_avatars')
     .select('*')
     .eq('user_id', user.id)
@@ -23,7 +40,7 @@ export async function getMyAvatar(): Promise<UserAvatarRow | null> {
     return null;
   }
 
-  return data;
+  return data as UserAvatarRow | null;
 }
 
 export async function ensureMyAvatar(): Promise<UserAvatarRow | null> {
@@ -48,12 +65,12 @@ export async function ensureMyAvatar(): Promise<UserAvatarRow | null> {
     displayName = profileData.name;
   }
 
-  const payload: UserAvatarInsert = {
+  const payload = {
     user_id: user.id,
     display_name: displayName,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('user_avatars')
     .insert(payload)
     .select('*')
@@ -68,5 +85,5 @@ export async function ensureMyAvatar(): Promise<UserAvatarRow | null> {
     return null;
   }
 
-  return data;
+  return data as UserAvatarRow;
 }
