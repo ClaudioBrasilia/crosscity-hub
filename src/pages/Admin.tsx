@@ -9,6 +9,7 @@ import { Shield, Users, Loader2, MapPin, Settings } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
+import { getAvatarEconomySettings, updateAvatarEconomySettings, type AvatarEconomySettings } from '@/lib/avatar-economy';
 
 interface UserItem {
   id: string;
@@ -220,8 +221,129 @@ const Admin = () => {
       </Card>
       <AdminCheckinHistory users={users} />
 
+      <AvatarEconomySection />
+
       <BoxSettingsSection />
     </div>
+  );
+};
+
+
+// ---- Avatar Economy section ----
+const AvatarEconomySection = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<AvatarEconomySettings | null>(null);
+  const [form, setForm] = useState({
+    coins_per_checkin: 10,
+    weekly_bonus_3: 30,
+    weekly_bonus_4: 45,
+    weekly_bonus_5: 60,
+    level_up_bonus: 25,
+    is_active: true,
+  });
+
+  useEffect(() => {
+    getAvatarEconomySettings().then((data) => {
+      if (data) {
+        setSettings(data);
+        setForm({
+          coins_per_checkin: data.coins_per_checkin,
+          weekly_bonus_3: data.weekly_bonus_3,
+          weekly_bonus_4: data.weekly_bonus_4,
+          weekly_bonus_5: data.weekly_bonus_5,
+          level_up_bonus: data.level_up_bonus,
+          is_active: data.is_active,
+        });
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+
+    const { data, error } = await updateAvatarEconomySettings(settings?.id || null, {
+      coins_per_checkin: form.coins_per_checkin,
+      weekly_bonus_3: form.weekly_bonus_3,
+      weekly_bonus_4: form.weekly_bonus_4,
+      weekly_bonus_5: form.weekly_bonus_5,
+      level_up_bonus: form.level_up_bonus,
+      is_active: form.is_active,
+    });
+
+    if (error) {
+      toast({
+        title: 'Erro ao salvar economia do avatar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else if (data) {
+      setSettings(data);
+      toast({
+        title: 'Economia do Avatar salva!',
+      });
+    }
+
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Economia do Avatar
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Coins por check-in</label>
+                <Input type="number" value={form.coins_per_checkin} onChange={(e) => setForm({ ...form, coins_per_checkin: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Bônus semanal 3x</label>
+                <Input type="number" value={form.weekly_bonus_3} onChange={(e) => setForm({ ...form, weekly_bonus_3: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Bônus semanal 4x</label>
+                <Input type="number" value={form.weekly_bonus_4} onChange={(e) => setForm({ ...form, weekly_bonus_4: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Bônus semanal 5x</label>
+                <Input type="number" value={form.weekly_bonus_5} onChange={(e) => setForm({ ...form, weekly_bonus_5: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Bônus por level up</label>
+                <Input type="number" value={form.level_up_bonus} onChange={(e) => setForm({ ...form, level_up_bonus: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  />
+                  Configuração ativa
+                </label>
+              </div>
+            </div>
+
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
