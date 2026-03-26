@@ -109,12 +109,11 @@ const Admin = () => {
     return 'Pendente';
   };
 
-  const boxUsers = user?.boxId ? users.filter((u) => u.boxId === user.boxId) : users;
-  const pendingUsers = boxUsers.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
-  const approvedUsers = boxUsers.filter((u) => u.approvalStatus === 'approved');
-  const rejectedUsers = boxUsers.filter((u) => u.approvalStatus === 'rejected');
-  const adminUsers = boxUsers.filter((u) => u.role === 'admin');
-  const athleteUsers = boxUsers.filter((u) => u.role === 'athlete');
+  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
+  const approvedUsers = users.filter((u) => u.approvalStatus === 'approved');
+  const rejectedUsers = users.filter((u) => u.approvalStatus === 'rejected');
+  const adminUsers = users.filter((u) => u.role === 'admin');
+  const athleteUsers = users.filter((u) => u.role === 'athlete');
 
   return (
     <div className="space-y-6">
