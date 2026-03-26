@@ -65,7 +65,10 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   }
 
   const avatar = await getMyAvatar();
-  const currentCoins = avatar?.avatar_coins ?? 0;
+  if (!avatar) {
+    return { success: false, message: 'Avatar não encontrado.' };
+  }
+  const currentCoins = avatar.avatar_coins ?? 0;
 
   if (currentCoins < item.price_coins) {
     return { success: false, message: 'Saldo insuficiente.' };
