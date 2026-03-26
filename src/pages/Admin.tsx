@@ -110,12 +110,11 @@ const Admin = () => {
     return 'Pendente';
   };
 
-  const boxUsers = user?.boxId ? users.filter((u) => u.boxId === user.boxId) : users;
-  const pendingUsers = boxUsers.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
-  const approvedUsers = boxUsers.filter((u) => u.approvalStatus === 'approved');
-  const rejectedUsers = boxUsers.filter((u) => u.approvalStatus === 'rejected');
-  const adminUsers = boxUsers.filter((u) => u.role === 'admin');
-  const athleteUsers = boxUsers.filter((u) => u.role === 'athlete');
+  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
+  const approvedUsers = users.filter((u) => u.approvalStatus === 'approved');
+  const rejectedUsers = users.filter((u) => u.approvalStatus === 'rejected');
+  const adminUsers = users.filter((u) => u.role === 'admin');
+  const athleteUsers = users.filter((u) => u.role === 'athlete');
 
   return (
     <div className="space-y-6">
@@ -134,7 +133,7 @@ const Admin = () => {
           </CardHeader>
           <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {[
-              { label: 'Total Membros', value: boxUsers.length, icon: '👥' },
+              { label: 'Total Membros', value: users.length, icon: '👥' },
               { label: 'Atletas', value: athleteUsers.length, icon: '🏋️' },
               { label: 'Admins', value: adminUsers.length, icon: '🛡️' },
               { label: 'Aprovados', value: approvedUsers.length, icon: '✅' },
@@ -157,7 +156,7 @@ const Admin = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Gerenciar Usuários ({boxUsers.length})
+            Gerenciar Usuários ({users.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -167,7 +166,7 @@ const Admin = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {boxUsers.map((u) => (
+              {users.map((u) => (
                 <div
                   key={u.id}
                   className="flex items-center justify-between p-3 rounded-lg border border-border"
@@ -220,7 +219,7 @@ const Admin = () => {
           )}
         </CardContent>
       </Card>
-      <AdminCheckinHistory users={boxUsers} />
+      <AdminCheckinHistory users={users} />
 
       <AvatarEconomySection />
 
