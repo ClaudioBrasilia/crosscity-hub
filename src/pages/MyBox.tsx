@@ -27,7 +27,7 @@ const MyBox = () => {
   const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
   const [shopMessage, setShopMessage] = useState<string | null>(null);
 
-  const avatarCoins = avatar?.avatar_coins ?? 0;
+  const avatarCoins = (avatar as UserAvatarRow | null)?.avatar_coins ?? 0;
 
   const reloadAvatar = async () => {
     const ensured = await ensureMyAvatar();
