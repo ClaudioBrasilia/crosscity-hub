@@ -13,6 +13,48 @@ export interface AvatarShopItem {
   image_url: string | null;
 }
 
+const EQUIPPED_SLOT_COLUMNS = [
+  'equipped_top',
+  'equipped_bottom',
+  'equipped_shoes',
+  'equipped_accessory',
+  'equipped_head_accessory',
+  'equipped_wrist_accessory',
+  'equipped_special',
+] as const;
+
+type EquippedSlotColumn = (typeof EQUIPPED_SLOT_COLUMNS)[number];
+
+const isEquippedSlotColumn = (value: string | null): value is EquippedSlotColumn =>
+  !!value && EQUIPPED_SLOT_COLUMNS.includes(value as EquippedSlotColumn);
+
+const CATEGORY_TO_SLOT: Record<string, EquippedSlotColumn> = {
+  top: 'equipped_top',
+  upper: 'equipped_top',
+  shirt: 'equipped_top',
+  camiseta: 'equipped_top',
+  regata: 'equipped_top',
+  bottom: 'equipped_bottom',
+  lower: 'equipped_bottom',
+  shorts: 'equipped_bottom',
+  calca: 'equipped_bottom',
+  shoes: 'equipped_shoes',
+  footwear: 'equipped_shoes',
+  tenis: 'equipped_shoes',
+  accessory: 'equipped_accessory',
+  head: 'equipped_head_accessory',
+  head_accessory: 'equipped_head_accessory',
+  wrist: 'equipped_wrist_accessory',
+  wrist_accessory: 'equipped_wrist_accessory',
+  special: 'equipped_special',
+};
+
+export const resolveAvatarItemSlot = (item: Pick<AvatarShopItem, 'slot' | 'category'>): EquippedSlotColumn | null => {
+  if (isEquippedSlotColumn(item.slot)) return item.slot;
+  const normalizedCategory = (item.category || '').trim().toLowerCase();
+  return CATEGORY_TO_SLOT[normalizedCategory] ?? null;
+};
+
 interface UserAvatarItemRow {
   id: string;
   user_id: string;
@@ -122,4 +164,50 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   }
 
   return { success: true, message: 'Item comprado com sucesso!' };
+}
+
+export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: boolean; message: string }> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { success: false, message: 'Usuário não autenticado.' };
+  }
+
+  const targetSlot = resolveAvatarItemSlot(item);
+  if (!targetSlot) {
+    return { success: false, message: 'Item sem slot de equipamento válido.' };
+  }
+
+  await ensureMyAvatar();
+
+  const { data: ownedItem, error: ownershipError } = await (supabase as any)
+    .from('user_avatar_items')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('item_id', item.id)
+    .maybeSingle();
+
+  if (ownershipError) {
+    console.error('Error validating avatar item ownership:', ownershipError);
+    return { success: false, message: 'Não foi possível validar o inventário.' };
+  }
+
+  if (!ownedItem) {
+    return { success: false, message: 'Você precisa comprar este item antes de equipar.' };
+  }
+
+  const { error: equipError } = await (supabase as any)
+    .from('user_avatars')
+    .update({ [targetSlot]: item.id })
+    .eq('user_id', user.id);
+
+  if (equipError) {
+    console.error('Error equipping avatar item:', equipError);
+    return { success: false, message: 'Não foi possível equipar o item.' };
+  }
+
+  return { success: true, message: 'Item equipado com sucesso!' };
 }
