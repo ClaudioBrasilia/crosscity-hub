@@ -155,7 +155,7 @@ const Admin = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Gerenciar Usuários ({boxUsers.length})
+            Gerenciar Usuários ({users.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
