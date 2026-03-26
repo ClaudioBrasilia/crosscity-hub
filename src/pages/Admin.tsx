@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import { Shield, Users, Loader2, Link, Copy, Check, MapPin, Settings } from 'lucide-react';
+import { Shield, Users, Loader2, MapPin, Settings } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
@@ -109,7 +109,12 @@ const Admin = () => {
     return 'Pendente';
   };
 
-  const pendingUsers = users.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
+  const boxUsers = user?.boxId ? users.filter((u) => u.boxId === user.boxId) : users;
+  const pendingUsers = boxUsers.filter((u) => u.approvalStatus === 'pending' && u.role !== 'admin');
+  const approvedUsers = boxUsers.filter((u) => u.approvalStatus === 'approved');
+  const rejectedUsers = boxUsers.filter((u) => u.approvalStatus === 'rejected');
+  const adminUsers = boxUsers.filter((u) => u.role === 'admin');
+  const athleteUsers = boxUsers.filter((u) => u.role === 'athlete');
 
   return (
     <div className="space-y-6">
@@ -122,31 +127,36 @@ const Admin = () => {
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {[
-            { label: 'Total Membros', value: users.length, icon: '👥' },
-            { label: 'Pendentes', value: users.filter(u => u.approvalStatus === 'pending' && u.role !== 'admin').length, icon: '⏳' },
-            { label: 'Aprovados', value: users.filter(u => u.approvalStatus === 'approved').length, icon: '✅' },
-            { label: 'Recusados', value: users.filter(u => u.approvalStatus === 'rejected').length, icon: '❌' },
-            { label: 'Admins', value: users.filter(u => u.role === 'admin').length, icon: '🛡️' },
-            { label: 'Atletas', value: users.filter(u => u.role === 'athlete').length, icon: '🏋️' },
-          ].map((m) => (
-            <Card key={m.label}>
-              <CardContent className="p-4 text-center">
-                <span className="text-2xl">{m.icon}</span>
-                <p className="text-2xl font-bold mt-1">{m.value}</p>
-                <p className="text-xs text-muted-foreground">{m.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo do Box</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {[
+              { label: 'Total Membros', value: boxUsers.length, icon: '👥' },
+              { label: 'Atletas', value: athleteUsers.length, icon: '🏋️' },
+              { label: 'Admins', value: adminUsers.length, icon: '🛡️' },
+              { label: 'Aprovados', value: approvedUsers.length, icon: '✅' },
+              { label: 'Pendentes', value: pendingUsers.length, icon: '⏳' },
+              { label: 'Recusados', value: rejectedUsers.length, icon: '❌' },
+            ].map((m) => (
+              <Card key={m.label}>
+                <CardContent className="p-4 text-center">
+                  <span className="text-2xl">{m.icon}</span>
+                  <p className="text-2xl font-bold mt-1">{m.value}</p>
+                  <p className="text-xs text-muted-foreground">{m.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Gerenciar Usuários ({users.length})
+            Gerenciar Usuários ({boxUsers.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -156,7 +166,7 @@ const Admin = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {users.map((u) => (
+              {boxUsers.map((u) => (
                 <div
                   key={u.id}
                   className="flex items-center justify-between p-3 rounded-lg border border-border"
@@ -209,11 +219,9 @@ const Admin = () => {
           )}
         </CardContent>
       </Card>
-      <AdminCheckinHistory users={users} />
+      <AdminCheckinHistory users={boxUsers} />
 
       <BoxSettingsSection />
-
-      <InviteSection />
     </div>
   );
 };
@@ -310,69 +318,6 @@ const BoxSettingsSection = () => {
               Raio de check-in: {location.radius_meters}m
             </p>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-// ---- Invite section isolated ----
-const InviteSection = () => {
-  const { toast } = useToast();
-  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setGeneratedToken(null);
-    try {
-      const { data, error } = await supabase.rpc('create_app_invite', { _expires_in_hours: 72 });
-      if (error) throw error;
-      setGeneratedToken(data as string);
-      toast({ title: 'Convite gerado!', description: 'Copie o link e envie para o convidado.' });
-    } catch (e: any) {
-      toast({ title: 'Erro ao gerar convite', description: e.message, variant: 'destructive' });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const inviteUrl = generatedToken
-    ? `${window.location.origin}/invite/${generatedToken}`
-    : null;
-
-  const handleCopy = async () => {
-    if (!inviteUrl) return;
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Link className="h-5 w-5" />
-          Convites
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Gere um link de convite único para um novo membro. O link expira em 72 horas e pode ser usado apenas uma vez.
-        </p>
-        <Button onClick={handleGenerate} disabled={generating}>
-          {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link className="h-4 w-4 mr-2" />}
-          Gerar Convite
-        </Button>
-
-        {inviteUrl && (
-          <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/50">
-            <code className="text-xs flex-1 break-all">{inviteUrl}</code>
-            <Button size="icon" variant="ghost" onClick={handleCopy}>
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
           </div>
         )}
       </CardContent>
