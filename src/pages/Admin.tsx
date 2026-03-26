@@ -165,7 +165,7 @@ const Admin = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {boxUsers.map((u) => (
+              {users.map((u) => (
                 <div
                   key={u.id}
                   className="flex items-center justify-between p-3 rounded-lg border border-border"
