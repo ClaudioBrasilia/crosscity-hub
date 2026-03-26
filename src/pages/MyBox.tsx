@@ -46,7 +46,10 @@ const MyBox = () => {
       setLoading(true);
       setShopLoading(true);
 
-      await Promise.all([reloadAvatar(), reloadShop()]);
+      // Keep bootstrap sequential to guarantee user_avatars exists
+      // before dependent avatar reads on first access.
+      await reloadAvatar();
+      await reloadShop();
 
       if (!mounted) return;
       setLoading(false);
