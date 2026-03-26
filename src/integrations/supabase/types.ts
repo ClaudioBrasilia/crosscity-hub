@@ -149,99 +149,6 @@ export type Database = {
         }
         Relationships: []
       }
-      avatar_economy_settings: {
-        Row: {
-          coins_per_checkin: number
-          created_at: string
-          id: string
-          is_active: boolean
-          level_up_bonus: number
-          updated_at: string
-          weekly_bonus_3: number
-          weekly_bonus_4: number
-          weekly_bonus_5: number
-        }
-        Insert: {
-          coins_per_checkin?: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          level_up_bonus?: number
-          updated_at?: string
-          weekly_bonus_3?: number
-          weekly_bonus_4?: number
-          weekly_bonus_5?: number
-        }
-        Update: {
-          coins_per_checkin?: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          level_up_bonus?: number
-          updated_at?: string
-          weekly_bonus_3?: number
-          weekly_bonus_4?: number
-          weekly_bonus_5?: number
-        }
-        Relationships: []
-      }
-      avatar_reward_events: {
-        Row: {
-          coins_delta: number
-          created_at: string
-          id: string
-          source_ref: string
-          source_type: string
-          user_id: string
-        }
-        Insert: {
-          coins_delta: number
-          created_at?: string
-          id?: string
-          source_ref: string
-          source_type: string
-          user_id: string
-        }
-        Update: {
-          coins_delta?: number
-          created_at?: string
-          id?: string
-          source_ref?: string
-          source_type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      avatar_items: {
-        Row: {
-          category: string
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          price_coins: number
-          rarity: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          price_coins?: number
-          rarity?: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          price_coins?: number
-          rarity?: string
-        }
-        Relationships: []
-      }
       benchmark_history: {
         Row: {
           exercise_id: string
@@ -770,96 +677,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_avatar_items: {
-        Row: {
-          acquired_at: string
-          id: string
-          item_id: string
-          user_id: string
-        }
-        Insert: {
-          acquired_at?: string
-          id?: string
-          item_id: string
-          user_id: string
-        }
-        Update: {
-          acquired_at?: string
-          id?: string
-          item_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_avatars: {
-        Row: {
-          avatar_coins: number
-          avatar_level: number
-          avatar_xp: number
-          base_outfit: string
-          base_skin: string
-          created_at: string
-          display_name: string | null
-          equipped_accessory: string | null
-          equipped_bottom: string | null
-          equipped_head_accessory: string | null
-          equipped_shoes: string | null
-          equipped_special: string | null
-          equipped_top: string | null
-          equipped_wrist_accessory: string | null
-          id: string
-          last_checkin_at: string | null
-          updated_at: string
-          user_id: string
-          weekly_checkins: number
-          weekly_streak: number
-        }
-        Insert: {
-          avatar_coins?: number
-          avatar_level?: number
-          avatar_xp?: number
-          base_outfit?: string
-          base_skin?: string
-          created_at?: string
-          display_name?: string | null
-          equipped_accessory?: string | null
-          equipped_bottom?: string | null
-          equipped_head_accessory?: string | null
-          equipped_shoes?: string | null
-          equipped_special?: string | null
-          equipped_top?: string | null
-          equipped_wrist_accessory?: string | null
-          id?: string
-          last_checkin_at?: string | null
-          updated_at?: string
-          user_id: string
-          weekly_checkins?: number
-          weekly_streak?: number
-        }
-        Update: {
-          avatar_coins?: number
-          avatar_level?: number
-          avatar_xp?: number
-          base_outfit?: string
-          base_skin?: string
-          created_at?: string
-          display_name?: string | null
-          equipped_accessory?: string | null
-          equipped_bottom?: string | null
-          equipped_head_accessory?: string | null
-          equipped_shoes?: string | null
-          equipped_special?: string | null
-          equipped_top?: string | null
-          equipped_wrist_accessory?: string | null
-          id?: string
-          last_checkin_at?: string | null
-          updated_at?: string
-          user_id?: string
-          weekly_checkins?: number
-          weekly_streak?: number
-        }
-        Relationships: []
-      }
       user_goals: {
         Row: {
           frequency: string | null
@@ -992,15 +809,6 @@ export type Database = {
       create_app_invite: {
         Args: { _expires_in_hours?: number }
         Returns: string
-      }
-      grant_avatar_reward: {
-        Args: {
-          _coins_delta: number
-          _source_ref: string
-          _source_type: string
-          _user_id: string
-        }
-        Returns: boolean
       }
       get_user_role: {
         Args: { _user_id: string }
@@ -1166,8 +974,3 @@ export const Constants = {
     },
   },
 } as const
-
-// Avatar table convenience aliases
-export type UserAvatarRow = Tables<'user_avatars'>
-export type UserAvatarInsert = TablesInsert<'user_avatars'>
-export type UserAvatarUpdate = TablesUpdate<'user_avatars'>
