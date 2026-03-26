@@ -88,7 +88,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
     { icon: Users, label: 'Feed', path: '/feed' },
     { icon: BarChart3, label: 'Benchmarks', path: '/benchmarks' },
     { icon: Flame, label: 'Desafios', path: '/challenges' },
-    { icon: Map, label: 'Times', path: '/clans' }, { icon: Warehouse, label: 'Meu Box', path: '/mybox' },
+    { icon: Map, label: 'Times', path: '/clans' }, { icon: Warehouse, label: 'Meu Avatar', path: '/mybox' },
     { icon: Building2, label: 'Boxes', path: '/boxes' },
     ...(user?.role === 'coach' || user?.role === 'admin' ? [{ icon: GraduationCap, label: 'Painel do Coach', path: '/coach' }] : []),
     ...(user?.role === 'admin' ? [{ icon: Shield, label: 'Administração', path: '/admin' }] : []),
