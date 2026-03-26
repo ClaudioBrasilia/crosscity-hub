@@ -131,7 +131,7 @@ const MyBox = () => {
                         )}
                       </div>
                       {equipped && (
-                        <span className="text-green-500 text-xs font-medium">Equipado</span>
+                        <span className="text-primary text-xs font-medium">Equipado</span>
                       )}
                     </div>
                   );
