@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { User, Shirt, Footprints, Crown, Watch, Sparkles, Star, Gem } from 'lucide-react';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
+import { buyAvatarItem, getActiveAvatarShopItems, getMyAvatarInventoryItemIds, type AvatarShopItem } from '@/lib/avatar-shop';
 import type { UserAvatarRow } from '@/lib/avatar';
 
 const EQUIPMENT_SLOTS = [
@@ -19,30 +21,48 @@ const EQUIPMENT_SLOTS = [
 const MyBox = () => {
   const [avatar, setAvatar] = useState<UserAvatarRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [shopLoading, setShopLoading] = useState(true);
+  const [shopItems, setShopItems] = useState<AvatarShopItem[]>([]);
+  const [inventoryItemIds, setInventoryItemIds] = useState<Set<string>>(new Set());
+  const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
+  const [shopMessage, setShopMessage] = useState<string | null>(null);
+
+  const avatarCoins = avatar?.avatar_coins ?? 0;
+
+  const reloadAvatar = async () => {
+    const ensured = await ensureMyAvatar();
+    if (ensured) {
+      setAvatar(ensured);
+      return;
+    }
+    const loaded = await getMyAvatar();
+    setAvatar(loaded);
+  };
+
+  const reloadShop = async () => {
+    const [items, inventory] = await Promise.all([
+      getActiveAvatarShopItems(),
+      getMyAvatarInventoryItemIds(),
+    ]);
+    setShopItems(items);
+    setInventoryItemIds(inventory);
+  };
 
   useEffect(() => {
     let mounted = true;
 
-    const loadAvatar = async () => {
+    const loadData = async () => {
       setLoading(true);
+      setShopLoading(true);
 
-      const ensured = await ensureMyAvatar();
+      await Promise.all([reloadAvatar(), reloadShop()]);
+
       if (!mounted) return;
-
-      if (ensured) {
-        setAvatar(ensured);
-        setLoading(false);
-        return;
-      }
-
-      const loaded = await getMyAvatar();
-      if (!mounted) return;
-
-      setAvatar(loaded);
       setLoading(false);
+      setShopLoading(false);
     };
 
-    loadAvatar();
+    loadData();
 
     return () => {
       mounted = false;
@@ -52,6 +72,24 @@ const MyBox = () => {
   const getSlotValue = (key: string): string | null => {
     if (!avatar) return null;
     return (avatar as any)[key] ?? null;
+  };
+
+  const sortedItems = useMemo(() => {
+    return [...shopItems].sort((a, b) => a.price_coins - b.price_coins);
+  }, [shopItems]);
+
+  const handleBuy = async (item: AvatarShopItem) => {
+    setShopMessage(null);
+    setBuyingItemId(item.id);
+
+    const result = await buyAvatarItem(item);
+    setShopMessage(result.message);
+
+    if (result.success) {
+      await Promise.all([reloadAvatar(), reloadShop()]);
+    }
+
+    setBuyingItemId(null);
   };
 
   return (
@@ -79,7 +117,7 @@ const MyBox = () => {
               { label: 'Nome', value: avatar?.display_name || 'Não definido', icon: '🏷️' },
               { label: 'Nível', value: avatar?.avatar_level ?? 1, icon: '⭐' },
               { label: 'XP', value: avatar?.avatar_xp ?? 0, icon: '✨' },
-              { label: 'Coins', value: avatar?.avatar_coins ?? 0, icon: '🪙' },
+              { label: 'Coins', value: avatarCoins, icon: '🪙' },
               { label: 'Check-ins Sem.', value: avatar?.weekly_checkins ?? 0, icon: '📅' },
               { label: 'Streak Sem.', value: avatar?.weekly_streak ?? 0, icon: '🔥' },
             ].map((stat) => (
@@ -137,6 +175,64 @@ const MyBox = () => {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Avatar Shop */}
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Gem className="h-5 w-5 text-primary" />
+                Loja do Avatar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Saldo atual: {avatarCoins} coins</p>
+                {shopMessage && <p className="text-sm text-primary font-medium">{shopMessage}</p>}
+              </div>
+
+              {shopLoading ? (
+                <p className="text-muted-foreground text-sm">Carregando loja...</p>
+              ) : sortedItems.length === 0 ? (
+                <p className="text-muted-foreground text-sm">Nenhum item ativo disponível no momento.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {sortedItems.map((item) => {
+                    const acquired = inventoryItemIds.has(item.id);
+                    const insufficientCoins = avatarCoins < item.price_coins;
+
+                    return (
+                      <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-muted/30">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-bold">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.category} • {item.rarity}</p>
+                          </div>
+                          <Badge variant="outline" className="text-xs font-bold">
+                            {item.price_coins} 🪙
+                          </Badge>
+                        </div>
+
+                        <div className="mt-auto pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            disabled={acquired || insufficientCoins || buyingItemId === item.id}
+                            onClick={() => handleBuy(item)}
+                          >
+                            {acquired ? 'Adquirido' : buyingItemId === item.id ? 'Comprando...' : 'Comprar'}
+                          </Button>
+                          {!acquired && insufficientCoins && (
+                            <p className="text-[10px] text-center text-muted-foreground mt-1">Saldo insuficiente</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

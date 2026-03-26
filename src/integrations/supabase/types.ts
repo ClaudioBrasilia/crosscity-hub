@@ -149,6 +149,36 @@ export type Database = {
         }
         Relationships: []
       }
+      avatar_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price_coins: number
+          rarity: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_coins?: number
+          rarity?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_coins?: number
+          rarity?: string
+        }
+        Relationships: []
+      }
       benchmark_history: {
         Row: {
           exercise_id: string
@@ -677,6 +707,29 @@ export type Database = {
         }
         Relationships: []
       }
+
+      user_avatar_items: {
+        Row: {
+          acquired_at: string
+          id: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          id?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          id?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+
       user_avatars: {
         Row: {
           avatar_coins: number
