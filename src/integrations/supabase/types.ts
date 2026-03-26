@@ -677,6 +677,75 @@ export type Database = {
         }
         Relationships: []
       }
+      user_avatars: {
+        Row: {
+          avatar_coins: number
+          avatar_level: number
+          avatar_xp: number
+          base_outfit: string
+          base_skin: string
+          created_at: string
+          display_name: string | null
+          equipped_accessory: string | null
+          equipped_bottom: string | null
+          equipped_head_accessory: string | null
+          equipped_shoes: string | null
+          equipped_special: string | null
+          equipped_top: string | null
+          equipped_wrist_accessory: string | null
+          id: string
+          last_checkin_at: string | null
+          updated_at: string
+          user_id: string
+          weekly_checkins: number
+          weekly_streak: number
+        }
+        Insert: {
+          avatar_coins?: number
+          avatar_level?: number
+          avatar_xp?: number
+          base_outfit?: string
+          base_skin?: string
+          created_at?: string
+          display_name?: string | null
+          equipped_accessory?: string | null
+          equipped_bottom?: string | null
+          equipped_head_accessory?: string | null
+          equipped_shoes?: string | null
+          equipped_special?: string | null
+          equipped_top?: string | null
+          equipped_wrist_accessory?: string | null
+          id?: string
+          last_checkin_at?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_checkins?: number
+          weekly_streak?: number
+        }
+        Update: {
+          avatar_coins?: number
+          avatar_level?: number
+          avatar_xp?: number
+          base_outfit?: string
+          base_skin?: string
+          created_at?: string
+          display_name?: string | null
+          equipped_accessory?: string | null
+          equipped_bottom?: string | null
+          equipped_head_accessory?: string | null
+          equipped_shoes?: string | null
+          equipped_special?: string | null
+          equipped_top?: string | null
+          equipped_wrist_accessory?: string | null
+          id?: string
+          last_checkin_at?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_checkins?: number
+          weekly_streak?: number
+        }
+        Relationships: []
+      }
       user_goals: {
         Row: {
           frequency: string | null
