@@ -149,6 +149,36 @@ export type Database = {
         }
         Relationships: []
       }
+      avatar_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price_coins: number
+          rarity: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_coins?: number
+          rarity?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_coins?: number
+          rarity?: string
+        }
+        Relationships: []
+      }
       benchmark_history: {
         Row: {
           exercise_id: string
@@ -677,6 +707,96 @@ export type Database = {
         }
         Relationships: []
       }
+      user_avatar_items: {
+        Row: {
+          acquired_at: string
+          id: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          id?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          id?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_avatars: {
+        Row: {
+          avatar_coins: number
+          avatar_level: number
+          avatar_xp: number
+          base_outfit: string
+          base_skin: string
+          created_at: string
+          display_name: string | null
+          equipped_accessory: string | null
+          equipped_bottom: string | null
+          equipped_head_accessory: string | null
+          equipped_shoes: string | null
+          equipped_special: string | null
+          equipped_top: string | null
+          equipped_wrist_accessory: string | null
+          id: string
+          last_checkin_at: string | null
+          updated_at: string
+          user_id: string
+          weekly_checkins: number
+          weekly_streak: number
+        }
+        Insert: {
+          avatar_coins?: number
+          avatar_level?: number
+          avatar_xp?: number
+          base_outfit?: string
+          base_skin?: string
+          created_at?: string
+          display_name?: string | null
+          equipped_accessory?: string | null
+          equipped_bottom?: string | null
+          equipped_head_accessory?: string | null
+          equipped_shoes?: string | null
+          equipped_special?: string | null
+          equipped_top?: string | null
+          equipped_wrist_accessory?: string | null
+          id?: string
+          last_checkin_at?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_checkins?: number
+          weekly_streak?: number
+        }
+        Update: {
+          avatar_coins?: number
+          avatar_level?: number
+          avatar_xp?: number
+          base_outfit?: string
+          base_skin?: string
+          created_at?: string
+          display_name?: string | null
+          equipped_accessory?: string | null
+          equipped_bottom?: string | null
+          equipped_head_accessory?: string | null
+          equipped_shoes?: string | null
+          equipped_special?: string | null
+          equipped_top?: string | null
+          equipped_wrist_accessory?: string | null
+          id?: string
+          last_checkin_at?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_checkins?: number
+          weekly_streak?: number
+        }
+        Relationships: []
+      }
       user_goals: {
         Row: {
           frequency: string | null
@@ -974,3 +1094,8 @@ export const Constants = {
     },
   },
 } as const
+
+// Avatar table convenience aliases
+export type UserAvatarRow = Tables<'user_avatars'>
+export type UserAvatarInsert = TablesInsert<'user_avatars'>
+export type UserAvatarUpdate = TablesUpdate<'user_avatars'>
