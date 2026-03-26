@@ -126,97 +126,96 @@ const Admin = () => {
         </Badge>
       </div>
 
-      {!loading && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo do Box</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            {[
-              { label: 'Total Membros', value: users.length, icon: '👥' },
-              { label: 'Atletas', value: athleteUsers.length, icon: '🏋️' },
-              { label: 'Admins', value: adminUsers.length, icon: '🛡️' },
-              { label: 'Aprovados', value: approvedUsers.length, icon: '✅' },
-              { label: 'Pendentes', value: pendingUsers.length, icon: '⏳' },
-              { label: 'Recusados', value: rejectedUsers.length, icon: '❌' },
-            ].map((m) => (
-              <Card key={m.label}>
-                <CardContent className="p-4 text-center">
-                  <span className="text-2xl">{m.icon}</span>
-                  <p className="text-2xl font-bold mt-1">{m.value}</p>
-                  <p className="text-xs text-muted-foreground">{m.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Gerenciar Usuários ({users.length})
-          </CardTitle>
+          <CardTitle>Resumo do Box</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{u.avatar || '👤'}</span>
-                    <div>
-                      <p className="font-medium">{u.name}</p>
-                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                    </div>
-                    <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
-                    <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
-                      {approvalLabel(u.approvalStatus)}
-                    </Badge>
-                  </div>
-
-                  {u.id !== user?.id && (
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={u.approvalStatus}
-                        onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pendente</SelectItem>
-                          <SelectItem value="approved">Aprovar</SelectItem>
-                          <SelectItem value="rejected">Rejeitar</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={u.role}
-                        onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="athlete">Atleta</SelectItem>
-                          <SelectItem value="coach">Professor</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
+          {!loading && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              {[
+                { label: 'Total Membros', value: users.length, icon: '👥' },
+                { label: 'Atletas', value: athleteUsers.length, icon: '🏋️' },
+                { label: 'Admins', value: adminUsers.length, icon: '🛡️' },
+                { label: 'Aprovados', value: approvedUsers.length, icon: '✅' },
+                { label: 'Pendentes', value: pendingUsers.length, icon: '⏳' },
+                { label: 'Recusados', value: rejectedUsers.length, icon: '❌' },
+              ].map((m) => (
+                <Card key={m.label}>
+                  <CardContent className="p-4 text-center">
+                    <span className="text-2xl">{m.icon}</span>
+                    <p className="text-2xl font-bold mt-1">{m.value}</p>
+                    <p className="text-xs text-muted-foreground">{m.label}</p>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
+
+          <div className="mt-6 border-t pt-6">
+            <CardTitle className="flex items-center gap-2 mb-4">
+              <Users className="h-5 w-5" />
+              Gerenciar Usuários ({users.length})
+            </CardTitle>
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{u.avatar || '👤'}</span>
+                      <div>
+                        <p className="font-medium">{u.name}</p>
+                        <p className="text-sm text-muted-foreground">{u.email}</p>
+                      </div>
+                      <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
+                      <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
+                        {approvalLabel(u.approvalStatus)}
+                      </Badge>
+                    </div>
+
+                    {u.id !== user?.id && (
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={u.approvalStatus}
+                          onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pendente</SelectItem>
+                            <SelectItem value="approved">Aprovar</SelectItem>
+                            <SelectItem value="rejected">Rejeitar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={u.role}
+                          onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="athlete">Atleta</SelectItem>
+                            <SelectItem value="coach">Professor</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
       <AdminCheckinHistory users={users} />
