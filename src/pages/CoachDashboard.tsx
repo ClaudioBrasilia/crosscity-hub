@@ -34,6 +34,18 @@ const createInitialWodData = (): WodFormData => ({
 });
 
 const formatDateInput = (date: Date) => date.toISOString().split('T')[0];
+const mapWodToFormData = (wod: db.WodData, date: string): WodFormData => ({
+  id: wod.id,
+  date,
+  title: wod.name,
+  type: wod.type,
+  warmup: wod.warmup || '',
+  skill: wod.skill || '',
+  description: wod.versions?.rx?.description || '',
+  rxWeights: wod.versions?.rx?.weight || '',
+  scaledWeights: wod.versions?.scaled?.weight || '',
+  beginnerWeights: wod.versions?.beginner?.weight || '',
+});
 
 const getDefaultChallengeDates = (type: 'weekly' | 'monthly') => {
   const today = new Date();
@@ -72,25 +84,36 @@ const CoachDashboard = () => {
     setChallenges(challs);
     setAthletes(users.filter(u => u.role === 'athlete'));
 
-    // Load existing WOD
-    const wod = await db.getLatestWod();
-    if (wod) {
-      setWodData({
-        id: wod.id,
-        date: wod.date,
-        title: wod.name,
-        type: wod.type,
-        warmup: wod.warmup || '',
-        skill: wod.skill || '',
-        description: wod.versions?.rx?.description || '',
-        rxWeights: wod.versions?.rx?.weight || '',
-        scaledWeights: wod.versions?.scaled?.weight || '',
-        beginnerWeights: wod.versions?.beginner?.weight || '',
-      });
-    }
+    // Load WOD for today (if any)
+    const today = formatDateInput(new Date());
+    const wod = await db.getDailyWod(today);
+    if (wod) setWodData(mapWodToFormData(wod, today));
   }, [getAllUsers]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const loadWodByDate = async () => {
+      if (!wodData.date) return;
+      const wod = await db.getDailyWod(wodData.date);
+      if (wod) {
+        setWodData(mapWodToFormData(wod, wodData.date));
+        return;
+      }
+      setWodData((prev) => ({
+        ...prev,
+        id: '',
+        title: '',
+        warmup: '',
+        skill: '',
+        description: '',
+        rxWeights: '',
+        scaledWeights: '',
+        beginnerWeights: '',
+      }));
+    };
+    loadWodByDate();
+  }, [wodData.date]);
 
   // Load progress for selected athlete
   useEffect(() => {

@@ -175,11 +175,12 @@ export async function getAllWods(): Promise<WodData[]> {
 }
 
 export async function saveWod(wod: WodData, createdBy?: string): Promise<void> {
+  const wodDate = wod.date || formatDateKey();
   const { error } = await supabase
     .from('wods')
     .upsert({
       id: wod.id,
-      date: wod.date,
+      date: wodDate,
       name: wod.name,
       type: wod.type,
       warmup: wod.warmup || null,

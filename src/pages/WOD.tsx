@@ -38,7 +38,7 @@ const WOD = () => {
   }, []);
 
   const loadData = useCallback(async () => {
-    const wod = await db.getLatestWod();
+    const wod = await db.getDailyWod();
     setDailyWod(wod);
     if (wod) {
       await fetchResults(wod.id);
