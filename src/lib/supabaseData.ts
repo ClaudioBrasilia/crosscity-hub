@@ -432,15 +432,52 @@ export async function getCompletedChallenges(userId: string): Promise<string[]> 
   return (data || []).map((r: any) => r.challenge_id);
 }
 
-export async function markChallengeComplete(userId: string, challengeId: string): Promise<void> {
+export async function markChallengeComplete(userId: string, challengeId: string): Promise<boolean> {
   const { error } = await supabase.from('challenge_completions').insert({
     user_id: userId,
     challenge_id: challengeId,
   } as any);
-  if (error && error.code !== '23505') { // ignore duplicate
-    console.error('Error marking challenge complete:', error);
-    throw new Error('Falha ao marcar desafio como completo.');
+  if (!error) {
+    return true;
   }
+
+  if (error.code === '23505') {
+    return false;
+  }
+
+  console.error('Error marking challenge complete:', error);
+  throw new Error('Falha ao marcar desafio como completo.');
+}
+
+export async function grantChallengeCompletionCoins(
+  userId: string,
+  challengeId: string,
+  coinsReward: number,
+): Promise<boolean> {
+  const reward = Math.max(0, Math.floor(coinsReward));
+  if (reward <= 0) return false;
+
+  const { error: ensureAvatarError } = await (supabase as any)
+    .from('user_avatars')
+    .upsert({ user_id: userId }, { onConflict: 'user_id' });
+  if (ensureAvatarError) {
+    console.error('Error ensuring user avatar before reward:', ensureAvatarError);
+    throw new Error('Falha ao preparar avatar para recompensa.');
+  }
+
+  const { data, error } = await (supabase as any).rpc('grant_avatar_reward', {
+    _user_id: userId,
+    _source_type: 'challenge_completion',
+    _source_ref: challengeId,
+    _coins_delta: reward,
+  });
+
+  if (error) {
+    console.error('Error granting challenge completion coins:', error);
+    throw new Error('Falha ao conceder moedas do desafio.');
+  }
+
+  return Boolean(data);
 }
 
 export async function getChallengeProofs(challengeId: string, userId: string): Promise<Array<{ url: string; step: number; uploadedAt: string }>> {

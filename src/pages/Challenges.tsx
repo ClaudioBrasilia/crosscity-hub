@@ -232,10 +232,24 @@ const Challenges = () => {
   const handleClaim = async (challenge: dbService.ChallengeData) => {
     if (!user) return;
     try {
-      await dbService.markChallengeComplete(user.id, challenge.id);
-      const newXp = (user.xp || 0) + challenge.xpReward;
-      await updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
-      toast({ title: `🎉 Desafio "${challenge.name}" concluído!`, description: `+${challenge.xpReward} XP.` });
+      const wasNewCompletion = await dbService.markChallengeComplete(user.id, challenge.id);
+      const grantedCoins = wasNewCompletion
+        ? await dbService.grantChallengeCompletionCoins(user.id, challenge.id, challenge.xpReward)
+        : false;
+
+      if (wasNewCompletion) {
+        const newXp = (user.xp || 0) + challenge.xpReward;
+        await updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1 });
+      }
+
+      toast({
+        title: `🎉 Desafio "${challenge.name}" concluído!`,
+        description: !wasNewCompletion
+          ? 'Recompensa já resgatada anteriormente.'
+          : grantedCoins
+          ? `+${challenge.xpReward} XP e +${challenge.xpReward} coins no avatar.`
+          : `+${challenge.xpReward} XP.`,
+      });
       setTick(t => t + 1);
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
