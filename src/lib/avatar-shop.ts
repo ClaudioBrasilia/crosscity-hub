@@ -55,58 +55,6 @@ export const resolveAvatarItemSlot = (item: Pick<AvatarShopItem, 'slot' | 'categ
   return CATEGORY_TO_SLOT[normalizedCategory] ?? null;
 };
 
-const RARITY_VISUAL_BY_SLOT: Record<EquippedSlotColumn, Record<string, string>> = {
-  equipped_top: {
-    common: 'camiseta_branca',
-    rare: 'regata_azul',
-    epic: 'camiseta_gradiente',
-    legendary: 'camiseta_gradiente',
-  },
-  equipped_bottom: {
-    common: 'shorts_preto',
-    rare: 'shorts_azul',
-    epic: 'calca_verde',
-    legendary: 'calca_verde',
-  },
-  equipped_shoes: {
-    common: 'tenis_branco',
-    rare: 'tenis_preto',
-    epic: 'tenis_vermelho',
-    legendary: 'tenis_vermelho',
-  },
-  equipped_accessory: {
-    common: 'faixa_preta',
-    rare: 'colar_prata',
-    epic: 'cinto_dourado',
-    legendary: 'cinto_dourado',
-  },
-  equipped_head_accessory: {
-    common: 'bone_preto',
-    rare: 'headband_vermelho',
-    epic: 'coroa_ouro',
-    legendary: 'coroa_ouro',
-  },
-  equipped_wrist_accessory: {
-    common: 'munhequeira_preta',
-    rare: 'relogio_prata',
-    epic: 'bracelete_ouro',
-    legendary: 'bracelete_ouro',
-  },
-  equipped_special: {
-    common: 'aura_gelo',
-    rare: 'aura_fogo',
-    epic: 'aura_ouro',
-    legendary: 'aura_ouro',
-  },
-};
-
-export const getAvatarItemEquipValue = (item: Pick<AvatarShopItem, 'id' | 'slot' | 'category' | 'rarity'>): string => {
-  const slot = resolveAvatarItemSlot(item);
-  if (!slot) return item.id;
-  const normalizedRarity = (item.rarity || 'common').trim().toLowerCase();
-  return RARITY_VISUAL_BY_SLOT[slot][normalizedRarity] ?? RARITY_VISUAL_BY_SLOT[slot].common;
-};
-
 interface UserAvatarItemRow {
   id: string;
   user_id: string;
@@ -253,7 +201,7 @@ export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: 
 
   const { error: equipError } = await (supabase as any)
     .from('user_avatars')
-    .update({ [targetSlot]: getAvatarItemEquipValue(item) })
+    .update({ [targetSlot]: item.id })
     .eq('user_id', user.id);
 
   if (equipError) {

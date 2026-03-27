@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Star, Gem } from 'lucide-react';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
-import { buyAvatarItem, equipAvatarItem, getActiveAvatarShopItems, getAvatarItemEquipValue, getMyAvatarInventoryItemIds, resolveAvatarItemSlot, type AvatarShopItem } from '@/lib/avatar-shop';
+import { buyAvatarItem, equipAvatarItem, getActiveAvatarShopItems, getMyAvatarInventoryItemIds, resolveAvatarItemSlot, type AvatarShopItem } from '@/lib/avatar-shop';
 import type { UserAvatarRow } from '@/lib/avatar';
 import AvatarRenderer from '@/components/avatar/AvatarRenderer';
 import AvatarSlotLegend from '@/components/avatar/AvatarSlotLegend';
@@ -208,8 +208,7 @@ const MyBox = () => {
                     const insufficientCoins = avatarCoins < item.price_coins;
                     const resolvedSlot = resolveAvatarItemSlot(item) as keyof UserAvatarRow | null;
                     const canEquip = !!(acquired && resolvedSlot);
-                    const equipValue = getAvatarItemEquipValue(item);
-                    const isEquipped = !!(canEquip && avatar && avatar[resolvedSlot] === equipValue);
+                    const isEquipped = !!(canEquip && avatar && avatar[resolvedSlot] === item.id);
                     const buttonLabel = acquired
                       ? isEquipped
                         ? 'Equipado'

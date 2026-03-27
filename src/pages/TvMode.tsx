@@ -33,6 +33,9 @@ type TvDuel = {
   challengerName?: string;
   challengedNames?: string;
   status?: string;
+  winnerName?: string;
+  winnerBudget?: number | null;
+  isFinished?: boolean;
 };
 
 const CLASS_SCHEDULE = [
@@ -56,6 +59,26 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
 const getTodayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const getCurrentWeekBounds = () => {
+  const now = new Date();
+  const start = new Date(now);
+  const day = start.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diffToMonday);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { startMs: start.getTime(), endMs: end.getTime() };
+};
+
+const isInCurrentWeek = (timestamp?: number | null) => {
+  if (!timestamp || Number.isNaN(timestamp)) return false;
+  const { startMs, endMs } = getCurrentWeekBounds();
+  return timestamp >= startMs && timestamp <= endMs;
 };
 
 const fetchDailyWod = async (): Promise<DailyWod | null> => {
@@ -135,15 +158,26 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
   try {
     const { data, error } = await supabase
       .from('app_duels')
-      .select('id, challenger_id, opponent_ids, status, wod_name')
-      .in('status', ['pending', 'active'])
-      .limit(8);
+      .select('id, challenger_id, opponent_ids, status, winner_id, bet_type, bet_xp_amount, bet_settled_at, bet_canceled_at, created_at')
+      .in('status', ['pending', 'active', 'finished'])
+      .order('created_at', { ascending: false })
+      .limit(20);
     if (error || !data || data.length === 0) return [];
 
+    const filteredDuels = data.filter((duel) => {
+      if (duel.status === 'pending' || duel.status === 'active') return true;
+      if (duel.status !== 'finished') return false;
+      const finishedAt = duel.bet_settled_at ?? duel.bet_canceled_at ?? duel.created_at;
+      return isInCurrentWeek(finishedAt);
+    }).slice(0, 8);
+
+    if (filteredDuels.length === 0) return [];
+
     const allUserIds = new Set<string>();
-    data.forEach((d) => {
+    filteredDuels.forEach((d) => {
       allUserIds.add(d.challenger_id);
       (d.opponent_ids || []).forEach((id: string) => allUserIds.add(id));
+      if (d.winner_id) allUserIds.add(d.winner_id);
     });
 
     const { data: profiles } = await supabase
@@ -152,7 +186,14 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
       .in('id', [...allUserIds]);
     const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
 
-    return data.map((duel) => ({
+    return filteredDuels.map((duel) => {
+      const participantsCount = 1 + (duel.opponent_ids?.length || 0);
+      const winnerBudget =
+        duel.winner_id && duel.bet_type === 'xp' && duel.bet_xp_amount
+          ? duel.bet_xp_amount * Math.max(participantsCount - 1, 1)
+          : null;
+
+      return {
       id: duel.id,
       challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
       challengedNames:
@@ -160,7 +201,11 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
           ? duel.opponent_ids.map((opponentId: string) => nameMap.get(opponentId) || 'Atleta').join(', ')
           : 'Atleta 2',
       status: duel.status || 'Ativo',
-    }));
+      winnerName: duel.winner_id ? nameMap.get(duel.winner_id) || 'Atleta' : undefined,
+      winnerBudget,
+      isFinished: duel.status === 'finished',
+    };
+    });
   } catch {
     return [];
   }
@@ -363,7 +408,7 @@ export default function TvMode() {
             </Panel>
 
             {/* Duels */}
-            <Panel title="Duelos" subtitle="Confrontos ativos" className="flex min-h-0 flex-shrink-0 max-h-[35%] flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
+            <Panel title="Duelos" subtitle="Confrontos da semana" className="flex min-h-0 flex-shrink-0 max-h-[35%] flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
               {duels.length ? (
                 <div className="space-y-2">
                   {duels.map((duel, index) => (
@@ -371,16 +416,24 @@ export default function TvMode() {
                       key={`${duel.id || index}`}
                       className="rounded-xl border border-white/10 bg-black/20 p-3"
                     >
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">Duelo ativo</p>
+                      <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
+                        {duel.isFinished ? 'Duelo encerrado' : 'Duelo ativo'}
+                      </p>
                       <p className="mt-1 text-base font-bold text-white">
                         {`${duel.challengerName || 'Atleta 1'} vs ${duel.challengedNames || 'Atleta 2'}`}
                       </p>
                       <p className="mt-1 text-xs text-white/50">Status: {duel.status || 'Ativo'}</p>
+                      {duel.winnerName ? (
+                        <p className="mt-1 text-xs text-emerald-300">Vencedor: {duel.winnerName}</p>
+                      ) : null}
+                      {duel.winnerBudget ? (
+                        <p className="text-xs text-white/65">Budget do vencedor: {duel.winnerBudget} XP</p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
               ) : (
-                <Empty text="Nenhum duelo ativo" />
+                <Empty text="Nenhum duelo nesta semana" />
               )}
             </Panel>
           </div>
