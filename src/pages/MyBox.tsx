@@ -69,8 +69,17 @@ const MyBox = () => {
   };
 
   const sortedItems = useMemo(() => {
-    return [...shopItems].sort((a, b) => a.price_coins - b.price_coins);
-  }, [shopItems]);
+    const weeklyCheckins = avatar?.weekly_checkins ?? 0;
+    const isUnlockedByProgress = (item: AvatarShopItem) => {
+      const rarity = (item.rarity || 'common').toLowerCase();
+      if (rarity === 'common') return true;
+      if (rarity === 'rare') return weeklyCheckins >= 3;
+      if (rarity === 'epic' || rarity === 'legendary') return weeklyCheckins >= 5;
+      return true;
+    };
+
+    return [...shopItems].filter(isUnlockedByProgress).sort((a, b) => a.price_coins - b.price_coins);
+  }, [shopItems, avatar?.weekly_checkins]);
 
   const handleBuy = async (item: AvatarShopItem) => {
     setShopMessage(null);
