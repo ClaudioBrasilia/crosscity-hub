@@ -100,7 +100,7 @@ const Dashboard = () => {
     const [checkins, xp, wod, goals, challs, completed, feed] = await Promise.all([
       db.getUserCheckins(user.id),
       db.getCurrentMonthXp(user.id),
-      db.getLatestWod(),
+      db.getDailyWod(),
       db.getUserGoals(user.id),
       db.getActiveChallenges(),
       db.getCompletedChallenges(user.id),
