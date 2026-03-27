@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Star, Gem } from 'lucide-react';
 import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
-import { buyAvatarItem, getActiveAvatarShopItems, getMyAvatarInventoryItemIds, type AvatarShopItem } from '@/lib/avatar-shop';
+import { buyAvatarItem, equipAvatarItem, getActiveAvatarShopItems, getAvatarItemEquipValue, getMyAvatarInventoryItemIds, resolveAvatarItemSlot, type AvatarShopItem } from '@/lib/avatar-shop';
 import type { UserAvatarRow } from '@/lib/avatar';
 import AvatarRenderer from '@/components/avatar/AvatarRenderer';
 import AvatarSlotLegend from '@/components/avatar/AvatarSlotLegend';
@@ -46,7 +46,10 @@ const MyBox = () => {
       setLoading(true);
       setShopLoading(true);
 
-      await Promise.all([reloadAvatar(), reloadShop()]);
+      // Keep bootstrap sequential to guarantee user_avatars exists
+      // before dependent avatar reads on first access.
+      await reloadAvatar();
+      await reloadShop();
 
       if (!mounted) return;
       setLoading(false);
@@ -66,8 +69,17 @@ const MyBox = () => {
   };
 
   const sortedItems = useMemo(() => {
-    return [...shopItems].sort((a, b) => a.price_coins - b.price_coins);
-  }, [shopItems]);
+    const weeklyCheckins = avatar?.weekly_checkins ?? 0;
+    const isUnlockedByProgress = (item: AvatarShopItem) => {
+      const rarity = (item.rarity || 'common').toLowerCase();
+      if (rarity === 'common') return true;
+      if (rarity === 'rare') return weeklyCheckins >= 3;
+      if (rarity === 'epic' || rarity === 'legendary') return weeklyCheckins >= 5;
+      return true;
+    };
+
+    return [...shopItems].filter(isUnlockedByProgress).sort((a, b) => a.price_coins - b.price_coins);
+  }, [shopItems, avatar?.weekly_checkins]);
 
   const handleBuy = async (item: AvatarShopItem) => {
     setShopMessage(null);
@@ -78,6 +90,20 @@ const MyBox = () => {
 
     if (result.success) {
       await Promise.all([reloadAvatar(), reloadShop()]);
+    }
+
+    setBuyingItemId(null);
+  };
+
+  const handleEquip = async (item: AvatarShopItem) => {
+    setShopMessage(null);
+    setBuyingItemId(item.id);
+
+    const result = await equipAvatarItem(item);
+    setShopMessage(result.message);
+
+    if (result.success) {
+      await reloadAvatar();
     }
 
     setBuyingItemId(null);
@@ -180,6 +206,21 @@ const MyBox = () => {
                   {sortedItems.map((item) => {
                     const acquired = inventoryItemIds.has(item.id);
                     const insufficientCoins = avatarCoins < item.price_coins;
+                    const resolvedSlot = resolveAvatarItemSlot(item) as keyof UserAvatarRow | null;
+                    const canEquip = !!(acquired && resolvedSlot);
+                    const equipValue = getAvatarItemEquipValue(item);
+                    const isEquipped = !!(canEquip && avatar && avatar[resolvedSlot] === equipValue);
+                    const buttonLabel = acquired
+                      ? isEquipped
+                        ? 'Equipado'
+                        : canEquip
+                          ? 'Equipar'
+                          : 'Adquirido'
+                      : buyingItemId === item.id
+                        ? 'Comprando...'
+                        : 'Comprar';
+                    const buttonDisabled = buyingItemId === item.id || (acquired && (isEquipped || !canEquip)) || (!acquired && insufficientCoins);
+                    const buttonAction = acquired ? () => handleEquip(item) : () => handleBuy(item);
 
                     return (
                       <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-muted/30">
@@ -198,10 +239,10 @@ const MyBox = () => {
                             type="button"
                             size="sm"
                             className="w-full"
-                            disabled={acquired || insufficientCoins || buyingItemId === item.id}
-                            onClick={() => handleBuy(item)}
+                            disabled={buttonDisabled}
+                            onClick={buttonAction}
                           >
-                            {acquired ? 'Adquirido' : buyingItemId === item.id ? 'Comprando...' : 'Comprar'}
+                            {buttonLabel}
                           </Button>
                           {!acquired && insufficientCoins && (
                             <p className="text-[10px] text-center text-muted-foreground mt-1">Saldo insuficiente</p>
