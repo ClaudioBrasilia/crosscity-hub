@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveChallenges } from '@/lib/supabaseData';
 import type { ChallengeData } from '@/lib/supabaseData';
@@ -34,7 +35,6 @@ type TvDuel = {
   challengedNames?: string;
   status?: string;
   winnerName?: string;
-  winnerBudget?: number | null;
   isFinished?: boolean;
 };
 
@@ -160,11 +160,13 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
       .from('app_duels')
       .select('id, challenger_id, opponent_ids, status, winner_id, bet_type, bet_xp_amount, bet_settled_at, bet_canceled_at, created_at')
       .in('status', ['pending', 'active', 'finished'])
+      .neq('status', 'canceled')
       .order('created_at', { ascending: false })
       .limit(20);
     if (error || !data || data.length === 0) return [];
 
     const filteredDuels = data.filter((duel) => {
+      if (duel.status === 'canceled') return false;
       if (duel.status === 'pending' || duel.status === 'active') return true;
       if (duel.status !== 'finished') return false;
       const finishedAt = duel.bet_settled_at ?? duel.bet_canceled_at ?? duel.created_at;
@@ -187,12 +189,6 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
     const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
 
     return filteredDuels.map((duel) => {
-      const participantsCount = 1 + (duel.opponent_ids?.length || 0);
-      const winnerBudget =
-        duel.winner_id && duel.bet_type === 'xp' && duel.bet_xp_amount
-          ? duel.bet_xp_amount * Math.max(participantsCount - 1, 1)
-          : null;
-
       return {
       id: duel.id,
       challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
@@ -202,7 +198,6 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
           : 'Atleta 2',
       status: duel.status || 'Ativo',
       winnerName: duel.winner_id ? nameMap.get(duel.winner_id) || 'Atleta' : undefined,
-      winnerBudget,
       isFinished: duel.status === 'finished',
     };
     });
@@ -424,10 +419,10 @@ export default function TvMode() {
                       </p>
                       <p className="mt-1 text-xs text-white/50">Status: {duel.status || 'Ativo'}</p>
                       {duel.winnerName ? (
-                        <p className="mt-1 text-xs text-emerald-300">Vencedor: {duel.winnerName}</p>
-                      ) : null}
-                      {duel.winnerBudget ? (
-                        <p className="text-xs text-white/65">Budget do vencedor: {duel.winnerBudget} XP</p>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-amber-300">
+                          <Trophy className="h-3.5 w-3.5" />
+                          Vencedor: {duel.winnerName}
+                        </p>
                       ) : null}
                     </div>
                   ))}
