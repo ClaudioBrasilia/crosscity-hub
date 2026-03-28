@@ -177,33 +177,52 @@ const Dashboard = () => {
     : [];
   const myPosition = myTodayResult ? todayRanking.findIndex(item => item.id === myTodayResult.id) + 1 : null;
 
-  const handleVerifyLocation = () => {
+  const handleVerifyLocation = useCallback(async () => {
     if (!activeLocation) { setLocationStatus('localização indisponível'); return; }
     if (!navigator.geolocation) { setLocationStatus('localização indisponível'); return; }
     setLocationStatus('verificando localização');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const distance = calculateDistanceMeters(activeLocation.latitude, activeLocation.longitude, latitude, longitude);
-        const inside = distance <= activeLocation.radius_meters;
-        setLocationCheck({ latitude, longitude });
-        setIsInsideAllowedArea(inside);
-        setLocationStatus(inside ? 'dentro da área permitida' : 'fora da área permitida');
-      },
-      (error) => {
-        setLocationStatus(error.code === error.PERMISSION_DENIED ? 'permissão negada' : 'localização indisponível');
-        setIsInsideAllowedArea(false);
-        setLocationCheck(null);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    );
-  };
+    return new Promise<{ latitude: number; longitude: number; inside: boolean; status: string } | { status: string }>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const distance = calculateDistanceMeters(activeLocation.latitude, activeLocation.longitude, latitude, longitude);
+          const inside = distance <= activeLocation.radius_meters;
+          setLocationCheck({ latitude, longitude });
+          setIsInsideAllowedArea(inside);
+          setLocationStatus(inside ? 'dentro da área permitida' : 'fora da área permitida');
+          resolve({ latitude, longitude, inside, status: inside ? 'dentro da área permitida' : 'fora da área permitida' });
+        },
+        (error) => {
+          const status = error.code === error.PERMISSION_DENIED ? 'permissão negada' : 'localização indisponível';
+          setLocationStatus(status);
+          setIsInsideAllowedArea(false);
+          setLocationCheck(null);
+          resolve({ status });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      );
+    });
+  }, [activeLocation]);
+
+  useEffect(() => {
+    if (!activeLocation) return;
+    handleVerifyLocation();
+  }, [activeLocation, handleVerifyLocation]);
 
   const [isSubmittingCheckin, setIsSubmittingCheckin] = useState(false);
 
   const handleCheckIn = async () => {
     if (!user || checkInBlocked || !activeLocation || !locationCheck || isSubmittingCheckin) return;
-    if (!isInsideAllowedArea) {
+    const latestLocationCheck = await handleVerifyLocation();
+    if (!('inside' in latestLocationCheck) || !latestLocationCheck.inside) {
+      if (latestLocationCheck.status === 'permissão negada') {
+        toast({
+          title: 'Permita sua localização',
+          description: 'Ative a permissão de localização no navegador para concluir o check-in.',
+          variant: 'destructive',
+        });
+        return;
+      }
       toast({ title: 'Check-in não autorizado', description: 'Você está fora da área permitida.', variant: 'destructive' });
       return;
     }
@@ -262,10 +281,12 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="mt-4 space-y-2">
-          <Button onClick={handleVerifyLocation} disabled={!activeLocation} size="lg" variant="outline" className="w-full sm:w-auto">
-            Verificar localização
-          </Button>
           {locationStatus && <p className="text-sm text-muted-foreground">Status: {locationStatus}</p>}
+          {locationStatus === 'permissão negada' && (
+            <p className="text-sm text-muted-foreground">
+              Permita o acesso à localização no navegador para habilitar o check-in.
+            </p>
+          )}
           <Button onClick={handleCheckIn} disabled={checkInBlocked || isSubmittingCheckin} size="lg" className="w-full sm:w-auto">
             <CalendarCheck className="h-4 w-4 mr-2" />
             {hasCheckedInToday ? 'Presença confirmada ✓' : `Fazer check-in (+${checkInXpReward} XP)`}

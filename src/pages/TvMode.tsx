@@ -46,9 +46,32 @@ const CLASS_SCHEDULE = [
   { start: '19:00', end: '20:00' },
 ];
 
+const GYM_TIMEZONE = 'America/Sao_Paulo';
+
+const getZonedDateParts = (date: Date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: GYM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour),
+    minute: Number(map.minute),
+  };
+};
+
 const getCurrentClass = (): { start: string; end: string } | undefined => {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const now = getZonedDateParts(new Date());
+  const currentMinutes = now.hour * 60 + now.minute;
   return CLASS_SCHEDULE.find((cls) => {
     const [startH, startM] = cls.start.split(':').map(Number);
     const [endH, endM] = cls.end.split(':').map(Number);
@@ -57,8 +80,8 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
 };
 
 const getTodayISO = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const d = getZonedDateParts(new Date());
+  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 };
 
 const getCurrentWeekBounds = () => {
@@ -131,7 +154,8 @@ const fetchTvCheckins = async (): Promise<TvCheckin[]> => {
       if (!item.created_at) return false;
       const d = new Date(item.created_at);
       if (Number.isNaN(d.getTime())) return false;
-      const checkinMin = d.getHours() * 60 + d.getMinutes();
+      const zoned = getZonedDateParts(d);
+      const checkinMin = zoned.hour * 60 + zoned.minute;
       return checkinMin >= classStartMin && checkinMin < classEndMin;
     });
 
