@@ -4,68 +4,44 @@ import { ensureMyAvatar, getMyAvatar } from '@/lib/avatar';
 export interface AvatarShopItem {
   id: string;
   name: string;
-  category: string;
-  rarity: string;
-  slot: string | null;
+  type: 'hair' | 'top' | 'bottom' | 'shoes' | 'accessory' | string;
   price_coins: number;
   is_active: boolean;
   created_at: string;
-  image_url: string | null;
+  image_url: string;
 }
 
-const EQUIPPED_SLOT_COLUMNS = [
-  'equipped_top',
-  'equipped_bottom',
-  'equipped_shoes',
-  'equipped_accessory',
-  'equipped_head_accessory',
-  'equipped_wrist_accessory',
-  'equipped_special',
-] as const;
+export const AVATAR_SLOTS = ['hair', 'top', 'bottom', 'shoes', 'accessory'] as const;
+export type AvatarSlot = (typeof AVATAR_SLOTS)[number];
+type EquippedSlotColumn =
+  | 'equipped_hair'
+  | 'equipped_top'
+  | 'equipped_bottom'
+  | 'equipped_shoes'
+  | 'equipped_accessory';
 
-type EquippedSlotColumn = (typeof EQUIPPED_SLOT_COLUMNS)[number];
-
-const isEquippedSlotColumn = (value: string | null): value is EquippedSlotColumn =>
-  !!value && EQUIPPED_SLOT_COLUMNS.includes(value as EquippedSlotColumn);
-
-const CATEGORY_TO_SLOT: Record<string, EquippedSlotColumn> = {
+const SLOT_TO_COLUMN: Record<AvatarSlot, EquippedSlotColumn> = {
+  hair: 'equipped_hair',
   top: 'equipped_top',
-  upper: 'equipped_top',
-  shirt: 'equipped_top',
-  camiseta: 'equipped_top',
-  regata: 'equipped_top',
   bottom: 'equipped_bottom',
-  lower: 'equipped_bottom',
-  shorts: 'equipped_bottom',
-  calca: 'equipped_bottom',
   shoes: 'equipped_shoes',
-  footwear: 'equipped_shoes',
-  tenis: 'equipped_shoes',
   accessory: 'equipped_accessory',
-  head: 'equipped_head_accessory',
-  head_accessory: 'equipped_head_accessory',
-  wrist: 'equipped_wrist_accessory',
-  wrist_accessory: 'equipped_wrist_accessory',
-  special: 'equipped_special',
 };
 
-export const resolveAvatarItemSlot = (item: Pick<AvatarShopItem, 'slot' | 'category'>): EquippedSlotColumn | null => {
-  if (isEquippedSlotColumn(item.slot)) return item.slot;
-  const normalizedCategory = (item.category || '').trim().toLowerCase();
-  return CATEGORY_TO_SLOT[normalizedCategory] ?? null;
-};
+const SLOT_SET = new Set<string>(AVATAR_SLOTS);
+const isAvatarSlot = (value: string | null | undefined): value is AvatarSlot => !!value && SLOT_SET.has(value);
 
 interface UserAvatarItemRow {
   id: string;
   user_id: string;
   item_id: string;
-  acquired_at: string;
+  created_at: string;
 }
 
 export async function getActiveAvatarShopItems(): Promise<AvatarShopItem[]> {
   const { data, error } = await (supabase as any)
     .from('avatar_items')
-    .select('*')
+    .select('id,name,type,image_url,price_coins,is_active,created_at')
     .eq('is_active', true)
     .order('price_coins', { ascending: true });
 
@@ -77,33 +53,38 @@ export async function getActiveAvatarShopItems(): Promise<AvatarShopItem[]> {
   return (data || []) as AvatarShopItem[];
 }
 
-export async function getMyAvatarInventoryItemIds(): Promise<Set<string>> {
+export async function getMyAvatarInventory(): Promise<AvatarShopItem[]> {
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) return new Set<string>();
+  if (userError || !user) return [];
 
   const { data, error } = await (supabase as any)
     .from('user_avatar_items')
-    .select('*')
-    .eq('user_id', user.id);
+    .select('avatar_items(id,name,type,image_url,price_coins,is_active,created_at)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error loading avatar inventory:', error);
-    return new Set<string>();
+    return [];
   }
 
-  const ids = new Set<string>();
-  ((data || []) as UserAvatarItemRow[]).forEach((entry) => {
-    if (entry.item_id) ids.add(entry.item_id);
-  });
+  return ((data || []) as any[])
+    .map((entry) => entry.avatar_items as AvatarShopItem | null)
+    .filter((item): item is AvatarShopItem => !!item);
+}
 
+export async function getMyAvatarInventoryItemIds(): Promise<Set<string>> {
+  const rows = await getMyAvatarInventory();
+  const ids = new Set<string>();
+  rows.forEach((row) => ids.add(row.id));
   return ids;
 }
 
-export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: boolean; message: string }> {
+export async function buyAvatarItem(itemId: string): Promise<{ success: boolean; message: string }> {
   const {
     data: { user },
     error: userError,
@@ -115,8 +96,20 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
 
   await ensureMyAvatar();
 
+  const { data: item, error: itemError } = await (supabase as any)
+    .from('avatar_items')
+    .select('id,name,type,image_url,price_coins,is_active,created_at')
+    .eq('id', itemId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (itemError || !item) {
+    if (itemError) console.error('Error loading item before buy:', itemError);
+    return { success: false, message: 'Item indisponível na loja.' };
+  }
+
   const inventory = await getMyAvatarInventoryItemIds();
-  if (inventory.has(item.id)) {
+  if (inventory.has(itemId)) {
     return { success: false, message: 'Você já possui este item.' };
   }
 
@@ -126,15 +119,15 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   }
   const currentCoins = avatar.avatar_coins ?? 0;
 
-  if (currentCoins < item.price_coins) {
+  if (currentCoins < (item as AvatarShopItem).price_coins) {
     return { success: false, message: 'Saldo insuficiente.' };
   }
 
   const { data: debitData, error: debitError } = await (supabase as any)
     .from('user_avatars')
-    .update({ avatar_coins: currentCoins - item.price_coins })
+    .update({ avatar_coins: currentCoins - (item as AvatarShopItem).price_coins })
     .eq('user_id', user.id)
-    .gte('avatar_coins', item.price_coins)
+    .gte('avatar_coins', (item as AvatarShopItem).price_coins)
     .select('avatar_coins')
     .maybeSingle();
 
@@ -145,7 +138,7 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
 
   const { error: insertError } = await (supabase as any).from('user_avatar_items').insert({
     user_id: user.id,
-    item_id: item.id,
+    item_id: itemId,
   });
 
   if (insertError) {
@@ -166,7 +159,7 @@ export async function buyAvatarItem(item: AvatarShopItem): Promise<{ success: bo
   return { success: true, message: 'Item comprado com sucesso!' };
 }
 
-export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: boolean; message: string }> {
+export async function equipAvatarItem(slot: AvatarSlot, itemId: string): Promise<{ success: boolean; message: string }> {
   const {
     data: { user },
     error: userError,
@@ -176,18 +169,36 @@ export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: 
     return { success: false, message: 'Usuário não autenticado.' };
   }
 
-  const targetSlot = resolveAvatarItemSlot(item);
-  if (!targetSlot) {
-    return { success: false, message: 'Item sem slot de equipamento válido.' };
+  if (!isAvatarSlot(slot)) {
+    return { success: false, message: 'Slot inválido.' };
   }
 
   await ensureMyAvatar();
+
+  const { data: item, error: itemError } = await (supabase as any)
+    .from('avatar_items')
+    .select('id,type,is_active')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  if (itemError || !item) {
+    if (itemError) console.error('Error loading item before equip:', itemError);
+    return { success: false, message: 'Item não encontrado.' };
+  }
+
+  if (!item.is_active) {
+    return { success: false, message: 'Item inativo não pode ser equipado.' };
+  }
+
+  if (!isAvatarSlot(item.type) || item.type !== slot) {
+    return { success: false, message: 'Item não pertence ao slot selecionado.' };
+  }
 
   const { data: ownedItem, error: ownershipError } = await (supabase as any)
     .from('user_avatar_items')
     .select('id')
     .eq('user_id', user.id)
-    .eq('item_id', item.id)
+    .eq('item_id', itemId)
     .maybeSingle();
 
   if (ownershipError) {
@@ -199,9 +210,10 @@ export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: 
     return { success: false, message: 'Você precisa comprar este item antes de equipar.' };
   }
 
+  const targetSlot = SLOT_TO_COLUMN[slot];
   const { error: equipError } = await (supabase as any)
     .from('user_avatars')
-    .update({ [targetSlot]: item.id })
+    .update({ [targetSlot]: itemId })
     .eq('user_id', user.id);
 
   if (equipError) {
@@ -210,4 +222,34 @@ export async function equipAvatarItem(item: AvatarShopItem): Promise<{ success: 
   }
 
   return { success: true, message: 'Item equipado com sucesso!' };
+}
+
+export async function unequipAvatarItem(slot: AvatarSlot): Promise<{ success: boolean; message: string }> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { success: false, message: 'Usuário não autenticado.' };
+  }
+
+  if (!isAvatarSlot(slot)) {
+    return { success: false, message: 'Slot inválido.' };
+  }
+
+  await ensureMyAvatar();
+  const targetSlot = SLOT_TO_COLUMN[slot];
+
+  const { error } = await (supabase as any)
+    .from('user_avatars')
+    .update({ [targetSlot]: null })
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error unequipping avatar item:', error);
+    return { success: false, message: 'Não foi possível desequipar o item.' };
+  }
+
+  return { success: true, message: 'Item desequipado com sucesso!' };
 }

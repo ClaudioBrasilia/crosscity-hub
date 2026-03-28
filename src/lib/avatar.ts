@@ -10,6 +10,7 @@ export interface UserAvatarRow {
   weekly_checkins: number;
   weekly_streak: number;
   base_outfit: string | null;
+  equipped_hair: string | null;
   equipped_top: string | null;
   equipped_bottom: string | null;
   equipped_shoes: string | null;
