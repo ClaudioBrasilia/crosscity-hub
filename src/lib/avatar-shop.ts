@@ -31,13 +31,6 @@ const SLOT_TO_COLUMN: Record<AvatarSlot, EquippedSlotColumn> = {
 const SLOT_SET = new Set<string>(AVATAR_SLOTS);
 const isAvatarSlot = (value: string | null | undefined): value is AvatarSlot => !!value && SLOT_SET.has(value);
 
-interface UserAvatarItemRow {
-  id: string;
-  user_id: string;
-  item_id: string;
-  created_at: string;
-}
-
 export async function getActiveAvatarShopItems(): Promise<AvatarShopItem[]> {
   const { data, error } = await (supabase as any)
     .from('avatar_items')
@@ -159,7 +152,7 @@ export async function buyAvatarItem(itemId: string): Promise<{ success: boolean;
   return { success: true, message: 'Item comprado com sucesso!' };
 }
 
-export async function equipAvatarItem(slot: AvatarSlot, itemId: string): Promise<{ success: boolean; message: string }> {
+export async function equipAvatarItem(itemId: string): Promise<{ success: boolean; message: string }> {
   const {
     data: { user },
     error: userError,
@@ -167,10 +160,6 @@ export async function equipAvatarItem(slot: AvatarSlot, itemId: string): Promise
 
   if (userError || !user) {
     return { success: false, message: 'Usuário não autenticado.' };
-  }
-
-  if (!isAvatarSlot(slot)) {
-    return { success: false, message: 'Slot inválido.' };
   }
 
   await ensureMyAvatar();
@@ -190,8 +179,8 @@ export async function equipAvatarItem(slot: AvatarSlot, itemId: string): Promise
     return { success: false, message: 'Item inativo não pode ser equipado.' };
   }
 
-  if (!isAvatarSlot(item.type) || item.type !== slot) {
-    return { success: false, message: 'Item não pertence ao slot selecionado.' };
+  if (!isAvatarSlot(item.type)) {
+    return { success: false, message: 'Item não pertence a um slot equipável.' };
   }
 
   const { data: ownedItem, error: ownershipError } = await (supabase as any)
@@ -210,7 +199,7 @@ export async function equipAvatarItem(slot: AvatarSlot, itemId: string): Promise
     return { success: false, message: 'Você precisa comprar este item antes de equipar.' };
   }
 
-  const targetSlot = SLOT_TO_COLUMN[slot];
+  const targetSlot = SLOT_TO_COLUMN[item.type];
   const { error: equipError } = await (supabase as any)
     .from('user_avatars')
     .update({ [targetSlot]: itemId })

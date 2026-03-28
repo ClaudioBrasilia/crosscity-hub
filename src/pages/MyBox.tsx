@@ -106,11 +106,11 @@ const MyBox = () => {
     setBuyingItemId(null);
   };
 
-  const handleEquip = async (slot: AvatarSlot, itemId: string) => {
+  const handleEquip = async (itemId: string) => {
     setShopMessage(null);
     setBuyingItemId(itemId);
 
-    const result = await equipAvatarItem(slot, itemId);
+    const result = await equipAvatarItem(itemId);
     setShopMessage(result.message);
 
     if (result.success) {
@@ -254,7 +254,7 @@ const MyBox = () => {
                                   <p className="text-sm font-semibold">{item.name}</p>
                                   {isEquipped && <Badge variant="secondary">Equipado</Badge>}
                                 </div>
-                                <Button type="button" size="sm" className="mt-2 w-full" disabled={isEquipped || buyingItemId === item.id} onClick={() => handleEquip(slot, item.id)}>
+                                <Button type="button" size="sm" className="mt-2 w-full" disabled={isEquipped || buyingItemId === item.id} onClick={() => handleEquip(item.id)}>
                                   {buyingItemId === item.id ? 'Salvando...' : 'Equipar'}
                                 </Button>
                               </div>
@@ -306,10 +306,18 @@ const MyBox = () => {
                         ? 'Comprando...'
                         : 'Comprar';
                     const buttonDisabled = buyingItemId === item.id || (acquired && (isEquipped || !canEquip)) || (!acquired && insufficientCoins);
-                    const buttonAction = acquired && isSlot ? () => handleEquip(item.type as AvatarSlot, item.id) : () => handleBuy(item.id);
+                    const buttonAction = acquired && isSlot ? () => handleEquip(item.id) : () => handleBuy(item.id);
 
                     return (
                       <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-muted/30">
+                        <div className="aspect-square w-full overflow-hidden rounded-md border border-border/70 bg-background">
+                          <img
+                            src={item.image_url || '/placeholder.svg'}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm font-bold">{item.name}</p>
