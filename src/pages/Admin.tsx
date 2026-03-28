@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
 import { getAvatarEconomySettings, updateAvatarEconomySettings, type AvatarEconomySettings } from '@/lib/avatar-economy';
+import { type TvLayoutModel } from '@/lib/tv-layout';
 
 interface UserItem {
   id: string;
@@ -352,7 +353,13 @@ const BoxSettingsSection = () => {
   const [location, setLocation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', radius_meters: 100, latitude: 0, longitude: 0 });
+  const [form, setForm] = useState({
+    name: '',
+    radius_meters: 100,
+    latitude: 0,
+    longitude: 0,
+    tv_layout_model: 'old' as TvLayoutModel,
+  });
 
   useEffect(() => {
     supabase
@@ -364,7 +371,13 @@ const BoxSettingsSection = () => {
         if (data && data.length > 0) {
           const loc = data[0];
           setLocation(loc);
-          setForm({ name: loc.name, radius_meters: loc.radius_meters, latitude: loc.latitude, longitude: loc.longitude });
+          setForm({
+            name: loc.name,
+            radius_meters: loc.radius_meters,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            tv_layout_model: loc.tv_layout_model === 'new' ? 'new' : 'old',
+          });
         }
         setLoading(false);
       });
@@ -374,7 +387,13 @@ const BoxSettingsSection = () => {
     if (!location) return;
     const { error } = await supabase
       .from('training_locations')
-      .update({ name: form.name, radius_meters: form.radius_meters, latitude: form.latitude, longitude: form.longitude })
+      .update({
+        name: form.name,
+        radius_meters: form.radius_meters,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        tv_layout_model: form.tv_layout_model,
+      })
       .eq('id', location.id);
     if (error) {
       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
@@ -420,6 +439,21 @@ const BoxSettingsSection = () => {
               <label className="text-sm font-medium">Raio permitido (metros)</label>
               <Input type="number" value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: parseInt(e.target.value) || 100 })} />
             </div>
+            <div>
+              <label className="text-sm font-medium">Modelo TV</label>
+              <Select
+                value={form.tv_layout_model}
+                onValueChange={(value: TvLayoutModel) => setForm({ ...form, tv_layout_model: value })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="old">Antigo</SelectItem>
+                  <SelectItem value="new">Novo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex gap-2">
               <Button onClick={handleSave}>Salvar</Button>
               <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
@@ -436,6 +470,9 @@ const BoxSettingsSection = () => {
             </p>
             <p className="text-sm text-muted-foreground">
               Raio de check-in: {location.radius_meters}m
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Modelo TV: {location.tv_layout_model === 'new' ? 'Novo' : 'Antigo'}
             </p>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
           </div>

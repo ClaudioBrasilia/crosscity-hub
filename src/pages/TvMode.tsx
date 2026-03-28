@@ -1,42 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveChallenges } from '@/lib/supabaseData';
 import type { ChallengeData } from '@/lib/supabaseData';
-
-type WodVersion = {
-  description: string;
-  weight?: string;
-};
-
-type DailyWod = {
-  id: string;
-  date: string;
-  name: string;
-  type: 'For Time' | 'AMRAP' | 'EMOM' | 'Chipper' | 'Hero WOD';
-  warmup?: string;
-  skill?: string;
-  versions: {
-    rx: WodVersion;
-    scaled: WodVersion;
-    beginner: WodVersion;
-  };
-};
-
-type TvCheckin = {
-  id?: string;
-  name?: string;
-  time?: string;
-};
-
-type TvDuel = {
-  id?: string;
-  challengerName?: string;
-  challengedNames?: string;
-  status?: string;
-  winnerName?: string;
-  isFinished?: boolean;
-};
+import TvLayoutOld from '@/components/tv/TvLayoutOld';
+import TvLayoutNew from '@/components/tv/TvLayoutNew';
+import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
+import { getTvLayoutModel, type TvLayoutModel } from '@/lib/tv-layout';
 
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
@@ -47,6 +16,8 @@ const CLASS_SCHEDULE = [
 ];
 
 const GYM_TIMEZONE = 'America/Sao_Paulo';
+const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
+type TabKey = typeof TABS[number];
 
 const getZonedDateParts = (date: Date) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -164,13 +135,15 @@ const fetchTvCheckins = async (): Promise<TvCheckin[]> => {
     const userIds = [...new Set(filtered.map((c) => c.user_id))];
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name')
+      .select('id, name, avatar, avatar_url')
       .in('id', userIds);
-    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
 
     return filtered.slice(0, 12).map((item) => ({
       id: item.user_id,
-      name: nameMap.get(item.user_id) || 'Atleta',
+      name: profileMap.get(item.user_id)?.name || 'Atleta',
+      avatar: profileMap.get(item.user_id)?.avatar || '👤',
+      avatarUrl: profileMap.get(item.user_id)?.avatar_url || undefined,
       time: item.created_at || '',
     }));
   } catch {
@@ -182,7 +155,7 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
   try {
     const { data, error } = await supabase
       .from('app_duels')
-      .select('id, challenger_id, opponent_ids, status, winner_id, bet_type, bet_xp_amount, bet_settled_at, bet_canceled_at, created_at')
+      .select('id, challenger_id, opponent_ids, status, winner_id, bet_settled_at, bet_canceled_at, created_at')
       .in('status', ['pending', 'active', 'finished'])
       .neq('status', 'canceled')
       .order('created_at', { ascending: false })
@@ -212,8 +185,7 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
       .in('id', [...allUserIds]);
     const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
 
-    return filteredDuels.map((duel) => {
-      return {
+    return filteredDuels.map((duel) => ({
       id: duel.id,
       challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
       challengedNames:
@@ -223,59 +195,70 @@ const fetchTvDuels = async (): Promise<TvDuel[]> => {
       status: duel.status || 'Ativo',
       winnerName: duel.winner_id ? nameMap.get(duel.winner_id) || 'Atleta' : undefined,
       isFinished: duel.status === 'finished',
-    };
-    });
+    }));
   } catch {
     return [];
   }
 };
 
-const Panel = ({
-  title,
-  subtitle,
-  children,
-  className = '',
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  className?: string;
-}) => (
-  <section className={`rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm ${className}`}>
-    <div className="border-b border-white/10 px-5 py-3">
-      <h2 className="text-xl font-bold text-white">{title}</h2>
-      {subtitle ? <p className="mt-0.5 text-xs text-white/50">{subtitle}</p> : null}
-    </div>
-    <div className="p-5">{children}</div>
-  </section>
-);
+const fetchMonthlyXpRanking = async (): Promise<TvMonthlyXp[]> => {
+  try {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data, error } = await supabase
+      .from('monthly_xp')
+      .select('user_id, xp')
+      .eq('month_key', monthKey)
+      .order('xp', { ascending: false })
+      .limit(10);
 
-const Empty = ({ text }: { text: string }) => (
-  <div className="flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-black/20 px-4 text-center text-base text-white/45">
-    {text}
-  </div>
-);
+    if (error || !data || data.length === 0) return [];
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, avatar, avatar_url')
+      .in('id', data.map((item) => item.user_id));
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+    return data.map((item) => ({
+      userId: item.user_id,
+      name: profileMap.get(item.user_id)?.name || 'Atleta',
+      avatar: profileMap.get(item.user_id)?.avatar || '👤',
+      avatarUrl: profileMap.get(item.user_id)?.avatar_url || undefined,
+      xp: item.xp || 0,
+    }));
+  } catch {
+    return [];
+  }
+};
 
 export default function TvMode() {
   const [dailyWod, setDailyWod] = useState<DailyWod | null>(null);
   const [checkins, setCheckins] = useState<TvCheckin[]>([]);
   const [duels, setDuels] = useState<TvDuel[]>([]);
+  const [monthlyXpRanking, setMonthlyXpRanking] = useState<TvMonthlyXp[]>([]);
   const [, setActiveChallenges] = useState<ChallengeData[]>([]);
   const [now, setNow] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<TabKey>('WOD');
+  const [layoutModel, setLayoutModel] = useState<TvLayoutModel>('old');
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [wod, ci, du, activeChallenges] = await Promise.all([
+        const [wod, ci, du, activeChallenges, ranking, model] = await Promise.all([
           fetchDailyWod(),
           fetchTvCheckins(),
           fetchTvDuels(),
           getActiveChallenges(),
+          fetchMonthlyXpRanking(),
+          getTvLayoutModel(),
         ]);
         setDailyWod(wod);
         setCheckins(ci);
         setDuels(du);
         setActiveChallenges(activeChallenges);
+        setMonthlyXpRanking(ranking);
+        setLayoutModel(model);
       } catch {
         // silently ignore network errors to keep TV stable
       }
@@ -305,159 +288,55 @@ export default function TvMode() {
     [now]
   );
 
-  const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
-  type TabKey = typeof TABS[number];
-  const [activeTab, setActiveTab] = useState<TabKey>('WOD');
-
-
   const currentClass = getCurrentClass();
   const classLabel = currentClass
     ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
     : 'Sem aula no momento';
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'Warm-up':
-        return dailyWod?.warmup ? (
-          <div className="whitespace-pre-line text-3xl leading-relaxed text-white/90">
-            {dailyWod.warmup}
-          </div>
-        ) : (
-          <Empty text="Warm-up não definido" />
-        );
-      case 'Skill':
-        return dailyWod?.skill ? (
-          <div className="whitespace-pre-line text-3xl leading-relaxed text-white/90">
-            {dailyWod.skill}
-          </div>
-        ) : (
-          <Empty text="Skill não definido" />
-        );
-      case 'WOD':
-        return dailyWod?.versions?.rx?.description ? (
-          <div className="space-y-5">
-            <div className="rounded-2xl bg-gradient-to-r from-red-500/15 to-orange-400/10 p-6">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-red-300">RX</p>
-              <div className="whitespace-pre-line text-3xl font-semibold leading-relaxed text-white">
-                {dailyWod.versions.rx.description}
-              </div>
-            </div>
-            {dailyWod.versions.rx.weight ? (
-              <div className="rounded-xl border border-white/10 bg-black/20 px-5 py-4">
-                <p className="text-sm uppercase tracking-[0.25em] text-white/40">Carga sugerida</p>
-                <p className="mt-1 text-2xl font-bold text-white/90">{dailyWod.versions.rx.weight}</p>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <Empty text="WOD não cadastrado" />
-        );
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+      return;
     }
+    document.exitFullscreen?.();
   };
 
+  const goTab = (direction: -1 | 1) => {
+    const currentIndex = TABS.indexOf(activeTab);
+    const nextIndex = (currentIndex + direction + TABS.length) % TABS.length;
+    setActiveTab(TABS[nextIndex]);
+  };
+
+  if (layoutModel === 'new') {
+    return (
+      <TvLayoutNew
+        dailyWod={dailyWod}
+        checkins={checkins}
+        duels={duels}
+        monthlyXpRanking={monthlyXpRanking}
+        dateLabel={dateLabel}
+        timeLabel={timeLabel}
+        classLabel={classLabel}
+        activeTab={activeTab}
+        onPrevTab={() => goTab(-1)}
+        onNextTab={() => goTab(1)}
+        onToggleFullscreen={toggleFullscreen}
+      />
+    );
+  }
+
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.20),transparent_28%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.14),transparent_24%),linear-gradient(180deg,#0b0b10_0%,#111827_100%)]" />
-
-      <div className="relative z-10 flex h-full flex-col p-4">
-        <header className="mb-4 flex flex-shrink-0 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-6 py-3 backdrop-blur-md">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-red-400">BOX LINK</p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight">WOD DO DIA</h1>
-            <p className="mt-1 text-sm text-white/60">{dateLabel}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-4xl font-black tabular-nums">{timeLabel}</div>
-            <p className="mt-1 text-sm text-white/50">{classLabel}</p>
-          </div>
-        </header>
-
-        <main className="grid min-h-0 flex-1 grid-cols-12 gap-4">
-          {/* Left: tabbed content */}
-          <div className="col-span-8 flex min-h-0 flex-col rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm">
-            {/* Tab bar */}
-            <div className="flex flex-shrink-0 border-b border-white/10">
-              {TABS.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-4 text-center text-lg font-bold uppercase tracking-widest transition-colors ${
-                    activeTab === tab
-                      ? 'border-b-2 border-red-400 text-white'
-                      : 'text-white/40 hover:text-white/70'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            {/* Tab content */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">
-              {renderTabContent()}
-            </div>
-          </div>
-
-          {/* Right column: Check-ins + Duels, each with independent scroll */}
-          <div className="col-span-4 flex min-h-0 flex-col gap-4">
-            {/* Check-ins */}
-            <Panel title="Check-ins" subtitle={currentClass ? `${currentClass.start} – ${currentClass.end}` : 'Sem aula'} className="flex min-h-0 flex-1 flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
-              {checkins.length ? (
-                <div className="space-y-2">
-                  {checkins.map((athlete, index) => (
-                    <div
-                      key={`${athlete.id || athlete.name}-${index}`}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-red-500/80 to-orange-400/80 text-sm font-bold text-white">
-                          {(athlete.name || 'A').charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-base font-semibold text-white">{athlete.name || 'Atleta'}</p>
-                          <p className="text-xs text-white/45">Presente</p>
-                        </div>
-                      </div>
-                      <div className="text-xs font-medium text-emerald-300">✓</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Empty text="Nenhum check-in nesta aula" />
-              )}
-            </Panel>
-
-            {/* Duels */}
-            <Panel title="Duelos" subtitle="Confrontos da semana" className="flex min-h-0 flex-shrink-0 max-h-[35%] flex-col [&>div:last-child]:min-h-0 [&>div:last-child]:flex-1 [&>div:last-child]:overflow-y-auto">
-              {duels.length ? (
-                <div className="space-y-2">
-                  {duels.map((duel, index) => (
-                    <div
-                      key={`${duel.id || index}`}
-                      className="rounded-xl border border-white/10 bg-black/20 p-3"
-                    >
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                        {duel.isFinished ? 'Duelo encerrado' : 'Duelo ativo'}
-                      </p>
-                      <p className="mt-1 text-base font-bold text-white">
-                        {`${duel.challengerName || 'Atleta 1'} vs ${duel.challengedNames || 'Atleta 2'}`}
-                      </p>
-                      <p className="mt-1 text-xs text-white/50">Status: {duel.status || 'Ativo'}</p>
-                      {duel.winnerName ? (
-                        <p className="mt-1 flex items-center gap-1 text-xs text-amber-300">
-                          <Trophy className="h-3.5 w-3.5" />
-                          Vencedor: {duel.winnerName}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Empty text="Nenhum duelo nesta semana" />
-              )}
-            </Panel>
-          </div>
-        </main>
-      </div>
-    </div>
+    <TvLayoutOld
+      dailyWod={dailyWod}
+      checkins={checkins}
+      duels={duels}
+      dateLabel={dateLabel}
+      timeLabel={timeLabel}
+      classLabel={classLabel}
+      currentClass={currentClass}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      onToggleFullscreen={toggleFullscreen}
+    />
   );
 }
