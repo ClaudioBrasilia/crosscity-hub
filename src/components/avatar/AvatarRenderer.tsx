@@ -10,6 +10,7 @@ import SpecialLayer from './layers/SpecialLayer';
 
 export interface AvatarEquipment {
   base_outfit: string | null;
+  equipped_hair?: string | null;
   equipped_top: string | null;
   equipped_bottom: string | null;
   equipped_shoes: string | null;
@@ -22,9 +23,17 @@ export interface AvatarEquipment {
 interface Props {
   equipment: AvatarEquipment;
   size?: number;
+  layeredImages?: {
+    body: string;
+    hair?: string | null;
+    top?: string | null;
+    bottom?: string | null;
+    shoes?: string | null;
+    accessory?: string | null;
+  };
 }
 
-export default function AvatarRenderer({ equipment, size = 280 }: Props) {
+export default function AvatarRenderer({ equipment, size = 280, layeredImages }: Props) {
   const visuals = useMemo(() => ({
     top: getItemVisual('equipped_top', equipment.equipped_top),
     bottom: getItemVisual('equipped_bottom', equipment.equipped_bottom),
@@ -34,6 +43,19 @@ export default function AvatarRenderer({ equipment, size = 280 }: Props) {
     wrist: getItemVisual('equipped_wrist_accessory', equipment.equipped_wrist_accessory),
     special: getItemVisual('equipped_special', equipment.equipped_special),
   }), [equipment]);
+
+  if (layeredImages?.body) {
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-border/60 bg-muted/20" style={{ width: size, height: size }}>
+        <img src={layeredImages.body} alt="Avatar body" className="absolute inset-0 h-full w-full object-cover" />
+        {layeredImages.hair && <img src={layeredImages.hair} alt="Avatar hair" className="absolute inset-0 h-full w-full object-cover" />}
+        {layeredImages.top && <img src={layeredImages.top} alt="Avatar top" className="absolute inset-0 h-full w-full object-cover" />}
+        {layeredImages.bottom && <img src={layeredImages.bottom} alt="Avatar bottom" className="absolute inset-0 h-full w-full object-cover" />}
+        {layeredImages.shoes && <img src={layeredImages.shoes} alt="Avatar shoes" className="absolute inset-0 h-full w-full object-cover" />}
+        {layeredImages.accessory && <img src={layeredImages.accessory} alt="Avatar accessory" className="absolute inset-0 h-full w-full object-cover" />}
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
