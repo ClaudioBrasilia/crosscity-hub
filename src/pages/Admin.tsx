@@ -223,6 +223,8 @@ const Admin = () => {
 
       <AvatarEconomySection />
 
+      <BoxLogoSection />
+
       <BoxSettingsSection />
     </div>
   );
