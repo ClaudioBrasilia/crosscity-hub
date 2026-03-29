@@ -648,6 +648,7 @@ export type Database = {
           id: string
           is_active: boolean
           latitude: number
+          logo_url: string | null
           longitude: number
           name: string
           radius_meters: number
@@ -660,6 +661,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           latitude: number
+          logo_url?: string | null
           longitude: number
           name: string
           radius_meters?: number
@@ -672,6 +674,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           latitude?: number
+          logo_url?: string | null
           longitude?: number
           name?: string
           radius_meters?: number

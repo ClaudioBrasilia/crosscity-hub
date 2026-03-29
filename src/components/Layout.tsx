@@ -11,6 +11,7 @@ import {
 import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame, GraduationCap, Shield, Map } from 'lucide-react';
 import OnboardingTour from '@/components/OnboardingTour';
 import GoalsQuestionnaire from '@/components/GoalsQuestionnaire';
+import { supabase } from '@/integrations/supabase/client';
 
 const THEME_PRESETS: Record<string, { primary: string; secondary: string; accent: string; ring: string }> = {
   blue: { primary: '217 91% 60%', secondary: '199 89% 48%', accent: '217 91% 60%', ring: '217 91% 60%' },
@@ -40,6 +41,8 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
+  const [boxLogo, setBoxLogo] = useState<string | null>(null);
+  const [boxName, setBoxName] = useState<string | null>(null);
 
   useEffect(() => {
     // Apply saved theme
@@ -52,6 +55,19 @@ const Layout = ({ children }: { children: ReactNode }) => {
       if (onboardingStatus === 'pending') {
         setShowOnboarding(true);
       }
+
+      // Fetch box info
+      (supabase as any)
+        .from('training_locations')
+        .select('name, logo_url')
+        .eq('is_active', true)
+        .limit(1)
+        .then(({ data }: any) => {
+          if (data && data.length > 0) {
+            setBoxName(data[0].name || null);
+            setBoxLogo(data[0].logo_url || null);
+          }
+        });
     }
   }, [user]);
 
@@ -100,10 +116,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
         <div className="container mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5">
-              <span className="text-2xl">🏋️</span>
+              {boxLogo ? (
+                <img src={boxLogo} alt={boxName || 'Box'} className="h-8 w-8 rounded-md object-contain" />
+              ) : (
+                <span className="text-2xl">🏋️</span>
+              )}
               <div>
-                <h1 className="text-lg font-bold gradient-primary bg-clip-text text-transparent leading-none">BoxLink</h1>
-                <p className="text-[10px] text-muted-foreground">CrossUberlandia</p>
+                <h1 className="text-lg font-bold gradient-primary bg-clip-text text-transparent leading-none">{boxName || 'BoxLink'}</h1>
+                <p className="text-[10px] text-muted-foreground">{boxName ? 'BoxLink' : 'CrossUberlandia'}</p>
               </div>
             </Link>
 
