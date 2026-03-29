@@ -362,12 +362,12 @@ const BoxSettingsSection = () => {
   });
 
   useEffect(() => {
-    supabase
+    (supabase as any)
       .from('training_locations')
       .select('*')
       .eq('is_active', true)
       .limit(1)
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (data && data.length > 0) {
           const loc = data[0];
           setLocation(loc);
@@ -385,7 +385,7 @@ const BoxSettingsSection = () => {
 
   const handleSave = async () => {
     if (!location) return;
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('training_locations')
       .update({
         name: form.name,
