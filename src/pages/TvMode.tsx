@@ -6,6 +6,7 @@ import TvLayoutOld from '@/components/tv/TvLayoutOld';
 import TvLayoutNew from '@/components/tv/TvLayoutNew';
 import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
 import { getTvLayoutModel, type TvLayoutModel } from '@/lib/tv-layout';
+import { getGymDateISO, GYM_TIMEZONE } from '@/lib/gym-date';
 
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
@@ -15,7 +16,6 @@ const CLASS_SCHEDULE = [
   { start: '19:00', end: '20:00' },
 ];
 
-const GYM_TIMEZONE = 'America/Sao_Paulo';
 const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
 type TabKey = typeof TABS[number];
 
