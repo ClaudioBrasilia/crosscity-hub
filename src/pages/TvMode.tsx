@@ -6,6 +6,7 @@ import TvLayoutOld from '@/components/tv/TvLayoutOld';
 import TvLayoutNew from '@/components/tv/TvLayoutNew';
 import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
 import { getTvLayoutModel, type TvLayoutModel } from '@/lib/tv-layout';
+import { getGymDateISO, GYM_TIMEZONE } from '@/lib/gym-date';
 
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
@@ -15,7 +16,6 @@ const CLASS_SCHEDULE = [
   { start: '19:00', end: '20:00' },
 ];
 
-const GYM_TIMEZONE = 'America/Sao_Paulo';
 const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
 type TabKey = typeof TABS[number];
 
@@ -50,9 +50,18 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
   });
 };
 
-const getTodayISO = () => {
-  const d = getZonedDateParts(new Date());
-  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+const formatDatePartsToIso = ({ year, month, day }: { year: number; month: number; day: number }) =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+const getTodayISO = () => getGymDateISO();
+
+const normalizeWodDateToGymIso = (value: string) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
+
+  return formatDatePartsToIso(getZonedDateParts(parsed));
 };
 
 const getCurrentWeekBounds = () => {
@@ -77,22 +86,41 @@ const isInCurrentWeek = (timestamp?: number | null) => {
 
 const fetchDailyWod = async (): Promise<DailyWod | null> => {
   try {
+    const todayIso = getTodayISO();
+
     const { data, error } = await supabase
       .from('wods')
       .select('id, date, name, type, warmup, skill, versions')
-      .eq('date', getTodayISO())
+      .eq('date', todayIso)
       .limit(1)
       .maybeSingle();
-    if (error || !data) return null;
-    const versions = (data.versions || {}) as any;
+
+    let wodRow = !error && data ? data : null;
+
+    if (!wodRow) {
+      const { data: fallbackRows, error: fallbackError } = await supabase
+        .from('wods')
+        .select('id, date, name, type, warmup, skill, versions')
+        .order('date', { ascending: false })
+        .limit(30);
+
+      if (!fallbackError && fallbackRows?.length) {
+        wodRow = fallbackRows.find((row) => normalizeWodDateToGymIso(row.date) === todayIso) ?? null;
+      }
+    }
+
+    if (!wodRow) return null;
+
+    const versions = (wodRow.versions || {}) as any;
     if (!versions.rx?.description) return null;
+
     return {
-      id: data.id,
-      date: data.date,
-      name: data.name,
-      type: data.type as DailyWod['type'],
-      warmup: data.warmup ?? undefined,
-      skill: data.skill ?? undefined,
+      id: wodRow.id,
+      date: wodRow.date,
+      name: wodRow.name,
+      type: wodRow.type as DailyWod['type'],
+      warmup: wodRow.warmup ?? undefined,
+      skill: wodRow.skill ?? undefined,
       versions: {
         rx: versions.rx || { description: '' },
         scaled: versions.scaled || { description: '' },

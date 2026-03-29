@@ -14,6 +14,7 @@ import { Dumbbell, Flame, Users, Trash2, Plus, Save, ChevronRight } from 'lucide
 import { Progress } from '@/components/ui/progress';
 import * as db from '@/lib/supabaseData';
 import type { WodCategory, DailyWodVersion } from '@/lib/mockData';
+import { getGymDateISO } from '@/lib/gym-date';
 
 interface WodFormData {
   id: string;
@@ -29,7 +30,7 @@ interface WodFormData {
 }
 
 const createInitialWodData = (): WodFormData => ({
-  id: '', date: new Date().toISOString().split('T')[0], title: '', type: 'AMRAP',
+  id: '', date: getGymDateISO(), title: '', type: 'AMRAP',
   warmup: '', skill: '', description: '', rxWeights: '', scaledWeights: '', beginnerWeights: '',
 });
 
@@ -85,7 +86,7 @@ const CoachDashboard = () => {
     setAthletes(users.filter(u => u.role === 'athlete'));
 
     // Load WOD for today (if any)
-    const today = formatDateInput(new Date());
+    const today = getGymDateISO();
     const wod = await db.getDailyWod(today);
     if (wod) setWodData(mapWodToFormData(wod, today));
   }, [getAllUsers]);
