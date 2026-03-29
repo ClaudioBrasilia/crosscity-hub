@@ -101,7 +101,7 @@ const Battle = () => {
         ]);
         setUsers(loadedUsers);
         setWods(loadedWods as any);
-        setDuels(loadedDuels);
+        setDuels(loadedDuels.filter((duel) => String(duel.status).toLowerCase() !== 'canceled'));
         if (loadedWods[0]) setWodId(loadedWods[0].id);
       } catch (err) {
         console.error('Error loading battle data:', err);
