@@ -33,12 +33,19 @@ interface WodFormData {
   beginnerWeights: string;
 }
 
+const toStableDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const createInitialWodData = (): WodFormData => ({
-  id: '', date: new Date().toISOString().split('T')[0], title: '', type: 'AMRAP',
+  id: '', date: toStableDateString(new Date()), title: '', type: 'AMRAP',
   warmup: '', skill: '', description: '', rxWeights: '', scaledWeights: '', beginnerWeights: '',
 });
 
-const formatDateInput = (date: Date) => date.toISOString().split('T')[0];
+const formatDateInput = (date: Date) => toStableDateString(date);
 const mapWodToFormData = (wod: db.WodData, date: string): WodFormData => ({
   id: wod.id,
   date,
@@ -257,10 +264,7 @@ const CoachDashboard = () => {
                         selected={wodData.date ? parseISO(wodData.date) : undefined}
                         onSelect={(day) => {
                           if (day) {
-                            const yyyy = day.getFullYear();
-                            const mm = String(day.getMonth() + 1).padStart(2, '0');
-                            const dd = String(day.getDate()).padStart(2, '0');
-                            setWodData({ ...wodData, date: `${yyyy}-${mm}-${dd}` });
+                            setWodData((prev) => ({ ...prev, date: toStableDateString(day) }));
                           }
                         }}
                         initialFocus
