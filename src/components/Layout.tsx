@@ -41,6 +41,8 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
+  const [boxLogo, setBoxLogo] = useState<string | null>(null);
+  const [boxName, setBoxName] = useState<string | null>(null);
 
   useEffect(() => {
     // Apply saved theme
@@ -53,6 +55,19 @@ const Layout = ({ children }: { children: ReactNode }) => {
       if (onboardingStatus === 'pending') {
         setShowOnboarding(true);
       }
+
+      // Fetch box info
+      (supabase as any)
+        .from('training_locations')
+        .select('name, logo_url')
+        .eq('is_active', true)
+        .limit(1)
+        .then(({ data }: any) => {
+          if (data && data.length > 0) {
+            setBoxName(data[0].name || null);
+            setBoxLogo(data[0].logo_url || null);
+          }
+        });
     }
   }, [user]);
 
