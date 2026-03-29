@@ -6,7 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Trophy, Medal, Award, Dumbbell, CalendarDays } from 'lucide-react';
+import { Trophy, Medal, Award, Dumbbell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import * as db from '@/lib/supabaseData';
 import { toDurationSeconds } from '@/lib/timeScore';
@@ -23,6 +23,7 @@ type LeaderboardUser = {
   avatar: string;
   xp: number;
   gender: Gender;
+  category: Category;
 };
 
 const Leaderboard = () => {
@@ -30,18 +31,15 @@ const Leaderboard = () => {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [latestWod, setLatestWod] = useState<db.WodData | null>(null);
   const [wodResults, setWodResults] = useState<db.WodResult[]>([]);
-  const [checkins, setCheckins] = useState<Record<string, string[]>>({});
 
   const loadData = useCallback(async () => {
-    const [allUsers, wod, allCheckins] = await Promise.all([
+    const [allUsers, wod] = await Promise.all([
       getAllUsers(),
       db.getLatestWod(),
-      db.getAllCheckins(),
     ]);
 
     setUsers(allUsers as LeaderboardUser[]);
     setLatestWod(wod);
-    setCheckins(allCheckins);
 
     if (wod) {
       const allWodResults = await db.getWodResults(wod.id);
@@ -65,23 +63,6 @@ const Leaderboard = () => {
   const xpRanking = useMemo(() => {
     return [...users].sort((a, b) => (Number(b.xp) || 0) - (Number(a.xp) || 0));
   }, [users]);
-
-  const frequencyRanking = useMemo(() => {
-    const now = new Date();
-    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    return users
-      .map((user) => ({
-        ...user,
-        monthlyCheckins: (checkins[user.id] || []).filter((date) => date.startsWith(currentMonthPrefix)).length,
-      }))
-      .sort((a, b) => {
-        if (b.monthlyCheckins !== a.monthlyCheckins) {
-          return b.monthlyCheckins - a.monthlyCheckins;
-        }
-        return (Number(b.xp) || 0) - (Number(a.xp) || 0);
-      });
-  }, [users, checkins]);
-
 
   const genderByUserId = useMemo(() => {
     const map = new Map<string, Gender>();
@@ -116,50 +97,24 @@ const Leaderboard = () => {
     <div className="max-w-4xl mx-auto space-y-5">
       <h1 className="text-3xl font-bold">Ranking</h1>
 
-      <Card className="border-primary/40 shadow-sm bg-primary/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
-            Ranking Geral de XP
-          </CardTitle>
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle>Ranking Geral de XP</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {xpRanking.length === 0 && <p className="text-sm text-muted-foreground">Sem atletas cadastrados.</p>}
           {xpRanking.map((user, index) => (
-            <Card key={user.id} className={`border-primary/30 ${index < 3 ? 'bg-primary/10' : 'bg-background'}`}>
+            <Card key={user.id} className={`border-primary/20 ${index < 3 ? 'bg-primary/10' : ''}`}>
               <CardContent className="p-3 flex items-center gap-3">
                 <div className="w-6 flex justify-center">{getMedal(index)}</div>
                 <span className="text-2xl">{user.avatar}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(categoryLabels[user.category as Category] || 'Iniciante')} • {(genderLabels[user.gender as Gender] || 'Masculino')}
+                  </p>
                 </div>
                 <p className="font-bold text-primary">{Number(user.xp) || 0} XP</p>
-              </CardContent>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
-
-
-
-      <Card className="border-border/70">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            Frequência do mês
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {frequencyRanking.length === 0 && <p className="text-sm text-muted-foreground">Sem atletas cadastrados.</p>}
-          {frequencyRanking.map((user, index) => (
-            <Card key={user.id} className={`border-border/70 ${index < 3 ? 'bg-muted/40' : 'bg-background'}`}>
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="w-6 flex justify-center">{getMedal(index)}</div>
-                <span className="text-2xl">{user.avatar}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{user.name}</p>
-                </div>
-                <p className="font-semibold text-foreground">{user.monthlyCheckins} check-ins</p>
               </CardContent>
             </Card>
           ))}
