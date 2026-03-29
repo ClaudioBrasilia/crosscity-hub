@@ -116,10 +116,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
         <div className="container mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5">
-              <span className="text-2xl">🏋️</span>
+              {boxLogo ? (
+                <img src={boxLogo} alt={boxName || 'Box'} className="h-8 w-8 rounded-md object-contain" />
+              ) : (
+                <span className="text-2xl">🏋️</span>
+              )}
               <div>
-                <h1 className="text-lg font-bold gradient-primary bg-clip-text text-transparent leading-none">BoxLink</h1>
-                <p className="text-[10px] text-muted-foreground">CrossUberlandia</p>
+                <h1 className="text-lg font-bold gradient-primary bg-clip-text text-transparent leading-none">{boxName || 'BoxLink'}</h1>
+                <p className="text-[10px] text-muted-foreground">{boxName ? 'BoxLink' : 'CrossUberlandia'}</p>
               </div>
             </Link>
 
