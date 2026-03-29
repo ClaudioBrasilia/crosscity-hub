@@ -11,6 +11,7 @@ import {
 import { Home, Trophy, Dumbbell, User, LogOut, Building2, BarChart3, Swords, Warehouse, MoreHorizontal, Users, Flame, GraduationCap, Shield, Map } from 'lucide-react';
 import OnboardingTour from '@/components/OnboardingTour';
 import GoalsQuestionnaire from '@/components/GoalsQuestionnaire';
+import { supabase } from '@/integrations/supabase/client';
 
 const THEME_PRESETS: Record<string, { primary: string; secondary: string; accent: string; ring: string }> = {
   blue: { primary: '217 91% 60%', secondary: '199 89% 48%', accent: '217 91% 60%', ring: '217 91% 60%' },

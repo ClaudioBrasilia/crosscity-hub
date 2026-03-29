@@ -262,7 +262,11 @@ const Dashboard = () => {
       {/* Hero + Check-in */}
       <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 via-card to-secondary/10 p-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <div className="text-6xl">{user?.avatar}</div>
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt={user.name} className="h-16 w-16 rounded-full object-cover border-2 border-primary/30" />
+          ) : (
+            <div className="text-6xl">{user?.avatar}</div>
+          )}
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Olá, {user?.name?.split(' ')[0]}! 👋</h1>
             <p className="text-muted-foreground">
