@@ -6,12 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Timer, Flame, Target } from 'lucide-react';
+import { Trophy, Timer, Flame, Target, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
 import * as db from '@/lib/supabaseData';
 import { supabase } from '@/integrations/supabase/client';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 const categoryLabels: Record<WodCategory, string> = {
   rx: 'RX', scaled: 'Scaled', beginner: 'Iniciante',
@@ -19,6 +24,13 @@ const categoryLabels: Record<WodCategory, string> = {
 
 const toTimeValue = (value: string) => toDurationSeconds(value);
 const toRoundsValue = (value: string) => { const n = Number(value); return Number.isNaN(n) ? 0 : n; };
+
+const toStableDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const WOD = () => {
   const { user, updateUser } = useAuth();
@@ -30,6 +42,9 @@ const WOD = () => {
   const [resultValue, setResultValue] = useState('');
   const [results, setResults] = useState<db.WodResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [historyDate, setHistoryDate] = useState(() => toStableDateString(new Date()));
+  const [historyWod, setHistoryWod] = useState<db.WodData | null>(null);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   const fetchResults = useCallback(async (wodId: string) => {
     const res = await db.getWodResults(wodId);
@@ -47,6 +62,17 @@ const WOD = () => {
   }, [fetchResults]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const loadHistoryWod = async () => {
+      if (!historyDate) return;
+      setHasLoadedHistory(false);
+      const wod = await db.getDailyWod(historyDate);
+      setHistoryWod(wod);
+      setHasLoadedHistory(true);
+    };
+    loadHistoryWod();
+  }, [historyDate]);
 
   useEffect(() => {
     if (!dailyWod?.id) return;
@@ -243,6 +269,76 @@ const WOD = () => {
           <Button onClick={submitResult} className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Salvando...' : existingResult ? 'Atualizar resultado' : 'Salvar resultado'}
           </Button>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico do WOD</CardTitle>
+          <CardDescription>Selecione uma data para visualizar o treino salvo.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Data</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("w-full justify-start text-left font-normal", !historyDate && "text-muted-foreground")}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {historyDate
+                    ? format(parseISO(historyDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                    : <span>Selecione a data</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={historyDate ? parseISO(historyDate) : undefined}
+                  onSelect={(day) => day && setHistoryDate(toStableDateString(day))}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {!hasLoadedHistory ? (
+            <p className="text-muted-foreground">Carregando treino...</p>
+          ) : historyWod ? (
+            <div className="space-y-4">
+              <div>
+                <p className="font-semibold">{historyWod.name}</p>
+                <p className="text-sm text-muted-foreground">{historyWod.type} • {historyWod.date}</p>
+              </div>
+
+              {historyWod.warmup && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Warm-up</p>
+                  <p className="text-sm whitespace-pre-line text-muted-foreground">{historyWod.warmup}</p>
+                </div>
+              )}
+
+              {historyWod.skill && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Skill</p>
+                  <p className="text-sm whitespace-pre-line text-muted-foreground">{historyWod.skill}</p>
+                </div>
+              )}
+
+              {(Object.keys(categoryLabels) as WodCategory[]).map((category) => (
+                <div key={category} className="space-y-1">
+                  <p className="text-sm font-medium">{categoryLabels[category]}</p>
+                  <p className="text-sm">{historyWod.versions[category]?.description || '—'}</p>
+                  <p className="text-xs text-muted-foreground">Carga referência: {historyWod.versions[category]?.weight || '—'}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Nenhum WOD salvo para esta data.</p>
+          )}
         </CardContent>
       </Card>
 
