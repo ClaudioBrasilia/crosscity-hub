@@ -385,7 +385,7 @@ const BoxSettingsSection = () => {
 
   const handleSave = async () => {
     if (!location) return;
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('training_locations')
       .update({
         name: form.name,
