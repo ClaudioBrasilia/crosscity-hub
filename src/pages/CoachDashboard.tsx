@@ -10,7 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Dumbbell, Flame, Users, Trash2, Plus, Save, ChevronRight } from 'lucide-react';
+import { Dumbbell, Flame, Users, Trash2, Plus, Save, ChevronRight, CalendarIcon } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import * as db from '@/lib/supabaseData';
 import type { WodCategory, DailyWodVersion } from '@/lib/mockData';
@@ -231,7 +236,38 @@ const CoachDashboard = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Data</Label>
-                  <Input type="date" value={wodData.date} onChange={e => setWodData({ ...wodData, date: e.target.value })} />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !wodData.date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {wodData.date
+                          ? format(parseISO(wodData.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                          : <span>Selecione a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={wodData.date ? parseISO(wodData.date) : undefined}
+                        onSelect={(day) => {
+                          if (day) {
+                            const yyyy = day.getFullYear();
+                            const mm = String(day.getMonth() + 1).padStart(2, '0');
+                            const dd = String(day.getDate()).padStart(2, '0');
+                            setWodData({ ...wodData, date: `${yyyy}-${mm}-${dd}` });
+                          }
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Tipo</Label>
