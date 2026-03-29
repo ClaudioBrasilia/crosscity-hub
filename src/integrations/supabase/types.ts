@@ -651,6 +651,7 @@ export type Database = {
           longitude: number
           name: string
           radius_meters: number
+          tv_layout_model: string | null
           updated_at: string
         }
         Insert: {
@@ -662,6 +663,7 @@ export type Database = {
           longitude: number
           name: string
           radius_meters?: number
+          tv_layout_model?: string | null
           updated_at?: string
         }
         Update: {
@@ -673,6 +675,7 @@ export type Database = {
           longitude?: number
           name?: string
           radius_meters?: number
+          tv_layout_model?: string | null
           updated_at?: string
         }
         Relationships: []
