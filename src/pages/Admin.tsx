@@ -231,7 +231,125 @@ const Admin = () => {
 };
 
 
-// ---- Avatar Economy section ----
+// ---- Box Logo section ----
+const BoxLogoSection = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [location, setLocation] = useState<any>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    (supabase as any)
+      .from('training_locations')
+      .select('id, name, logo_url')
+      .eq('is_active', true)
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setLocation(data[0]);
+          setLogoUrl(data[0].logo_url || null);
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !location) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Selecione uma imagem (JPG, PNG ou WebP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Máximo 2MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split('.').pop() || 'png';
+    const filePath = `${location.id}/logo.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('box-logos')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage.from('box-logos').getPublicUrl(filePath);
+    const newUrl = publicData.publicUrl + '?t=' + Date.now();
+
+    const { error: updateError } = await (supabase as any)
+      .from('training_locations')
+      .update({ logo_url: newUrl })
+      .eq('id', location.id);
+
+    if (updateError) {
+      toast({ title: 'Erro ao salvar URL', description: updateError.message, variant: 'destructive' });
+    } else {
+      setLogoUrl(newUrl);
+      toast({ title: 'Logo atualizada!' });
+    }
+    setUploading(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ImageIcon className="h-5 w-5" />
+          Logo do Box
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !location ? (
+          <p className="text-sm text-muted-foreground">Nenhum local de treino cadastrado.</p>
+        ) : (
+          <div className="flex items-center gap-4">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo do Box" className="h-16 w-16 rounded-lg object-contain border border-border" />
+            ) : (
+              <div className="h-16 w-16 rounded-lg border border-dashed border-muted-foreground/40 flex items-center justify-center">
+                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{location.name}</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? 'Enviando...' : logoUrl ? 'Trocar Logo' : 'Enviar Logo'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+
 const AvatarEconomySection = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
