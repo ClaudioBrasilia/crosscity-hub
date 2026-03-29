@@ -53,7 +53,7 @@ const getCurrentClass = (): { start: string; end: string } | undefined => {
 const formatDatePartsToIso = ({ year, month, day }: { year: number; month: number; day: number }) =>
   `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-const getTodayISO = () => getGymDateISO();
+const getTodayISO = () => formatDatePartsToIso(getZonedDateParts(new Date()));
 
 const normalizeWodDateToGymIso = (value: string) => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
