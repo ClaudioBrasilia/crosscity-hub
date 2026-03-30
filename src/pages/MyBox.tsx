@@ -161,7 +161,7 @@ const MyBox = () => {
               { label: 'Nome', value: avatar?.display_name || 'Não definido', icon: '🏷️' },
               { label: 'Nível', value: avatar?.avatar_level ?? 1, icon: '⭐' },
               { label: 'XP', value: avatar?.avatar_xp ?? 0, icon: '✨' },
-              { label: 'Coins', value: avatarCoins, icon: '🪙' },
+              { label: 'BrazaCoin', value: avatarCoins, icon: '🪙' },
               { label: 'Check-ins Sem.', value: avatar?.weekly_checkins ?? 0, icon: '📅' },
               { label: 'Streak Sem.', value: avatar?.weekly_streak ?? 0, icon: '🔥' },
             ].map((stat) => (
@@ -279,7 +279,7 @@ const MyBox = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Saldo atual: {avatarCoins} coins</p>
+                <p className="text-sm font-medium">Saldo atual: {avatarCoins} BrazaCoin</p>
                 {shopMessage && <p className="text-sm text-primary font-medium">{shopMessage}</p>}
               </div>
 
@@ -324,7 +324,7 @@ const MyBox = () => {
                             <p className="text-xs text-muted-foreground">{item.type}</p>
                           </div>
                           <Badge variant="outline" className="text-xs font-bold">
-                            {item.price_coins} 🪙
+                            {item.price_coins} BrazaCoin 🪙
                           </Badge>
                         </div>
 
