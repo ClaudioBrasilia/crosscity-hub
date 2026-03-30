@@ -5,7 +5,12 @@ import type { ChallengeData } from '@/lib/supabaseData';
 import TvLayoutOld from '@/components/tv/TvLayoutOld';
 import TvLayoutNew from '@/components/tv/TvLayoutNew';
 import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
-import { getTvLayoutModel, type TvLayoutModel } from '@/lib/tv-layout';
+import {
+  getTvLayoutModel,
+  getTvRightTopBlockMode,
+  type TvLayoutModel,
+  type TvRightTopBlockMode,
+} from '@/lib/tv-layout';
 
 const CLASS_SCHEDULE = [
   { start: '06:00', end: '07:00' },
@@ -269,17 +274,19 @@ export default function TvMode() {
   const [now, setNow] = useState(new Date());
   const [activeTab, setActiveTab] = useState<TabKey>('WOD');
   const [layoutModel, setLayoutModel] = useState<TvLayoutModel>('old');
+  const [rightTopBlockMode, setRightTopBlockMode] = useState<TvRightTopBlockMode>('checkins');
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [wod, ci, du, activeChallenges, ranking, model] = await Promise.all([
+        const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
           fetchDailyWod(),
           fetchTvCheckins(),
           fetchTvDuels(),
           getActiveChallenges(),
           fetchMonthlyXpRanking(),
           getTvLayoutModel(),
+          getTvRightTopBlockMode(),
         ]);
         setDailyWod(wod);
         setCheckins(ci);
@@ -287,6 +294,7 @@ export default function TvMode() {
         setActiveChallenges(activeChallenges);
         setMonthlyXpRanking(ranking);
         setLayoutModel(model);
+        setRightTopBlockMode(blockMode);
       } catch {
         // silently ignore network errors to keep TV stable
       }
@@ -349,6 +357,7 @@ export default function TvMode() {
         onPrevTab={() => goTab(-1)}
         onNextTab={() => goTab(1)}
         onToggleFullscreen={toggleFullscreen}
+        rightTopBlockMode={rightTopBlockMode}
       />
     );
   }

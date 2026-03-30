@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Expand, Trophy } from 'lucide-react';
 import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
+import type { TvRightTopBlockMode } from '@/lib/tv-layout';
 
 type Props = {
   dailyWod: DailyWod | null;
@@ -13,6 +14,7 @@ type Props = {
   onPrevTab: () => void;
   onNextTab: () => void;
   onToggleFullscreen: () => void;
+  rightTopBlockMode: TvRightTopBlockMode;
 };
 
 const Empty = ({ text }: { text: string }) => (
@@ -33,6 +35,7 @@ export default function TvLayoutNew({
   onPrevTab,
   onNextTab,
   onToggleFullscreen,
+  rightTopBlockMode,
 }: Props) {
   const tabContent =
     activeTab === 'Warm-up'
@@ -88,22 +91,31 @@ export default function TvLayoutNew({
 
           <section className="col-span-4 flex min-h-0 flex-col gap-4">
             <div className="min-h-0 flex-1 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <h3 className="mb-3 text-lg font-bold">Check-in (aula atual)</h3>
-              <div className="space-y-2 overflow-y-auto pr-1 max-h-[45vh]">
-                {checkins.length ? checkins.map((athlete, idx) => (
-                  <div key={`${athlete.id || idx}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      {athlete.avatarUrl ? (
-                        <img src={athlete.avatarUrl} alt={athlete.name || 'Atleta'} className="h-9 w-9 rounded-full object-cover border border-white/20" />
-                      ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg">{athlete.avatar || '👤'}</div>
-                      )}
-                      <p className="text-sm font-semibold">{athlete.name || 'Atleta'}</p>
-                    </div>
-                    <span className="text-emerald-300">✓</span>
+              {rightTopBlockMode === 'avatar' ? (
+                <>
+                  <h3 className="mb-3 text-lg font-bold">Avatar</h3>
+                  <Empty text="Área de avatar (em desenvolvimento)" />
+                </>
+              ) : (
+                <>
+                  <h3 className="mb-3 text-lg font-bold">Check-in (aula atual)</h3>
+                  <div className="space-y-2 overflow-y-auto pr-1 max-h-[45vh]">
+                    {checkins.length ? checkins.map((athlete, idx) => (
+                      <div key={`${athlete.id || idx}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {athlete.avatarUrl ? (
+                            <img src={athlete.avatarUrl} alt={athlete.name || 'Atleta'} className="h-9 w-9 rounded-full object-cover border border-white/20" />
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg">{athlete.avatar || '👤'}</div>
+                          )}
+                          <p className="text-sm font-semibold">{athlete.name || 'Atleta'}</p>
+                        </div>
+                        <span className="text-emerald-300">✓</span>
+                      </div>
+                    )) : <Empty text="Nenhum check-in nesta aula" />}
                   </div>
-                )) : <Empty text="Nenhum check-in nesta aula" />}
-              </div>
+                </>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 rounded-2xl border border-white/10 bg-white/5 p-4">
