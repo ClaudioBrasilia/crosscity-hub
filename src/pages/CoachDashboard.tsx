@@ -219,6 +219,8 @@ const CoachDashboard = () => {
     }
   };
 
+  const isEditingExistingWod = Boolean(wodData.id);
+
   return (
     <div className="space-y-6">
       <div>
@@ -317,7 +319,10 @@ const CoachDashboard = () => {
                   <Input placeholder="Ex: Barra vazia" value={wodData.beginnerWeights} onChange={e => setWodData({ ...wodData, beginnerWeights: e.target.value })} />
                 </div>
               </div>
-              <Button onClick={handleSaveWod} className="w-full"><Save className="h-4 w-4 mr-2" /> Salvar WOD</Button>
+              <Button onClick={handleSaveWod} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                {isEditingExistingWod ? 'Atualizar WOD' : 'Salvar WOD'}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
