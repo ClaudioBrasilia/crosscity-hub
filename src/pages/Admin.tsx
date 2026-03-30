@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
 import { getAvatarEconomySettings, updateAvatarEconomySettings, type AvatarEconomySettings } from '@/lib/avatar-economy';
-import { type TvLayoutModel } from '@/lib/tv-layout';
+import { type TvLayoutModel, type TvRightTopBlockMode } from '@/lib/tv-layout';
 
 interface UserItem {
   id: string;
@@ -479,6 +479,7 @@ const BoxSettingsSection = () => {
     latitude: 0,
     longitude: 0,
     tv_layout_model: 'old' as TvLayoutModel,
+    tv_right_top_block_mode: 'checkins' as TvRightTopBlockMode,
   });
 
   useEffect(() => {
@@ -497,6 +498,7 @@ const BoxSettingsSection = () => {
             latitude: loc.latitude,
             longitude: loc.longitude,
             tv_layout_model: loc.tv_layout_model === 'new' ? 'new' : 'old',
+            tv_right_top_block_mode: loc.tv_right_top_block_mode === 'avatar' ? 'avatar' : 'checkins',
           });
         }
         setLoading(false);
@@ -513,6 +515,7 @@ const BoxSettingsSection = () => {
         latitude: form.latitude,
         longitude: form.longitude,
         tv_layout_model: form.tv_layout_model,
+        tv_right_top_block_mode: form.tv_right_top_block_mode,
       })
       .eq('id', location.id);
     if (error) {
@@ -574,6 +577,21 @@ const BoxSettingsSection = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <label className="text-sm font-medium">Bloco direito superior da TV</label>
+              <Select
+                value={form.tv_right_top_block_mode}
+                onValueChange={(value: TvRightTopBlockMode) => setForm({ ...form, tv_right_top_block_mode: value })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="checkins">Check-ins</SelectItem>
+                  <SelectItem value="avatar">Avatar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex gap-2">
               <Button onClick={handleSave}>Salvar</Button>
               <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
@@ -593,6 +611,9 @@ const BoxSettingsSection = () => {
             </p>
             <p className="text-sm text-muted-foreground">
               Modelo TV: {location.tv_layout_model === 'new' ? 'Novo' : 'Antigo'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Bloco direito superior da TV: {location.tv_right_top_block_mode === 'avatar' ? 'Avatar' : 'Check-ins'}
             </p>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
           </div>
