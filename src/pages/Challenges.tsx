@@ -247,7 +247,7 @@ const Challenges = () => {
         description: !wasNewCompletion
           ? 'Recompensa já resgatada anteriormente.'
           : grantedCoins
-          ? `+${challenge.xpReward} XP e +${challenge.xpReward} coins no avatar.`
+          ? `+${challenge.xpReward} XP e +${challenge.xpReward} BrazaCoin no avatar.`
           : `+${challenge.xpReward} XP.`,
       });
       setTick(t => t + 1);

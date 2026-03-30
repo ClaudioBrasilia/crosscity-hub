@@ -426,7 +426,7 @@ const AvatarEconomySection = () => {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="text-sm font-medium">Coins por check-in</label>
+                <label className="text-sm font-medium">BrazaCoin por check-in</label>
                 <Input type="number" value={form.coins_per_checkin} onChange={(e) => setForm({ ...form, coins_per_checkin: parseInt(e.target.value) || 0 })} />
               </div>
               <div>

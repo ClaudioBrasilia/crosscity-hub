@@ -474,7 +474,7 @@ export async function grantChallengeCompletionCoins(
 
   if (error) {
     console.error('Error granting challenge completion coins:', error);
-    throw new Error('Falha ao conceder moedas do desafio.');
+    throw new Error('Falha ao conceder BrazaCoin do desafio.');
   }
 
   return Boolean(data);
