@@ -73,17 +73,8 @@ const Leaderboard = () => {
       .map((user) => ({
         ...user,
         totalCheckins: allCheckins[user.id]?.length || 0,
-        latestCheckinDate: (allCheckins[user.id] || []).reduce(
-          (latest, date) => (date > latest ? date : latest),
-          ''
-        ),
       }))
-      .sort(
-        (a, b) =>
-          b.totalCheckins - a.totalCheckins ||
-          b.latestCheckinDate.localeCompare(a.latestCheckinDate) ||
-          (Number(b.xp) || 0) - (Number(a.xp) || 0)
-      );
+      .sort((a, b) => b.totalCheckins - a.totalCheckins || (Number(b.xp) || 0) - (Number(a.xp) || 0));
   }, [users, allCheckins]);
 
   const genderByUserId = useMemo(() => {
