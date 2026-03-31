@@ -31,15 +31,19 @@ const Leaderboard = () => {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [latestWod, setLatestWod] = useState<db.WodData | null>(null);
   const [wodResults, setWodResults] = useState<db.WodResult[]>([]);
+  const [allCheckins, setAllCheckins] = useState<Record<string, string[]>>({});
+  const [showAllCheckins, setShowAllCheckins] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [allUsers, wod] = await Promise.all([
+    const [allUsers, wod, checkinsByUser] = await Promise.all([
       getAllUsers(),
       db.getLatestWod(),
+      db.getAllCheckins(),
     ]);
 
     setUsers(allUsers as LeaderboardUser[]);
     setLatestWod(wod);
+    setAllCheckins(checkinsByUser);
 
     if (wod) {
       const allWodResults = await db.getWodResults(wod.id);
@@ -63,6 +67,24 @@ const Leaderboard = () => {
   const xpRanking = useMemo(() => {
     return [...users].sort((a, b) => (Number(b.xp) || 0) - (Number(a.xp) || 0));
   }, [users]);
+
+  const checkinRanking = useMemo(() => {
+    return [...users]
+      .map((user) => ({
+        ...user,
+        totalCheckins: allCheckins[user.id]?.length || 0,
+        latestCheckinDate: (allCheckins[user.id] || []).reduce(
+          (latest, date) => (date > latest ? date : latest),
+          ''
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          b.totalCheckins - a.totalCheckins ||
+          b.latestCheckinDate.localeCompare(a.latestCheckinDate) ||
+          (Number(b.xp) || 0) - (Number(a.xp) || 0)
+      );
+  }, [users, allCheckins]);
 
   const genderByUserId = useMemo(() => {
     const map = new Map<string, Gender>();
@@ -93,6 +115,9 @@ const Leaderboard = () => {
       .sort(compareWodResults);
   }, [wodResults, genderByUserId, compareWodResults]);
 
+  const checkinTop3 = useMemo(() => checkinRanking.slice(0, 3), [checkinRanking]);
+  const checkinRemaining = useMemo(() => checkinRanking.slice(3), [checkinRanking]);
+
   return (
     <div className="max-w-5xl mx-auto space-y-5 pb-28 md:pb-8">
       <h1 className="text-3xl font-bold">Ranking</h1>
@@ -122,6 +147,62 @@ const Leaderboard = () => {
       </Card>
 
       <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="checkin-ranking" className="border rounded-lg px-4 border-primary/20">
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            <span className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-primary" />
+              Ver ranking de Check-ins
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 pb-4">
+            {checkinRanking.length === 0 && (
+              <p className="text-sm text-muted-foreground">Sem atletas cadastrados.</p>
+            )}
+
+            {checkinTop3.map((user, index) => (
+              <Card key={`checkin-top-${user.id}`} className={`border-primary/20 ${index < 3 ? 'bg-primary/10' : ''}`}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-6 flex justify-center">{getMedal(index)}</div>
+                  <span className="text-2xl">{user.avatar}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(categoryLabels[user.category as Category] || 'Iniciante')} • {(genderLabels[user.gender as Gender] || 'Masculino')}
+                    </p>
+                  </div>
+                  <p className="font-bold text-primary">{user.totalCheckins} check-ins</p>
+                </CardContent>
+              </Card>
+            ))}
+
+            {showAllCheckins && checkinRemaining.map((user, index) => (
+              <Card key={`checkin-rest-${user.id}`} className="border-primary/20">
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-6 flex justify-center">{getMedal(index + 3)}</div>
+                  <span className="text-2xl">{user.avatar}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(categoryLabels[user.category as Category] || 'Iniciante')} • {(genderLabels[user.gender as Gender] || 'Masculino')}
+                    </p>
+                  </div>
+                  <p className="font-bold text-primary">{user.totalCheckins} check-ins</p>
+                </CardContent>
+              </Card>
+            ))}
+
+            {checkinRemaining.length > 0 && (
+              <button
+                onClick={() => setShowAllCheckins((prev) => !prev)}
+                className="text-sm font-semibold text-primary hover:underline"
+                type="button"
+              >
+                {showAllCheckins ? 'Recolher' : `Mostrar mais (${checkinRemaining.length})`}
+              </button>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
         <AccordionItem value="wod-ranking" className="border rounded-lg px-4 border-primary/20">
           <AccordionTrigger className="text-base font-semibold hover:no-underline">
             <span className="flex items-center gap-2">
