@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Map, Users, Sparkles, Crown, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Swords, Map, Users, Sparkles, Crown, Plus, LogIn } from 'lucide-react';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { territories, clanRewards, getTerritoryOfDay } from '@/lib/clanSystem';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +24,7 @@ const Clans = () => {
   const { user, getAllUsers } = useAuth();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
-
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [clans, setClans] = useState<ClanData[]>([]);
   const [memberships, setMemberships] = useState<Record<string, string>>({});
@@ -97,6 +98,18 @@ const Clans = () => {
     }
   };
 
+  const handleJoinClan = async (clanId: string, clanName: string) => {
+    if (!user) return;
+    try {
+      await joinClan(user.id, clanId);
+      toast({ title: 'Você entrou no time!', description: `Agora você faz parte de ${clanName}.` });
+      setJoinDialogOpen(false);
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao entrar no time.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -131,10 +144,49 @@ const Clans = () => {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">Você ganhou XP pessoal! Entre em um time para ajudar seu time a dominar territórios.</p>
-              <Button type="button" onClick={handleCreateMyClan} className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Meu Time
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                {clans.length > 0 && (
+                  <Button type="button" variant="outline" onClick={() => setJoinDialogOpen(true)} className="w-full sm:w-auto">
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Entrar em um Time
+                  </Button>
+                )}
+                <Button type="button" onClick={handleCreateMyClan} className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Meu Time
+                </Button>
+              </div>
+
+              <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
+                <DialogContent className="max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Escolha um Time</DialogTitle>
+                    <DialogDescription>Selecione o time que deseja participar.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3 mt-2">
+                    {clans.map((clan) => {
+                      const memberCount = allUsers.filter((u) => memberships[u.id] === clan.id).length;
+                      return (
+                        <div key={clan.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <div>
+                            <p className="font-semibold">{clan.banner} {clan.name}</p>
+                            <p className="text-xs text-muted-foreground">{clan.motto}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Users className="h-3 w-3" /> {memberCount} membros
+                            </p>
+                          </div>
+                          <Button size="sm" onClick={() => handleJoinClan(clan.id, clan.name)}>
+                            Entrar
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    {clans.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum time criado ainda. Crie o primeiro!</p>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
           )}
         </CardContent>
