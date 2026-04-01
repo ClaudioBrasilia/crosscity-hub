@@ -98,6 +98,18 @@ const Clans = () => {
     }
   };
 
+  const handleJoinClan = async (clanId: string, clanName: string) => {
+    if (!user) return;
+    try {
+      await joinClan(user.id, clanId);
+      toast({ title: 'Você entrou no time!', description: `Agora você faz parte de ${clanName}.` });
+      setJoinDialogOpen(false);
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao entrar no time.', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
