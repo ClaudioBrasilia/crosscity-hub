@@ -24,7 +24,7 @@ const Clans = () => {
   const { user, getAllUsers } = useAuth();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
-
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [clans, setClans] = useState<ClanData[]>([]);
   const [memberships, setMemberships] = useState<Record<string, string>>({});
