@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Swords, Map, Users, Sparkles, Crown, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Swords, Map, Users, Sparkles, Crown, Plus, LogIn } from 'lucide-react';
 import { DominationEnergyButton } from '@/components/DominationEnergyButton';
 import { territories, clanRewards, getTerritoryOfDay } from '@/lib/clanSystem';
 import { useToast } from '@/hooks/use-toast';
