@@ -1,68 +1,24 @@
 
 
-# Add Profile Photo Upload
+## Plan: Add "Join Team" functionality to the Clans page
 
-## Current State
-- Profile uses emoji avatars only (text field `avatar` in `profiles` table)
-- No `avatar_url` column exists
-- No storage bucket for profile images
-- Avatar is displayed as emoji text throughout the app
+### Problem
+Currently users can only create a new team. There is no UI to join an existing team. The `joinClan` function already exists in `supabaseData.ts` but is only called when creating a new clan.
 
-## What Needs to Change
+### Changes
 
-### 1. Database: Add `avatar_url` column to `profiles`
-- Add nullable `text` column `avatar_url` to `profiles`
-- Update the anon SELECT policy (already exists) -- no change needed since it covers all columns
+**File: `src/pages/Clans.tsx`** (single file change)
 
-### 2. Storage: Create `avatars` bucket
-- Create public bucket `avatars`
-- RLS policies: users can upload/update/delete their own files, anyone can view
+1. In the "Sem Time" section (lines 131-139), add a "Join Team" button alongside the existing "Criar Meu Time" button.
 
-### 3. Profile Page (`src/pages/Profile.tsx`)
-- Add photo upload section above the emoji avatar selector
-- Show current photo with option to change/remove
-- Validate: only images (jpg/png/webp), max 2MB
-- Upload to `avatars/{user.id}/profile.{ext}`
-- Save URL to `profiles.avatar_url`
-- Show photo as circular avatar, fallback to emoji if no photo
+2. Add a Dialog that lists all existing clans (already loaded in `clans` state) with member count and motto, each with a "Entrar" button.
 
-### 4. AuthContext (`src/contexts/AuthContext.tsx`)
-- Add `avatarUrl?: string` to User interface
-- Map `avatar_url` from DB in `fetchUserProfile` and `getAllUsers`
-- Handle `avatarUrl` in `updateUser`
+3. On click, call the existing `joinClan(user.id, clan.id)` function, show a success toast, and refresh state via `setTick`.
 
-### 5. Display in key places
-- Profile page header: show photo instead of emoji when available
-- Layout/sidebar: show photo if available (check Layout.tsx for avatar usage)
-- Fallback: if no `avatar_url`, show emoji avatar as before
+4. If user already has a team (`myClan` is set), hide the join option (already handled by the existing conditional).
 
-## Files Modified
-1. **Migration SQL** -- add `avatar_url` column + `avatars` bucket + storage policies
-2. **`src/contexts/AuthContext.tsx`** -- add `avatarUrl` to User type, map from DB
-3. **`src/pages/Profile.tsx`** -- add upload UI section, display photo
-4. **`src/components/Layout.tsx`** -- display photo in sidebar/header if available
-
-## What Does NOT Change
-- Login/register flow
-- Dashboard, WOD, CoachDashboard, Battle, Feed, Leaderboard
-- Check-in logic, duels, ranking
-- localStorage structure
-- Emoji avatar system (kept as fallback)
-
-## Technical Details
-
-### Upload Flow
-```
-User selects file → validate type/size → upload to Supabase Storage
-→ get public URL → update profiles.avatar_url → update local state
-```
-
-### Storage Path Convention
-`avatars/{userId}/profile.jpg` (overwritten on each upload)
-
-### Fallback Logic
-```
-avatarUrl exists → show <img> in circular container
-avatarUrl missing → show emoji avatar (current behavior)
-```
+### No other files or database changes needed
+- `joinClan()` already exists in `supabaseData.ts`
+- `clan_memberships` table has RLS allowing users to insert their own membership
+- No changes to TV, check-in, WOD, ranking, duels, or challenges
 
