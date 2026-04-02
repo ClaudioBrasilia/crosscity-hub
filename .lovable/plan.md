@@ -1,37 +1,49 @@
 
 
-## Plan: Fix Build Errors + Challenge Once-Per-Day Limit
+## Plan: Create `class_schedules` Table
 
-### Build Errors to Fix
+### Root Cause
+The `class_schedules` table does not exist in the database. The Admin page and TV mode both reference it, causing errors when trying to add, list, or filter by class schedules.
 
-**1. `src/pages/TvMode.tsx`** — Duplicate `loadTvData` declaration and missing `refreshFromRealtime`:
-- Remove the duplicate `loadTvData` block (lines 302-324, exact copy of 278-300).
-- Define `refreshFromRealtime` as a function that calls the `load` function or `loadTvData`. The real-time channels reference it but it's never defined.
+### Fix
 
-**2. `src/pages/Admin.tsx`** — Two errors in the economy settings:
-- Line 555: `updateAvatarEconomySettings` expects 2 args (`currentId`, `payload`). Fix to pass `form.id` and the update payload separately.
-- Line 589: `handleResetDefaults` sets form without `id`, `rule_labels`, `rule_notes`, `created_at`. Spread existing form values to keep those fields.
+**Database Migration** -- Create the `class_schedules` table with RLS policies:
 
-### Challenge Once-Per-Day Feature
+```sql
+CREATE TABLE public.class_schedules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  label text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-**3. `src/lib/supabaseData.ts`** — Modify `incrementChallengeProgress` to check if user already incremented today:
-- Query `challenge_progress` for `updated_at` — if it's today, throw an error / return early with a message.
-- Only allow the increment if the last update was before today (comparing dates in the user's timezone).
+ALTER TABLE public.class_schedules ENABLE ROW LEVEL SECURITY;
 
-**4. `src/pages/Challenges.tsx`** — Disable the increment button if already done today:
-- Track per-challenge "already incremented today" state based on the `updated_at` field from `challenge_progress`.
-- Show the button as disabled with a label like "Já registrado hoje" when the user has already incremented.
-- On error from the backend (already incremented), show a toast message.
+-- Anyone authenticated can view schedules
+CREATE POLICY "Anyone can view schedules"
+  ON public.class_schedules FOR SELECT
+  TO authenticated USING (true);
 
-### Files Changed
+-- Admins can manage schedules (insert, update, delete)
+CREATE POLICY "Admins can manage schedules"
+  ON public.class_schedules FOR ALL
+  TO authenticated
+  USING (has_role(auth.uid(), 'admin'::app_role))
+  WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
 
+-- Anon can view (for TV mode which uses anon key)
+CREATE POLICY "Anon can view schedules"
+  ON public.class_schedules FOR SELECT
+  TO anon USING (true);
+```
+
+### No code changes needed
+The existing code in `Admin.tsx` and `TvMode.tsx` already uses the correct column names (`start_time`, `end_time`, `label`, `is_active`). Once the table exists, everything will work.
+
+### Files changed
 | File | Change |
 |------|--------|
-| `src/pages/TvMode.tsx` | Remove duplicate `loadTvData`, add `refreshFromRealtime` |
-| `src/pages/Admin.tsx` | Fix `updateAvatarEconomySettings` call signature, fix `handleResetDefaults` |
-| `src/lib/supabaseData.ts` | Add daily check to `incrementChallengeProgress` |
-| `src/pages/Challenges.tsx` | Disable increment button if already used today |
-
-### What stays untouched
-TV layout, check-in, WOD, ranking, duels, clans — no changes.
+| Migration SQL | Create `class_schedules` table with RLS |
 
