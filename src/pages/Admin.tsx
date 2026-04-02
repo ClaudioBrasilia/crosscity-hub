@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { getClans, getClanMemberships, deleteClan } from '@/lib/supabaseData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -226,6 +227,8 @@ const Admin = () => {
       <BoxLogoSection />
 
       <BoxSettingsSection />
+
+      <AdminTeamsSection />
     </div>
   );
 };
@@ -617,6 +620,68 @@ const BoxSettingsSection = () => {
             </p>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
           </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ---- Admin Teams Management ----
+const AdminTeamsSection = () => {
+  const { toast } = useToast();
+  const [clans, setClans] = useState<any[]>([]);
+  const [memberships, setMemberships] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    Promise.all([getClans(), getClanMemberships()]).then(([c, m]) => {
+      setClans(c);
+      setMemberships(m);
+      setLoading(false);
+    });
+  }, [tick]);
+
+  const memberCount = (clanId: string) =>
+    Object.values(memberships).filter((v) => v === clanId).length;
+
+  const handleDelete = async (clan: any) => {
+    if (!window.confirm(`Excluir o time "${clan.name}"? Todos os membros serão removidos.`)) return;
+    try {
+      await deleteClan(clan.id);
+      toast({ title: 'Time excluído', description: `${clan.name} foi removido.` });
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="h-5 w-5" /> Gerenciar Times
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : clans.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum time criado.</p>
+        ) : (
+          clans.map((clan) => (
+            <div key={clan.id} className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="font-semibold">{clan.banner} {clan.name}</p>
+                <p className="text-xs text-muted-foreground">{memberCount(clan.id)} membros</p>
+              </div>
+              <Button size="sm" variant="destructive" onClick={() => handleDelete(clan)}>
+                Excluir
+              </Button>
+            </div>
+          ))
         )}
       </CardContent>
     </Card>

@@ -937,6 +937,38 @@ export async function getUserGoals(userId: string): Promise<{ objective?: string
   return data as any;
 }
 
+// ─── Leave / Delete Clan ────────────────────────────────────────────────────
+
+export async function leaveClan(userId: string, clanId: string): Promise<void> {
+  const { error } = await (supabase.from('clan_memberships') as any)
+    .delete()
+    .eq('user_id', userId)
+    .eq('clan_id', clanId);
+  if (error) {
+    console.error('Error leaving clan:', error);
+    throw new Error('Falha ao sair do time.');
+  }
+}
+
+export async function deleteClan(clanId: string): Promise<void> {
+  // First delete all memberships
+  const { error: memErr } = await (supabase.from('clan_memberships') as any)
+    .delete()
+    .eq('clan_id', clanId);
+  if (memErr) {
+    console.error('Error deleting clan memberships:', memErr);
+    throw new Error('Falha ao remover membros do time.');
+  }
+  // Then delete the clan itself
+  const { error: clanErr } = await (supabase.from('app_clans') as any)
+    .delete()
+    .eq('id', clanId);
+  if (clanErr) {
+    console.error('Error deleting clan:', clanErr);
+    throw new Error('Falha ao excluir time.');
+  }
+}
+
 export async function saveUserGoals(userId: string, goals: { objective?: string; frequency?: string; level?: string }): Promise<void> {
   const { error } = await supabase.from('user_goals').upsert({
     user_id: userId,

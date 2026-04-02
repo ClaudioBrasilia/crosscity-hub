@@ -22,6 +22,7 @@ import {
   getTerritoryBattle,
   type ClanData,
   type ClanMembershipData,
+  leaveClan,
 } from '@/lib/supabaseData';
 
 const Clans = () => {
@@ -190,6 +191,30 @@ const Clans = () => {
               )}
               {myMembership?.status === 'pending' && (
                 <Badge variant="secondary">Solicitação pendente de aprovação do capitão</Badge>
+              )}
+              {user && myMembership?.status === 'approved' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={async () => {
+                    if (!myClan) return;
+                    const msg = isCaptain
+                      ? 'Você é o capitão! Se sair, o time ficará sem líder. Deseja continuar?'
+                      : 'Tem certeza que deseja sair do time?';
+                    if (!window.confirm(msg)) return;
+                    try {
+                      await leaveClan(user.id, myClan.id);
+                      toast({ title: 'Você saiu do time.' });
+                      setTick((v) => v + 1);
+                    } catch (err: any) {
+                      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+                    }
+                  }}
+                >
+                  Sair do Time
+                </Button>
               )}
             </>
           ) : (
