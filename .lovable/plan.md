@@ -1,69 +1,44 @@
 
 
-## Plan: Fix "Falha ao criar liderança do time" Error
+## Plan: Add "Leave Team" + Admin "Delete Team"
 
-### Root Cause
-The code in `supabaseData.ts` inserts `status: 'approved'` into `clan_memberships`, but the `status` column does not exist on that table yet. The database schema shows `clan_memberships` only has: `id`, `user_id`, `clan_id`, `role`, `joined_at`.
+### Overview
+Two features: (1) any member can leave their current team, and (2) app admins can delete teams from the Admin page.
 
-### Fix
+### Changes
 
-**1. Database Migration** — Add the missing `status` column:
+**1. `src/lib/supabaseData.ts`** — Add two functions:
+- `leaveClan(userId, clanId)` — deletes the user's own membership row (RLS already allows `auth.uid() = user_id` for DELETE).
+- `deleteClan(clanId)` — deletes all memberships for the clan, then deletes the clan itself. Requires admin role (RLS on `app_clans` currently blocks DELETE, so we need a migration).
 
+**2. Database Migration** — Add DELETE policy on `app_clans`:
 ```sql
-ALTER TABLE public.clan_memberships
-  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';
+CREATE POLICY "Admins can delete clans"
+  ON public.app_clans FOR DELETE TO authenticated
+  USING (has_role(auth.uid(), 'admin'::app_role));
 
--- Backfill existing memberships as approved
-UPDATE public.clan_memberships SET status = 'approved';
-
--- Ensure creators are captains
-UPDATE public.clan_memberships cm
-SET role = 'captain'
-FROM public.app_clans c
-WHERE cm.clan_id = c.id AND cm.user_id = c.created_by;
+-- Also allow admin to delete all memberships of a clan
+-- (already covered by existing "Users captains or admins can delete membership" policy)
 ```
 
-**2. Update RLS** — The existing UPDATE policy uses `auth.uid() = user_id OR has_role(...)`. We need to also allow captains to update members in their clan (for approving/removing):
+**3. `src/pages/Clans.tsx`** — Add "Sair do Time" button:
+- Visible when user has `myClan` and is NOT the sole captain.
+- Calls `leaveClan(user.id, clanId)`, shows toast, refreshes via `setTick`.
+- If user is captain, show warning that they must transfer captaincy or the team will lose its captain.
 
-```sql
-DROP POLICY IF EXISTS "Users can update own membership" ON public.clan_memberships;
-CREATE POLICY "Users or captains can update membership"
-  ON public.clan_memberships FOR UPDATE TO authenticated
-  USING (
-    auth.uid() = user_id
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.clan_memberships cap
-      WHERE cap.clan_id = clan_memberships.clan_id
-        AND cap.user_id = auth.uid()
-        AND cap.role = 'captain'
-        AND cap.status = 'approved'
-    )
-  );
+**4. `src/pages/Admin.tsx`** — Add "Gerenciar Times" section:
+- Fetch all clans with `getClans()` and member counts.
+- Display list with clan name, member count, and a "Excluir" (Delete) button.
+- On click, confirm with `window.confirm()`, then call `deleteClan(clanId)`.
 
-DROP POLICY IF EXISTS "Users can leave or admin can manage" ON public.clan_memberships;
-CREATE POLICY "Users captains or admins can delete membership"
-  ON public.clan_memberships FOR DELETE TO authenticated
-  USING (
-    auth.uid() = user_id
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR EXISTS (
-      SELECT 1 FROM public.clan_memberships cap
-      WHERE cap.clan_id = clan_memberships.clan_id
-        AND cap.user_id = auth.uid()
-        AND cap.role = 'captain'
-        AND cap.status = 'approved'
-    )
-  );
-```
-
-**3. No code changes needed** — The TypeScript code already references `status` with `as any` casts, so once the column exists, everything will work.
+### What stays untouched
+TV, check-in, WOD, ranking, duels, challenges — no changes.
 
 ### Files changed
 | File | Change |
 |------|--------|
-| Migration SQL | Add `status` column, backfill, update RLS policies |
-
-### What stays untouched
-TV, check-in, WOD, ranking, duels, challenges — no changes.
+| Migration SQL | Add DELETE policy on `app_clans` for admins |
+| `src/lib/supabaseData.ts` | Add `leaveClan` and `deleteClan` functions |
+| `src/pages/Clans.tsx` | Add "Sair do Time" button |
+| `src/pages/Admin.tsx` | Add team management section with delete |
 
