@@ -803,9 +803,9 @@ export async function createClan(clan: { name: string; motto: string; banner: st
 }
 
 export async function getClanMemberships(): Promise<Record<string, string>> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase
     .from('clan_memberships')
-    .select('user_id, clan_id')
+    .select('user_id, clan_id') as any)
     .eq('status', 'approved');
   if (error) return {};
   const result: Record<string, string> = {};
