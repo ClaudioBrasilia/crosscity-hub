@@ -405,7 +405,27 @@ export async function getAllChallengeProgress(challengeId: string): Promise<Reco
   return result;
 }
 
+export async function getChallengeProgressUpdatedAt(challengeId: string, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('challenge_progress')
+    .select('updated_at')
+    .eq('challenge_id', challengeId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return (data as any)?.updated_at || null;
+}
+
 export async function incrementChallengeProgress(challengeId: string, userId: string): Promise<number> {
+  // Check if already incremented today
+  const lastUpdate = await getChallengeProgressUpdatedAt(challengeId, userId);
+  if (lastUpdate) {
+    const lastDate = new Date(lastUpdate).toDateString();
+    const today = new Date().toDateString();
+    if (lastDate === today) {
+      throw new Error('Você já registrou progresso neste desafio hoje. Tente novamente amanhã!');
+    }
+  }
+
   const current = await getChallengeProgress(challengeId, userId);
   const next = current + 1;
   const { error } = await supabase

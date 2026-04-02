@@ -587,7 +587,9 @@ const AvatarEconomySection = () => {
   };
 
   const handleResetDefaults = () => {
+    if (!form) return;
     setForm({
+      ...form,
       coins_per_checkin: 10,
       coins_per_challenge_completion: 50,
       coins_per_wod_completion: 20,

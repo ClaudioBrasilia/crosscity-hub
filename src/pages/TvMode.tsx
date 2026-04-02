@@ -275,11 +275,11 @@ export default function TvMode() {
   const [rightTopBlockMode, setRightTopBlockMode] = useState<TvRightTopBlockMode>('checkins');
   const [schedules, setSchedules] = useState<any[]>([]);
 
-  const loadTvData = useCallback(async () => {
+  const loadTvData = useCallback(async (currentScheds?: any[]) => {
     try {
       const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
         fetchDailyWod(),
-        fetchTvCheckins(),
+        fetchTvCheckins(currentScheds),
         fetchTvDuels(),
         getActiveChallenges(),
         fetchMonthlyXpRanking(),
@@ -299,29 +299,9 @@ export default function TvMode() {
     setNow(new Date());
   }, []);
 
-  const loadTvData = useCallback(async () => {
-    try {
-      const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
-        fetchDailyWod(),
-        fetchTvCheckins(),
-        fetchTvDuels(),
-        getActiveChallenges(),
-        fetchMonthlyXpRanking(),
-        getTvLayoutModel(),
-        getTvRightTopBlockMode(),
-      ]);
-      setDailyWod(wod);
-      setCheckins(ci);
-      setDuels(du);
-      setActiveChallenges(activeChallenges);
-      setMonthlyXpRanking(ranking);
-      setLayoutModel(model);
-      setRightTopBlockMode(blockMode);
-    } catch {
-      // silently ignore network errors to keep TV stable
-    }
-    setNow(new Date());
-  }, []);
+  const refreshFromRealtime = useCallback(() => {
+    loadTvData(schedules);
+  }, [loadTvData, schedules]);
 
   useEffect(() => {
     const load = async () => {
