@@ -322,7 +322,7 @@ const ClassScheduleSection = () => {
 
   const fetchSchedules = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('class_schedules')
       .select('*')
       .order('start_time', { ascending: true });
