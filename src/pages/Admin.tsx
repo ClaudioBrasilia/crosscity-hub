@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
-import { Shield, Users, Loader2, MapPin, Settings, Upload, ImageIcon, ChevronDown } from 'lucide-react';
+import { Shield, Users, Loader2, MapPin, Settings, Upload, ImageIcon, ChevronDown, Clock, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,7 +120,7 @@ const Admin = () => {
   const athleteUsers = users.filter((u) => u.role === 'athlete');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <div className="flex items-center gap-3">
         <Shield className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Painel Administrativo</h1>
@@ -154,13 +154,37 @@ const Admin = () => {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          <div className="mt-6 border-t pt-6">
-            <CardTitle className="flex items-center gap-2 mb-4">
-              <Users className="h-5 w-5" />
-              Gerenciar Usuários ({users.length})
-            </CardTitle>
+      <Accordion type="multiple" defaultValue={['pending-tasks']} className="space-y-4">
+        {/* 1. Tarefas Pendentes */}
+        <AccordionItem value="pending-tasks" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-yellow-500" />
+              <span className="font-bold">Tarefas Pendentes</span>
+              {pendingUsers.length > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full text-[10px]">
+                  {pendingUsers.length}
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <AdminCheckinHistory users={users} />
+          </AccordionContent>
+        </AccordionItem>
 
+        {/* 2. Controle de Usuários */}
+        <AccordionItem value="users-control" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-500" />
+              <span className="font-bold">Controle de Usuários</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -170,66 +194,241 @@ const Admin = () => {
                 {users.map((u) => (
                   <div
                     key={u.id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border gap-4"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{u.avatar || '👤'}</span>
-                      <div>
-                        <p className="font-medium">{u.name}</p>
-                        <p className="text-sm text-muted-foreground">{u.email}</p>
+                      <span className="text-3xl sm:text-2xl shrink-0">{u.avatar || '👤'}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold truncate">{u.name}</p>
+                        <p className="text-sm text-muted-foreground truncate">{u.email}</p>
+                        <div className="flex flex-wrap gap-2 mt-1 sm:hidden">
+                          <Badge variant={roleColor(u.role)} className="text-[10px]">{roleLabel(u.role)}</Badge>
+                          <Badge variant={approvalColor(u.approvalStatus)} className={`${approvalBadgeClass(u.approvalStatus)} text-[10px]`}>
+                            {approvalLabel(u.approvalStatus)}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
-                      <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
-                        {approvalLabel(u.approvalStatus)}
-                      </Badge>
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        <Badge variant={roleColor(u.role)}>{roleLabel(u.role)}</Badge>
+                        <Badge variant={approvalColor(u.approvalStatus)} className={approvalBadgeClass(u.approvalStatus)}>
+                          {approvalLabel(u.approvalStatus)}
+                        </Badge>
+                      </div>
                     </div>
 
                     {u.id !== user?.id && (
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={u.approvalStatus}
-                          onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pendente</SelectItem>
-                            <SelectItem value="approved">Aprovar</SelectItem>
-                            <SelectItem value="rejected">Rejeitar</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={u.role}
-                          onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="athlete">Atleta</SelectItem>
-                            <SelectItem value="coach">Professor</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                          <Select
+                            value={u.approvalStatus}
+                            onValueChange={(value: 'pending' | 'approved' | 'rejected') => handleApprovalChange(u.id, value)}
+                          >
+                            <SelectTrigger className="w-full sm:w-[130px] h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pendente</SelectItem>
+                              <SelectItem value="approved">Aprovar</SelectItem>
+                              <SelectItem value="rejected">Rejeitar</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={u.role}
+                            onValueChange={(value: 'athlete' | 'coach' | 'admin') => handleRoleChange(u.id, value)}
+                          >
+                            <SelectTrigger className="w-full sm:w-[130px] h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="athlete">Atleta</SelectItem>
+                              <SelectItem value="coach">Professor</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
             )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 3. Controle de Times */}
+        <AccordionItem value="teams-control" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-green-500" />
+              <span className="font-bold">Controle de Times</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <AdminTeamsSection />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 4. Horários das Aulas */}
+        <AccordionItem value="class-schedule" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-500" />
+              <span className="font-bold">Horários das Aulas</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+             <ClassScheduleSection />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 5. Configurações do Box */}
+        <AccordionItem value="box-settings" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-gray-500" />
+              <span className="font-bold">Configurações do Box</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4 space-y-4">
+            <BoxLogoSection />
+            <BoxSettingsSection />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 6. Economia do Avatar */}
+        <AccordionItem value="avatar-economy-control" className="border rounded-lg bg-card overflow-hidden">
+          <AccordionTrigger className="px-4 hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-purple-500" />
+              <span className="font-bold">Economia do Avatar</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <AvatarEconomySection />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  );
+};
+
+// ---- Class Schedule Section ----
+const ClassScheduleSection = () => {
+  const { toast } = useToast();
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newSchedule, setNewSchedule] = useState({ start_time: '08:00', end_time: '09:00', label: '' });
+
+  const fetchSchedules = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('class_schedules')
+      .select('*')
+      .order('start_time', { ascending: true });
+    
+    if (!error && data) {
+      setSchedules(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSchedules();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!newSchedule.start_time || !newSchedule.end_time) return;
+    
+    const { error } = await supabase
+      .from('class_schedules')
+      .insert([{
+        start_time: newSchedule.start_time + ':00',
+        end_time: newSchedule.end_time + ':00',
+        label: newSchedule.label || null,
+        is_active: true
+      }]);
+
+    if (error) {
+      toast({ title: 'Erro ao adicionar', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Horário adicionado!' });
+      setIsAdding(false);
+      setNewSchedule({ start_time: '08:00', end_time: '09:00', label: '' });
+      fetchSchedules();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Excluir este horário?')) return;
+    
+    const { error } = await supabase
+      .from('class_schedules')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Horário removido.' });
+      fetchSchedules();
+    }
+  };
+
+  return (
+    <div className="p-4 border rounded-md bg-muted/20">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Clock className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <h3 className="font-medium">Gestão de Horários</h3>
+            <p className="text-xs text-muted-foreground">Configure os horários das aulas.</p>
           </div>
-        </CardContent>
-      </Card>
-      <AdminCheckinHistory users={users} />
+        </div>
+        <Button size="sm" onClick={() => setIsAdding(!isAdding)}>
+          {isAdding ? 'Cancelar' : <><Plus className="h-4 w-4 mr-1" /> Novo</>}
+        </Button>
+      </div>
 
-      <AvatarEconomySection />
+      {isAdding && (
+        <div className="mb-4 p-3 border rounded-md bg-card space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground">Início</label>
+              <Input type="time" value={newSchedule.start_time} onChange={e => setNewSchedule({...newSchedule, start_time: e.target.value})} />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground">Fim</label>
+              <Input type="time" value={newSchedule.end_time} onChange={e => setNewSchedule({...newSchedule, end_time: e.target.value})} />
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase font-bold text-muted-foreground">Rótulo (opcional)</label>
+            <Input placeholder="Ex: Aula Noite" value={newSchedule.label} onChange={e => setNewSchedule({...newSchedule, label: e.target.value})} />
+          </div>
+          <Button className="w-full" onClick={handleAdd}>Salvar Horário</Button>
+        </div>
+      )}
 
-      <BoxLogoSection />
-
-      <BoxSettingsSection />
-
-      <AdminTeamsSection />
+      {loading ? (
+        <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : schedules.length === 0 ? (
+        <p className="text-center py-4 text-sm text-muted-foreground italic">Nenhum horário cadastrado.</p>
+      ) : (
+        <div className="space-y-2">
+          {schedules.map((item) => (
+            <div key={item.id} className="flex items-center justify-between p-2 rounded border bg-card text-sm">
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="font-mono">{item.start_time.substring(0,5)} - {item.end_time.substring(0,5)}</Badge>
+                <span className="font-medium">{item.label || 'Aula'}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -263,239 +462,146 @@ const BoxLogoSection = () => {
     const file = e.target.files?.[0];
     if (!file || !location) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Arquivo inválido', description: 'Selecione uma imagem (JPG, PNG ou WebP).', variant: 'destructive' });
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'Arquivo muito grande', description: 'Máximo 2MB.', variant: 'destructive' });
-      return;
-    }
-
     setUploading(true);
-    const ext = file.name.split('.').pop() || 'png';
-    const filePath = `${location.id}/logo.${ext}`;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `box-logos/${location.id}-${Math.random()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('box-logos')
-      .upload(filePath, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
 
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' });
-      setUploading(false);
-      return;
-    }
+      if (uploadError) throw uploadError;
 
-    const { data: publicData } = supabase.storage.from('box-logos').getPublicUrl(filePath);
-    const newUrl = publicData.publicUrl + '?t=' + Date.now();
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
-    const { error: updateError } = await (supabase as any)
-      .from('training_locations')
-      .update({ logo_url: newUrl })
-      .eq('id', location.id);
+      const { error: updateError } = await supabase
+        .from('training_locations')
+        .update({ logo_url: publicUrl })
+        .eq('id', location.id);
 
-    if (updateError) {
-      toast({ title: 'Erro ao salvar URL', description: updateError.message, variant: 'destructive' });
-    } else {
-      setLogoUrl(newUrl);
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
       toast({ title: 'Logo atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
+  if (loading) return <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  if (!location) return null;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ImageIcon className="h-5 w-5" />
-          Logo do Box
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : !location ? (
-          <p className="text-sm text-muted-foreground">Nenhum local de treino cadastrado.</p>
-        ) : (
-          <div className="flex items-center gap-4">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo do Box" className="h-16 w-16 rounded-lg object-contain border border-border" />
-            ) : (
-              <div className="h-16 w-16 rounded-lg border border-dashed border-muted-foreground/40 flex items-center justify-center">
-                <ImageIcon className="h-6 w-6 text-muted-foreground" />
-              </div>
-            )}
-            <div className="space-y-2">
-              <p className="text-sm font-medium">{location.name}</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleUpload}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {uploading ? 'Enviando...' : logoUrl ? 'Trocar Logo' : 'Enviar Logo'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4 p-4 border rounded-md">
+      <div className="flex items-center gap-3">
+        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+        <h3 className="font-medium">Logo do Box</h3>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="h-24 w-24 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+          ) : (
+            <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+          )}
+        </div>
+        <div className="space-y-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleUpload}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {uploading ? 'Enviando...' : 'Alterar Logo'}
+          </Button>
+          <p className="text-xs text-muted-foreground">Recomendado: PNG ou SVG, fundo transparente.</p>
+        </div>
+      </div>
+    </div>
   );
 };
 
-
+// ---- Avatar Economy Section ----
 const AvatarEconomySection = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<AvatarEconomySettings | null>(null);
-  const [form, setForm] = useState({
-    coins_per_checkin: 10,
-    coins_per_challenge_completion: 20,
-    coins_per_wod_completion: 15,
-    coins_per_duel_participation: 10,
-    coins_per_duel_win: 25,
-    coins_per_pr: 30,
-    level_up_bonus: 25,
-    weekly_bonus_3: 30,
-    weekly_bonus_4: 45,
-    weekly_bonus_5: 60,
-    weekly_bonus_6: 75,
-    monthly_ranking_bonus: 100,
-    special_event_bonus: 50,
-    daily_mission_bonus: 20,
-    milestone_bonus: 40,
-    coins_per_checkin_enabled: true,
-    coins_per_challenge_completion_enabled: true,
-    coins_per_wod_completion_enabled: true,
-    coins_per_duel_participation_enabled: true,
-    coins_per_duel_win_enabled: true,
-    coins_per_pr_enabled: true,
-    level_up_bonus_enabled: true,
-    weekly_bonus_3_enabled: true,
-    weekly_bonus_4_enabled: true,
-    weekly_bonus_5_enabled: true,
-    weekly_bonus_6_enabled: true,
-    monthly_ranking_bonus_enabled: true,
-    special_event_bonus_enabled: true,
-    daily_mission_bonus_enabled: true,
-    milestone_bonus_enabled: true,
-    is_active: true,
-  });
+  const [form, setForm] = useState<AvatarEconomySettings | null>(null);
 
   useEffect(() => {
     getAvatarEconomySettings().then((data) => {
-      if (data) {
-        setSettings(data);
-        setForm({
-          coins_per_checkin: data.coins_per_checkin,
-          coins_per_challenge_completion: data.coins_per_challenge_completion,
-          coins_per_wod_completion: data.coins_per_wod_completion,
-          coins_per_duel_participation: data.coins_per_duel_participation,
-          coins_per_duel_win: data.coins_per_duel_win,
-          coins_per_pr: data.coins_per_pr,
-          level_up_bonus: data.level_up_bonus,
-          weekly_bonus_3: data.weekly_bonus_3,
-          weekly_bonus_4: data.weekly_bonus_4,
-          weekly_bonus_5: data.weekly_bonus_5,
-          weekly_bonus_6: data.weekly_bonus_6,
-          monthly_ranking_bonus: data.monthly_ranking_bonus,
-          special_event_bonus: data.special_event_bonus,
-          daily_mission_bonus: data.daily_mission_bonus,
-          milestone_bonus: data.milestone_bonus,
-          coins_per_checkin_enabled: data.coins_per_checkin_enabled,
-          coins_per_challenge_completion_enabled: data.coins_per_challenge_completion_enabled,
-          coins_per_wod_completion_enabled: data.coins_per_wod_completion_enabled,
-          coins_per_duel_participation_enabled: data.coins_per_duel_participation_enabled,
-          coins_per_duel_win_enabled: data.coins_per_duel_win_enabled,
-          coins_per_pr_enabled: data.coins_per_pr_enabled,
-          level_up_bonus_enabled: data.level_up_bonus_enabled,
-          weekly_bonus_3_enabled: data.weekly_bonus_3_enabled,
-          weekly_bonus_4_enabled: data.weekly_bonus_4_enabled,
-          weekly_bonus_5_enabled: data.weekly_bonus_5_enabled,
-          weekly_bonus_6_enabled: data.weekly_bonus_6_enabled,
-          monthly_ranking_bonus_enabled: data.monthly_ranking_bonus_enabled,
-          special_event_bonus_enabled: data.special_event_bonus_enabled,
-          daily_mission_bonus_enabled: data.daily_mission_bonus_enabled,
-          milestone_bonus_enabled: data.milestone_bonus_enabled,
-          is_active: data.is_active,
-        });
-      }
+      setForm(data);
       setLoading(false);
     });
   }, []);
 
   const handleSave = async () => {
+    if (!form) return;
     setSaving(true);
-
-    const { data, error } = await updateAvatarEconomySettings(settings?.id || null, {
-      ...form,
-    });
-
-    if (error) {
-      toast({
-        title: 'Erro ao salvar economia do avatar',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else if (data) {
-      setSettings(data);
-      toast({
-        title: 'Economia do Avatar salva!',
-      });
+    try {
+      await updateAvatarEconomySettings(form);
+      toast({ title: 'Configurações salvas!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
-  const renderRuleInput = (label: string, valueKey: keyof typeof form, enabledKey: keyof typeof form) => (
-    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-      <div>
-        <label className="text-sm font-medium">{label}</label>
+  const renderRuleInput = (label: string, field: keyof AvatarEconomySettings, enabledField: keyof AvatarEconomySettings) => {
+    if (!form) return null;
+    return (
+      <div className="flex items-center justify-between gap-4 p-2 rounded-md border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={!!form[enabledField]}
+            onChange={(e) => setForm({ ...form, [enabledField]: e.target.checked })}
+            className="h-4 w-4"
+          />
+          <span className="text-sm font-medium">{label}</span>
+        </div>
         <Input
           type="number"
-          value={Number(form[valueKey]) || 0}
-          onChange={(e) => setForm({ ...form, [valueKey]: parseInt(e.target.value) || 0 })}
+          value={form[field] as number}
+          onChange={(e) => setForm({ ...form, [field]: parseInt(e.target.value) || 0 })}
+          className="w-20 h-8 text-right"
+          disabled={!form[enabledField]}
         />
       </div>
-      <label className="flex items-center gap-2 text-sm font-medium pb-2">
-        <input
-          type="checkbox"
-          checked={Boolean(form[enabledKey])}
-          onChange={(e) => setForm({ ...form, [enabledKey]: e.target.checked })}
-        />
-        Ativo
-      </label>
-    </div>
-  );
+    );
+  };
 
   const handleResetDefaults = () => {
     setForm({
       coins_per_checkin: 10,
-      coins_per_challenge_completion: 20,
-      coins_per_wod_completion: 15,
-      coins_per_duel_participation: 10,
-      coins_per_duel_win: 25,
-      coins_per_pr: 30,
-      level_up_bonus: 25,
+      coins_per_challenge_completion: 50,
+      coins_per_wod_completion: 20,
+      coins_per_duel_participation: 15,
+      coins_per_duel_win: 30,
+      coins_per_pr: 25,
+      level_up_bonus: 100,
       weekly_bonus_3: 30,
-      weekly_bonus_4: 45,
-      weekly_bonus_5: 60,
-      weekly_bonus_6: 75,
-      monthly_ranking_bonus: 100,
-      special_event_bonus: 50,
-      daily_mission_bonus: 20,
-      milestone_bonus: 40,
+      weekly_bonus_4: 50,
+      weekly_bonus_5: 80,
+      weekly_bonus_6: 120,
+      monthly_ranking_bonus: 500,
+      special_event_bonus: 200,
+      daily_mission_bonus: 10,
+      milestone_bonus: 150,
       coins_per_checkin_enabled: true,
       coins_per_challenge_completion_enabled: true,
       coins_per_wod_completion_enabled: true,
@@ -516,88 +622,60 @@ const AvatarEconomySection = () => {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Economia do Avatar
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    <div className="space-y-4">
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Ganhos por ação</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {renderRuleInput('BrazaCoin por check-in', 'coins_per_checkin', 'coins_per_checkin_enabled')}
+              {renderRuleInput('BrazaCoin por concluir desafio', 'coins_per_challenge_completion', 'coins_per_challenge_completion_enabled')}
+              {renderRuleInput('BrazaCoin por registrar WOD', 'coins_per_wod_completion', 'coins_per_wod_completion_enabled')}
+              {renderRuleInput('BrazaCoin por participar de duelo', 'coins_per_duel_participation', 'coins_per_duel_participation_enabled')}
+              {renderRuleInput('BrazaCoin por vencer duelo', 'coins_per_duel_win', 'coins_per_duel_win_enabled')}
+              {renderRuleInput('BrazaCoin por bater PR', 'coins_per_pr', 'coins_per_pr_enabled')}
+              {renderRuleInput('Bônus por level up', 'level_up_bonus', 'level_up_bonus_enabled')}
+            </div>
           </div>
-        ) : (
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="avatar-economy" className="border rounded-md px-4">
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <ChevronDown className="h-4 w-4" />
-                  Configurar Economia do Avatar
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-5">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Ganhos por ação</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {renderRuleInput('BrazaCoin por check-in', 'coins_per_checkin', 'coins_per_checkin_enabled')}
-                      {renderRuleInput('BrazaCoin por concluir desafio', 'coins_per_challenge_completion', 'coins_per_challenge_completion_enabled')}
-                      {renderRuleInput('BrazaCoin por registrar WOD', 'coins_per_wod_completion', 'coins_per_wod_completion_enabled')}
-                      {renderRuleInput('BrazaCoin por participar de duelo', 'coins_per_duel_participation', 'coins_per_duel_participation_enabled')}
-                      {renderRuleInput('BrazaCoin por vencer duelo', 'coins_per_duel_win', 'coins_per_duel_win_enabled')}
-                      {renderRuleInput('BrazaCoin por bater PR', 'coins_per_pr', 'coins_per_pr_enabled')}
-                      {renderRuleInput('Bônus por level up', 'level_up_bonus', 'level_up_bonus_enabled')}
-                    </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Bônus de consistência</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {renderRuleInput('Bônus semanal 3x', 'weekly_bonus_3', 'weekly_bonus_3_enabled')}
-                      {renderRuleInput('Bônus semanal 4x', 'weekly_bonus_4', 'weekly_bonus_4_enabled')}
-                      {renderRuleInput('Bônus semanal 5x', 'weekly_bonus_5', 'weekly_bonus_5_enabled')}
-                      {renderRuleInput('Bônus semanal 6x', 'weekly_bonus_6', 'weekly_bonus_6_enabled')}
-                    </div>
-                  </div>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Bônus de consistência</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {renderRuleInput('Bônus semanal 3x', 'weekly_bonus_3', 'weekly_bonus_3_enabled')}
+              {renderRuleInput('Bônus semanal 4x', 'weekly_bonus_4', 'weekly_bonus_4_enabled')}
+              {renderRuleInput('Bônus semanal 5x', 'weekly_bonus_5', 'weekly_bonus_5_enabled')}
+              {renderRuleInput('Bônus semanal 6x', 'weekly_bonus_6', 'weekly_bonus_6_enabled')}
+            </div>
+          </div>
 
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Bônus especiais</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {renderRuleInput('Bônus por ranking mensal', 'monthly_ranking_bonus', 'monthly_ranking_bonus_enabled')}
-                      {renderRuleInput('Bônus por evento especial', 'special_event_bonus', 'special_event_bonus_enabled')}
-                      {renderRuleInput('Bônus por missões diárias', 'daily_mission_bonus', 'daily_mission_bonus_enabled')}
-                      {renderRuleInput('Bônus por marcos/conquistas', 'milestone_bonus', 'milestone_bonus_enabled')}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Controle geral</h4>
-                    <div className="flex flex-wrap gap-4 items-center">
-                      <label className="flex items-center gap-2 text-sm font-medium">
-                        <input
-                          type="checkbox"
-                          checked={form.is_active}
-                          onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                        />
-                        Configuração ativa
-                      </label>
-                      <Button type="button" variant="outline" onClick={handleResetDefaults}>
-                        Restaurar padrão
-                      </Button>
-                      <Button onClick={handleSave} disabled={saving}>
-                        {saving ? 'Salvando...' : 'Salvar'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
-      </CardContent>
-    </Card>
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Controle geral</h4>
+            <div className="flex flex-wrap gap-4 items-center justify-between bg-muted/20 p-4 rounded-lg">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={form?.is_active}
+                  onChange={(e) => form && setForm({ ...form, is_active: e.target.checked })}
+                />
+                Configuração ativa
+              </label>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleResetDefaults}>
+                  Restaurar padrão
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -662,98 +740,93 @@ const BoxSettingsSection = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Configurações do Box
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    <div className="p-4 border rounded-md">
+      <div className="flex items-center gap-3 mb-4">
+        <MapPin className="h-5 w-5 text-muted-foreground" />
+        <h3 className="font-medium">Localização e TV</h3>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : !location ? (
+        <p className="text-sm text-muted-foreground">Nenhum local de treino cadastrado.</p>
+      ) : editing ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium">Nome do local</label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
-        ) : !location ? (
-          <p className="text-sm text-muted-foreground">Nenhum local de treino cadastrado.</p>
-        ) : editing ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium">Nome do local</label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium">Latitude</label>
-                <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Longitude</label>
-                <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) || 0 })} />
-              </div>
+              <label className="text-sm font-medium">Latitude</label>
+              <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
-              <label className="text-sm font-medium">Raio permitido (metros)</label>
-              <Input type="number" value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: parseInt(e.target.value) || 100 })} />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Modelo TV</label>
-              <Select
-                value={form.tv_layout_model}
-                onValueChange={(value: TvLayoutModel) => setForm({ ...form, tv_layout_model: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="old">Antigo</SelectItem>
-                  <SelectItem value="new">Novo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Bloco direito superior da TV</label>
-              <Select
-                value={form.tv_right_top_block_mode}
-                onValueChange={(value: TvRightTopBlockMode) => setForm({ ...form, tv_right_top_block_mode: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checkins">Check-ins</SelectItem>
-                  <SelectItem value="avatar">Avatar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave}>Salvar</Button>
-              <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
+              <label className="text-sm font-medium">Longitude</label>
+              <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{location.name}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Coordenadas: {location.latitude}, {location.longitude}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Raio de check-in: {location.radius_meters}m
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Modelo TV: {location.tv_layout_model === 'new' ? 'Novo' : 'Antigo'}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Bloco direito superior da TV: {location.tv_right_top_block_mode === 'avatar' || location.tv_right_top_block_mode === 'avatars' ? 'Avatar' : 'Check-ins'}
-            </p>
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          <div>
+            <label className="text-sm font-medium">Raio permitido (metros)</label>
+            <Input type="number" value={form.radius_meters} onChange={(e) => setForm({ ...form, radius_meters: parseInt(e.target.value) || 100 })} />
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div>
+            <label className="text-sm font-medium">Modelo TV</label>
+            <Select
+              value={form.tv_layout_model}
+              onValueChange={(value: TvLayoutModel) => setForm({ ...form, tv_layout_model: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="old">Antigo</SelectItem>
+                <SelectItem value="new">Novo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Bloco direito superior da TV</label>
+            <Select
+              value={form.tv_right_top_block_mode}
+              onValueChange={(value: TvRightTopBlockMode) => setForm({ ...form, tv_right_top_block_mode: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="checkins">Check-ins</SelectItem>
+                <SelectItem value="avatar">Avatar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleSave}>Salvar</Button>
+            <Button variant="outline" onClick={() => setEditing(false)}>Cancelar</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{location.name}</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Coordenadas: {location.latitude}, {location.longitude}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Raio de check-in: {location.radius_meters}m
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Modelo TV: {location.tv_layout_model === 'new' ? 'Novo' : 'Antigo'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Bloco direito superior da TV: {location.tv_right_top_block_mode === 'avatar' || location.tv_right_top_block_mode === 'avatars' ? 'Avatar' : 'Check-ins'}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar Localização</Button>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -788,34 +861,27 @@ const AdminTeamsSection = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" /> Gerenciar Times
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : clans.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum time criado.</p>
-        ) : (
-          clans.map((clan) => (
-            <div key={clan.id} className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <p className="font-semibold">{clan.banner} {clan.name}</p>
-                <p className="text-xs text-muted-foreground">{memberCount(clan.id)} membros</p>
-              </div>
-              <Button size="sm" variant="destructive" onClick={() => handleDelete(clan)}>
-                Excluir
-              </Button>
+    <div className="space-y-3">
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : clans.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum time criado.</p>
+      ) : (
+        clans.map((clan) => (
+          <div key={clan.id} className="flex items-center justify-between rounded-lg border p-3 bg-card">
+            <div>
+              <p className="font-semibold">{clan.banner} {clan.name}</p>
+              <p className="text-xs text-muted-foreground">{memberCount(clan.id)} membros</p>
             </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+            <Button size="sm" variant="destructive" onClick={() => handleDelete(clan)}>
+              Excluir
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
   );
 };
 
