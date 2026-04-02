@@ -1,44 +1,37 @@
 
 
-## Plan: Add "Leave Team" + Admin "Delete Team"
+## Plan: Fix "domination_events_battle_id_fkey" Error
 
-### Overview
-Two features: (1) any member can leave their current team, and (2) app admins can delete teams from the Admin page.
+### Root Cause
+The `domination_events` table has a foreign key (`battle_id`) referencing `territory_battles(id)`. The code sets `battle_id` to the current day key (e.g., "2026-04-02"), but no matching row exists in `territory_battles` for that day. The insert fails with a FK violation.
 
-### Changes
+### Fix
 
-**1. `src/lib/supabaseData.ts`** — Add two functions:
-- `leaveClan(userId, clanId)` — deletes the user's own membership row (RLS already allows `auth.uid() = user_id` for DELETE).
-- `deleteClan(clanId)` — deletes all memberships for the clan, then deletes the clan itself. Requires admin role (RLS on `app_clans` currently blocks DELETE, so we need a migration).
+**File: `src/components/DominationEnergyButton.tsx`** — Before inserting into `domination_events`, ensure a `territory_battles` row exists for today:
 
-**2. Database Migration** — Add DELETE policy on `app_clans`:
-```sql
-CREATE POLICY "Admins can delete clans"
-  ON public.app_clans FOR DELETE TO authenticated
-  USING (has_role(auth.uid(), 'admin'::app_role));
+1. After computing `battleId = dayKey`, query `territory_battles` for that ID.
+2. If no row exists, insert one with the day's territory info (using `upsert` or insert with `ON CONFLICT DO NOTHING`).
+3. Then proceed with the `domination_events` insert as before.
 
--- Also allow admin to delete all memberships of a clan
--- (already covered by existing "Users captains or admins can delete membership" policy)
+The upsert will create a battle record like:
+```ts
+await supabase.from('territory_battles').upsert({
+  id: battleId,
+  territory_id: 'default',
+  period: 'daily',
+  starts_at: dayStart,
+  ends_at: dayEnd,
+  energy_by_clan: {},
+}, { onConflict: 'id' });
 ```
 
-**3. `src/pages/Clans.tsx`** — Add "Sair do Time" button:
-- Visible when user has `myClan` and is NOT the sole captain.
-- Calls `leaveClan(user.id, clanId)`, shows toast, refreshes via `setTick`.
-- If user is captain, show warning that they must transfer captaincy or the team will lose its captain.
-
-**4. `src/pages/Admin.tsx`** — Add "Gerenciar Times" section:
-- Fetch all clans with `getClans()` and member counts.
-- Display list with clan name, member count, and a "Excluir" (Delete) button.
-- On click, confirm with `window.confirm()`, then call `deleteClan(clanId)`.
-
-### What stays untouched
-TV, check-in, WOD, ranking, duels, challenges — no changes.
+This also fixes the duplicate energy issue — the existing code already checks for `23505` (unique violation), but the FK error was thrown first, masking it.
 
 ### Files changed
 | File | Change |
 |------|--------|
-| Migration SQL | Add DELETE policy on `app_clans` for admins |
-| `src/lib/supabaseData.ts` | Add `leaveClan` and `deleteClan` functions |
-| `src/pages/Clans.tsx` | Add "Sair do Time" button |
-| `src/pages/Admin.tsx` | Add team management section with delete |
+| `DominationEnergyButton.tsx` | Add upsert of `territory_battles` row before inserting energy event |
+
+### What stays untouched
+TV, check-in, WOD, ranking, duels, challenges — no changes.
 
