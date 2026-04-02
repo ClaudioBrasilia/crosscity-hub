@@ -340,7 +340,7 @@ const ClassScheduleSection = () => {
   const handleAdd = async () => {
     if (!newSchedule.start_time || !newSchedule.end_time) return;
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('class_schedules')
       .insert([{
         start_time: newSchedule.start_time + ':00',
