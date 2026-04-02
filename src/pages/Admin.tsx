@@ -362,7 +362,7 @@ const ClassScheduleSection = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Excluir este horário?')) return;
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('class_schedules')
       .delete()
       .eq('id', id);
