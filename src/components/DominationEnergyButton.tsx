@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserClan, type ClanData } from '@/lib/supabaseData';
+import { getUserClan } from '@/lib/supabaseData';
 
 interface ActivityEnergyClaim {
   activityType: 'checkin' | 'wod' | 'challenge' | 'event';
@@ -34,49 +34,102 @@ export const DominationEnergyButton = ({
 }: DominationEnergyButtonProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [generated, setGenerated] = useState(false);
   const [gainFeedback, setGainFeedback] = useState<string | null>(null);
+  const [hasValidatedPresenceToday, setHasValidatedPresenceToday] = useState(false);
+  const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
 
-  const isBlocked = !participationValid;
+  const getSaoPauloDayKey = useCallback(
+    (date = new Date()) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(date),
+    [],
+  );
 
-  // Check if energy was already generated for this activity (from Supabase)
+  const getSaoPauloDayRangeUtc = useCallback((date = new Date()) => {
+    const dayKey = getSaoPauloDayKey(date);
+    const dayStart = new Date(`${dayKey}T00:00:00-03:00`).toISOString();
+    const dayEnd = new Date(`${dayKey}T23:59:59.999-03:00`).toISOString();
+    return { dayKey, dayStart, dayEnd };
+  }, [getSaoPauloDayKey]);
+
+  const validatePresenceToday = useCallback(async (): Promise<boolean> => {
+    const dayKey = getSaoPauloDayKey();
+    const { data } = await supabase
+      .from('checkins')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('check_date', dayKey)
+      .limit(1);
+    const hasPresence = !!(data && data.length > 0);
+    setHasValidatedPresenceToday(hasPresence);
+    setPresenceMessage(hasPresence ? 'Presença validada hoje' : 'Faça check-in presencial para gerar energia');
+    return hasPresence;
+  }, [getSaoPauloDayKey, userId]);
+
+  const isBlocked = !participationValid || !hasValidatedPresenceToday || isBootstrapping;
+
+  // Check if energy was already generated for this activity on São Paulo day (from Supabase)
   useEffect(() => {
     const check = async () => {
-      const dayKey = new Date().toISOString().split('T')[0];
-      const battleId = dayKey;
-      const { data } = await supabase
-        .from('domination_events')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('battle_id', battleId)
-        .eq('source', activityType)
-        .limit(1);
-      if (data && data.length > 0) setGenerated(true);
+      setIsBootstrapping(true);
+      const { dayStart, dayEnd } = getSaoPauloDayRangeUtc();
+      const [eventResult, hasPresenceToday] = await Promise.all([
+        supabase
+          .from('domination_events')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('source', activityType)
+          .gte('created_at', dayStart)
+          .lte('created_at', dayEnd)
+          .limit(1),
+        validatePresenceToday(),
+      ]);
+
+      if (eventResult.data && eventResult.data.length > 0) setGenerated(true);
+      setHasValidatedPresenceToday(hasPresenceToday);
+      setIsBootstrapping(false);
     };
     check();
-  }, [userId, activityId, activityType]);
+  }, [userId, activityId, activityType, getSaoPauloDayRangeUtc, validatePresenceToday]);
 
   const buttonLabel = useMemo(() => {
+    if (isBootstrapping) return 'Verificando...';
     if (generated) return 'Energia Gerada';
     if (isBlocked) return blockedText;
     if (isLoading) return 'Gerando energia...';
     return `Gerar Energia (+${energy} XP)`;
-  }, [generated, isBlocked, blockedText, isLoading, energy]);
+  }, [isBootstrapping, generated, isBlocked, blockedText, isLoading, energy]);
 
   const handleClick = async () => {
     if (isLoading || generated || isBlocked) return;
     setIsLoading(true);
 
     try {
+      const hasPresenceToday = await validatePresenceToday();
+      if (!hasPresenceToday) {
+        toast({
+          title: 'Energia bloqueada',
+          description: 'Faça o check-in presencial de hoje para gerar energia do time.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const clan = await getUserClan(userId);
-      const dayKey = new Date().toISOString().split('T')[0];
+      const { dayKey } = getSaoPauloDayRangeUtc();
       const battleId = dayKey;
       const clanEnergy = clan ? energy + clanEnergyBonus : 0;
 
       // Record domination event in Supabase
       if (clan) {
         const eventId = `energy_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
-        await supabase.from('domination_events').insert({
+        const { error: insertError } = await supabase.from('domination_events').insert({
           id: eventId,
           battle_id: battleId,
           user_id: userId,
@@ -84,6 +137,14 @@ export const DominationEnergyButton = ({
           source: activityType,
           energy: clanEnergy,
         } as any);
+        if (insertError) {
+          if (insertError.code === '23505') {
+            setGenerated(true);
+            toast({ title: 'Energia já gerada hoje', description: 'Você já realizou este check-in no dia de hoje.' });
+            return;
+          }
+          throw insertError;
+        }
 
         // Update territory battle energy
         const { data: battle } = await supabase
@@ -124,9 +185,9 @@ export const DominationEnergyButton = ({
       onSuccess?.();
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao gerar energia no servidor.', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -142,6 +203,9 @@ export const DominationEnergyButton = ({
         {buttonLabel}
       </Button>
       {gainFeedback && <p className="text-xs text-emerald-600 font-medium animate-in fade-in-0">{gainFeedback}</p>}
+      {presenceMessage && !generated && (
+        <p className="text-xs text-muted-foreground">{presenceMessage}</p>
+      )}
     </div>
   );
 };
