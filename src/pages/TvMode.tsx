@@ -299,6 +299,30 @@ export default function TvMode() {
     setNow(new Date());
   }, []);
 
+  const loadTvData = useCallback(async () => {
+    try {
+      const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
+        fetchDailyWod(),
+        fetchTvCheckins(),
+        fetchTvDuels(),
+        getActiveChallenges(),
+        fetchMonthlyXpRanking(),
+        getTvLayoutModel(),
+        getTvRightTopBlockMode(),
+      ]);
+      setDailyWod(wod);
+      setCheckins(ci);
+      setDuels(du);
+      setActiveChallenges(activeChallenges);
+      setMonthlyXpRanking(ranking);
+      setLayoutModel(model);
+      setRightTopBlockMode(blockMode);
+    } catch {
+      // silently ignore network errors to keep TV stable
+    }
+    setNow(new Date());
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
