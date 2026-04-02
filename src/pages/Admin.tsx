@@ -322,7 +322,7 @@ const ClassScheduleSection = () => {
 
   const fetchSchedules = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('class_schedules')
       .select('*')
       .order('start_time', { ascending: true });
@@ -340,7 +340,7 @@ const ClassScheduleSection = () => {
   const handleAdd = async () => {
     if (!newSchedule.start_time || !newSchedule.end_time) return;
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('class_schedules')
       .insert([{
         start_time: newSchedule.start_time + ':00',
@@ -362,7 +362,7 @@ const ClassScheduleSection = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Excluir este horário?')) return;
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('class_schedules')
       .delete()
       .eq('id', id);
@@ -552,7 +552,8 @@ const AvatarEconomySection = () => {
     if (!form) return;
     setSaving(true);
     try {
-      await updateAvatarEconomySettings(form);
+      const { id, rule_labels: _rl, rule_notes: _rn, created_at: _ca, ...payload } = form;
+      await updateAvatarEconomySettings(id, payload);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
@@ -586,7 +587,9 @@ const AvatarEconomySection = () => {
   };
 
   const handleResetDefaults = () => {
+    if (!form) return;
     setForm({
+      ...form,
       coins_per_checkin: 10,
       coins_per_challenge_completion: 50,
       coins_per_wod_completion: 20,

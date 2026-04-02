@@ -17,9 +17,9 @@ import { getAvatarEconomySettings, grantAvatarReward } from '@/lib/avatar-econom
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
-const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete, progress: initialProgress, isClaimed: initialClaimed }: {
+const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete, progress: initialProgress, isClaimed: initialClaimed, isDoneToday }: {
   challenge: dbService.ChallengeData; userId: string; isCoach: boolean;
-  progress: number; isClaimed: boolean;
+  progress: number; isClaimed: boolean; isDoneToday: boolean;
   onClaim: (c: dbService.ChallengeData) => void;
   onIncrement: (c: dbService.ChallengeData) => void;
   onDelete: (id: string) => void;
@@ -95,9 +95,13 @@ const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDel
             </div>
             <div className="flex gap-2 mt-3">
               {!isComplete && !isClaimed && !showProofUpload && (
-                <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setShowProofUpload(true)}>
-                  <ChevronUp className="h-3.5 w-3.5" /> +1 Progresso
-                </Button>
+                isDoneToday ? (
+                  <div className="flex-1 text-center text-xs font-semibold text-muted-foreground py-1.5">✅ Já registrado hoje</div>
+                ) : (
+                  <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={() => setShowProofUpload(true)}>
+                    <ChevronUp className="h-3.5 w-3.5" /> +1 Progresso
+                  </Button>
+                )
               )}
               {isComplete && !isClaimed && (
                 <Button size="sm" className="gap-2 flex-1" onClick={() => onClaim(challenge)}>
@@ -207,6 +211,7 @@ const Challenges = () => {
   const [challenges, setChallenges] = useState<dbService.ChallengeData[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [doneToday, setDoneToday] = useState<Record<string, boolean>>({});
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -218,10 +223,15 @@ const Challenges = () => {
     setCompletedIds(completed);
 
     const pm: Record<string, number> = {};
+    const dt: Record<string, boolean> = {};
+    const today = new Date().toDateString();
     for (const c of challs) {
       pm[c.id] = await dbService.getChallengeProgress(c.id, user.id);
+      const updatedAt = await dbService.getChallengeProgressUpdatedAt(c.id, user.id);
+      dt[c.id] = updatedAt ? new Date(updatedAt).toDateString() === today : false;
     }
     setProgressMap(pm);
+    setDoneToday(dt);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData, tick]);
@@ -325,12 +335,12 @@ const Challenges = () => {
           </TabsList>
           <TabsContent value="weekly" className="space-y-3 mt-4">
             {weekly.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio semanal.</p> : weekly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} isDoneToday={!!doneToday[c.id]} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
           <TabsContent value="monthly" className="space-y-3 mt-4">
             {monthly.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio mensal.</p> : monthly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} isDoneToday={!!doneToday[c.id]} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
         </Tabs>

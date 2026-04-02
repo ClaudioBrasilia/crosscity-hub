@@ -808,39 +808,6 @@ export type Database = {
         }
         Relationships: []
       }
-      class_schedules: {
-        Row: {
-          id: string
-          start_time: string
-          end_time: string
-          label: string | null
-          day_of_week: number[] | null
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          start_time: string
-          end_time: string
-          label?: string | null
-          day_of_week?: number[] | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          start_time?: string
-          end_time?: string
-          label?: string | null
-          day_of_week?: number[] | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
