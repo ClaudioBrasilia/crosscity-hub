@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getActiveChallenges } from '@/lib/supabaseData';
 import type { ChallengeData } from '@/lib/supabaseData';
@@ -276,34 +276,73 @@ export default function TvMode() {
   const [layoutModel, setLayoutModel] = useState<TvLayoutModel>('old');
   const [rightTopBlockMode, setRightTopBlockMode] = useState<TvRightTopBlockMode>('checkins');
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
-          fetchDailyWod(),
-          fetchTvCheckins(),
-          fetchTvDuels(),
-          getActiveChallenges(),
-          fetchMonthlyXpRanking(),
-          getTvLayoutModel(),
-          getTvRightTopBlockMode(),
-        ]);
-        setDailyWod(wod);
-        setCheckins(ci);
-        setDuels(du);
-        setActiveChallenges(activeChallenges);
-        setMonthlyXpRanking(ranking);
-        setLayoutModel(model);
-        setRightTopBlockMode(blockMode);
-      } catch {
-        // silently ignore network errors to keep TV stable
-      }
-      setNow(new Date());
-    };
-    load();
-    const interval = window.setInterval(load, 10000);
-    return () => window.clearInterval(interval);
+  const loadTvData = useCallback(async () => {
+    try {
+      const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
+        fetchDailyWod(),
+        fetchTvCheckins(),
+        fetchTvDuels(),
+        getActiveChallenges(),
+        fetchMonthlyXpRanking(),
+        getTvLayoutModel(),
+        getTvRightTopBlockMode(),
+      ]);
+      setDailyWod(wod);
+      setCheckins(ci);
+      setDuels(du);
+      setActiveChallenges(activeChallenges);
+      setMonthlyXpRanking(ranking);
+      setLayoutModel(model);
+      setRightTopBlockMode(blockMode);
+    } catch {
+      // silently ignore network errors to keep TV stable
+    }
+    setNow(new Date());
   }, []);
+
+  useEffect(() => {
+    loadTvData();
+
+    const refreshFromRealtime = () => {
+      void loadTvData();
+    };
+
+    const channels = [
+      supabase
+        .channel('tv-checkins-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, refreshFromRealtime)
+        .subscribe(),
+      supabase
+        .channel('tv-duels-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_duels' }, refreshFromRealtime)
+        .subscribe(),
+      supabase
+        .channel('tv-wods-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'wods' }, refreshFromRealtime)
+        .subscribe(),
+      supabase
+        .channel('tv-challenges-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, refreshFromRealtime)
+        .subscribe(),
+      supabase
+        .channel('tv-monthly-xp-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_xp' }, refreshFromRealtime)
+        .subscribe(),
+      supabase
+        .channel('tv-training-locations-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'training_locations' }, refreshFromRealtime)
+        .subscribe(),
+    ];
+
+    const clockInterval = window.setInterval(() => setNow(new Date()), 30000);
+
+    return () => {
+      window.clearInterval(clockInterval);
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
+    };
+  }, [loadTvData]);
 
   const dateLabel = useMemo(
     () =>
