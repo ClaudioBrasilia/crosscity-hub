@@ -1,37 +1,37 @@
 
 
-## Plan: Fix "domination_events_battle_id_fkey" Error
+## Plan: Fix Build Errors + Challenge Once-Per-Day Limit
 
-### Root Cause
-The `domination_events` table has a foreign key (`battle_id`) referencing `territory_battles(id)`. The code sets `battle_id` to the current day key (e.g., "2026-04-02"), but no matching row exists in `territory_battles` for that day. The insert fails with a FK violation.
+### Build Errors to Fix
 
-### Fix
+**1. `src/pages/TvMode.tsx`** — Duplicate `loadTvData` declaration and missing `refreshFromRealtime`:
+- Remove the duplicate `loadTvData` block (lines 302-324, exact copy of 278-300).
+- Define `refreshFromRealtime` as a function that calls the `load` function or `loadTvData`. The real-time channels reference it but it's never defined.
 
-**File: `src/components/DominationEnergyButton.tsx`** — Before inserting into `domination_events`, ensure a `territory_battles` row exists for today:
+**2. `src/pages/Admin.tsx`** — Two errors in the economy settings:
+- Line 555: `updateAvatarEconomySettings` expects 2 args (`currentId`, `payload`). Fix to pass `form.id` and the update payload separately.
+- Line 589: `handleResetDefaults` sets form without `id`, `rule_labels`, `rule_notes`, `created_at`. Spread existing form values to keep those fields.
 
-1. After computing `battleId = dayKey`, query `territory_battles` for that ID.
-2. If no row exists, insert one with the day's territory info (using `upsert` or insert with `ON CONFLICT DO NOTHING`).
-3. Then proceed with the `domination_events` insert as before.
+### Challenge Once-Per-Day Feature
 
-The upsert will create a battle record like:
-```ts
-await supabase.from('territory_battles').upsert({
-  id: battleId,
-  territory_id: 'default',
-  period: 'daily',
-  starts_at: dayStart,
-  ends_at: dayEnd,
-  energy_by_clan: {},
-}, { onConflict: 'id' });
-```
+**3. `src/lib/supabaseData.ts`** — Modify `incrementChallengeProgress` to check if user already incremented today:
+- Query `challenge_progress` for `updated_at` — if it's today, throw an error / return early with a message.
+- Only allow the increment if the last update was before today (comparing dates in the user's timezone).
 
-This also fixes the duplicate energy issue — the existing code already checks for `23505` (unique violation), but the FK error was thrown first, masking it.
+**4. `src/pages/Challenges.tsx`** — Disable the increment button if already done today:
+- Track per-challenge "already incremented today" state based on the `updated_at` field from `challenge_progress`.
+- Show the button as disabled with a label like "Já registrado hoje" when the user has already incremented.
+- On error from the backend (already incremented), show a toast message.
 
-### Files changed
+### Files Changed
+
 | File | Change |
 |------|--------|
-| `DominationEnergyButton.tsx` | Add upsert of `territory_battles` row before inserting energy event |
+| `src/pages/TvMode.tsx` | Remove duplicate `loadTvData`, add `refreshFromRealtime` |
+| `src/pages/Admin.tsx` | Fix `updateAvatarEconomySettings` call signature, fix `handleResetDefaults` |
+| `src/lib/supabaseData.ts` | Add daily check to `incrementChallengeProgress` |
+| `src/pages/Challenges.tsx` | Disable increment button if already used today |
 
 ### What stays untouched
-TV, check-in, WOD, ranking, duels, challenges — no changes.
+TV layout, check-in, WOD, ranking, duels, clans — no changes.
 
