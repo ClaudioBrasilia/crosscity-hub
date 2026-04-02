@@ -12,14 +12,6 @@ import {
   type TvRightTopBlockMode,
 } from '@/lib/tv-layout';
 
-const CLASS_SCHEDULE = [
-  { start: '06:00', end: '07:00' },
-  { start: '07:00', end: '08:00' },
-  { start: '12:00', end: '13:00' },
-  { start: '18:00', end: '19:00' },
-  { start: '19:00', end: '20:00' },
-];
-
 const GYM_TIMEZONE = 'America/Sao_Paulo';
 const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
 type TabKey = typeof TABS[number];
@@ -45,10 +37,16 @@ const getZonedDateParts = (date: Date) => {
   };
 };
 
-const getCurrentClass = (): { start: string; end: string } | undefined => {
+const getCurrentClass = (schedules: any[]): { start: string; end: string } | undefined => {
   const now = getZonedDateParts(new Date());
   const currentMinutes = now.hour * 60 + now.minute;
-  return CLASS_SCHEDULE.find((cls) => {
+  
+  const formattedSchedules = schedules.map(s => ({
+    start: s.start_time.substring(0, 5),
+    end: s.end_time.substring(0, 5)
+  }));
+
+  return formattedSchedules.find((cls) => {
     const [startH, startM] = cls.start.split(':').map(Number);
     const [endH, endM] = cls.end.split(':').map(Number);
     return currentMinutes >= startH * 60 + startM && currentMinutes < endH * 60 + endM;
@@ -137,8 +135,8 @@ const fetchDailyWod = async (): Promise<DailyWod | null> => {
   }
 };
 
-const fetchTvCheckins = async (): Promise<TvCheckin[]> => {
-  const currentClass = getCurrentClass();
+const fetchTvCheckins = async (schedules: any[]): Promise<TvCheckin[]> => {
+  const currentClass = getCurrentClass(schedules);
   if (!currentClass) return [];
 
   try {
@@ -275,13 +273,18 @@ export default function TvMode() {
   const [activeTab, setActiveTab] = useState<TabKey>('WOD');
   const [layoutModel, setLayoutModel] = useState<TvLayoutModel>('old');
   const [rightTopBlockMode, setRightTopBlockMode] = useState<TvRightTopBlockMode>('checkins');
+  const [schedules, setSchedules] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
+        const { data: scheds } = await supabase.from('class_schedules').select('*').eq('is_active', true);
+        const currentScheds = scheds || [];
+        setSchedules(currentScheds);
+
         const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
           fetchDailyWod(),
-          fetchTvCheckins(),
+          fetchTvCheckins(currentScheds),
           fetchTvDuels(),
           getActiveChallenges(),
           fetchMonthlyXpRanking(),
@@ -324,7 +327,7 @@ export default function TvMode() {
     [now]
   );
 
-  const currentClass = getCurrentClass();
+  const currentClass = getCurrentClass(schedules);
   const classLabel = currentClass
     ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
     : 'Sem aula no momento';
