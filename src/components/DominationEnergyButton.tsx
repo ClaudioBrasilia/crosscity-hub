@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -34,49 +34,145 @@ export const DominationEnergyButton = ({
 }: DominationEnergyButtonProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [generated, setGenerated] = useState(false);
   const [gainFeedback, setGainFeedback] = useState<string | null>(null);
+  const [isLocationValidated, setIsLocationValidated] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
-  const isBlocked = !participationValid;
+  const getSaoPauloDayKey = useCallback(
+    (date = new Date()) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(date),
+    [],
+  );
 
-  // Check if energy was already generated for this activity (from Supabase)
+  const getSaoPauloDayRangeUtc = useCallback((date = new Date()) => {
+    const dayKey = getSaoPauloDayKey(date);
+    const dayStart = new Date(`${dayKey}T00:00:00-03:00`).toISOString();
+    const dayEnd = new Date(`${dayKey}T23:59:59.999-03:00`).toISOString();
+    return { dayKey, dayStart, dayEnd };
+  }, [getSaoPauloDayKey]);
+
+  const calculateDistanceMeters = useCallback((
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ) => {
+    const earthRadiusMeters = 6371000;
+    const dLat = ((toLat - fromLat) * Math.PI) / 180;
+    const dLng = ((toLng - fromLng) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((fromLat * Math.PI) / 180) * Math.cos((toLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }, []);
+
+  const validateLocation = useCallback(async (): Promise<boolean> => {
+    const { data: activeLocation } = await supabase
+      .from('training_locations')
+      .select('latitude, longitude, radius_meters')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (!activeLocation) {
+      setLocationMessage('Local de treino indisponível');
+      setIsLocationValidated(false);
+      return false;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationMessage('Localização indisponível');
+      setIsLocationValidated(false);
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          const distance = calculateDistanceMeters(
+            Number(activeLocation.latitude),
+            Number(activeLocation.longitude),
+            coords.latitude,
+            coords.longitude,
+          );
+          const inside = distance <= Number(activeLocation.radius_meters);
+          setLocationMessage(inside ? 'Localização validada' : 'Fora da área permitida');
+          setIsLocationValidated(inside);
+          resolve(inside);
+        },
+        () => {
+          setLocationMessage('Permissão de localização necessária');
+          setIsLocationValidated(false);
+          resolve(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      );
+    });
+  }, [calculateDistanceMeters]);
+
+  const isBlocked = !participationValid || !isLocationValidated || isBootstrapping;
+
+  // Check if energy was already generated for this activity on São Paulo day (from Supabase)
   useEffect(() => {
     const check = async () => {
-      const dayKey = new Date().toISOString().split('T')[0];
-      const battleId = dayKey;
-      const { data } = await supabase
-        .from('domination_events')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('battle_id', battleId)
-        .eq('source', activityType)
-        .limit(1);
-      if (data && data.length > 0) setGenerated(true);
+      setIsBootstrapping(true);
+      const { dayStart, dayEnd } = getSaoPauloDayRangeUtc();
+      const [eventResult, insideArea] = await Promise.all([
+        supabase
+          .from('domination_events')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('source', activityType)
+          .gte('created_at', dayStart)
+          .lte('created_at', dayEnd)
+          .limit(1),
+        validateLocation(),
+      ]);
+
+      if (eventResult.data && eventResult.data.length > 0) setGenerated(true);
+      setIsLocationValidated(insideArea);
+      setIsBootstrapping(false);
     };
     check();
-  }, [userId, activityId, activityType]);
+  }, [userId, activityId, activityType, getSaoPauloDayRangeUtc, validateLocation]);
 
   const buttonLabel = useMemo(() => {
+    if (isBootstrapping) return 'Verificando...';
     if (generated) return 'Energia Gerada';
     if (isBlocked) return blockedText;
     if (isLoading) return 'Gerando energia...';
     return `Gerar Energia (+${energy} XP)`;
-  }, [generated, isBlocked, blockedText, isLoading, energy]);
+  }, [isBootstrapping, generated, isBlocked, blockedText, isLoading, energy]);
 
   const handleClick = async () => {
     if (isLoading || generated || isBlocked) return;
     setIsLoading(true);
 
     try {
+      const insideArea = await validateLocation();
+      if (!insideArea) {
+        toast({
+          title: 'Check-in não autorizado',
+          description: 'Valide sua localização dentro da área permitida para gerar energia.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const clan = await getUserClan(userId);
-      const dayKey = new Date().toISOString().split('T')[0];
+      const { dayKey } = getSaoPauloDayRangeUtc();
       const battleId = dayKey;
       const clanEnergy = clan ? energy + clanEnergyBonus : 0;
 
       // Record domination event in Supabase
       if (clan) {
         const eventId = `energy_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
-        await supabase.from('domination_events').insert({
+        const { error: insertError } = await supabase.from('domination_events').insert({
           id: eventId,
           battle_id: battleId,
           user_id: userId,
@@ -84,6 +180,14 @@ export const DominationEnergyButton = ({
           source: activityType,
           energy: clanEnergy,
         } as any);
+        if (insertError) {
+          if (insertError.code === '23505') {
+            setGenerated(true);
+            toast({ title: 'Energia já gerada hoje', description: 'Você já realizou este check-in no dia de hoje.' });
+            return;
+          }
+          throw insertError;
+        }
 
         // Update territory battle energy
         const { data: battle } = await supabase
@@ -124,9 +228,9 @@ export const DominationEnergyButton = ({
       onSuccess?.();
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao gerar energia no servidor.', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -142,6 +246,9 @@ export const DominationEnergyButton = ({
         {buttonLabel}
       </Button>
       {gainFeedback && <p className="text-xs text-emerald-600 font-medium animate-in fade-in-0">{gainFeedback}</p>}
+      {locationMessage && !generated && (
+        <p className="text-xs text-muted-foreground">{locationMessage}</p>
+      )}
     </div>
   );
 };

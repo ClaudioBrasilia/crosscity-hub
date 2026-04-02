@@ -36,9 +36,17 @@ const Clans = () => {
   const [myClan, setMyClan] = useState<ClanData | null>(null);
   const [myMembership, setMyMembership] = useState<ClanMembershipData | null>(null);
   const [managedMembers, setManagedMembers] = useState<ClanMembershipData[]>([]);
+  const [viewMembersOpen, setViewMembersOpen] = useState(false);
+  const [selectedClanForView, setSelectedClanForView] = useState<ClanData | null>(null);
+  const [selectedClanMembers, setSelectedClanMembers] = useState<ClanMembershipData[]>([]);
   const [territoryState, setTerritoryState] = useState<any>(null);
 
-  const dayKey = new Date().toISOString().split('T')[0];
+  const dayKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   const territoryOfDay = getTerritoryOfDay();
 
   useEffect(() => {
@@ -158,6 +166,14 @@ const Clans = () => {
   );
   const isCaptain = myMembership?.role === 'captain' && myMembership?.status === 'approved';
   const canContributeEnergy = myMembership?.status === 'approved' && !!myClan;
+  const canViewMyTeamMembers = myMembership?.status === 'approved' && !!myClan;
+
+  const openClanMembersDialog = async (clan: ClanData) => {
+    const members = await getClanMembers(clan.id);
+    setSelectedClanMembers(members.filter((member) => member.status === 'approved'));
+    setSelectedClanForView(clan);
+    setViewMembersOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -193,28 +209,35 @@ const Clans = () => {
                 <Badge variant="secondary">Solicitação pendente de aprovação do capitão</Badge>
               )}
               {user && myMembership?.status === 'approved' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={async () => {
-                    if (!myClan) return;
-                    const msg = isCaptain
-                      ? 'Você é o capitão! Se sair, o time ficará sem líder. Deseja continuar?'
-                      : 'Tem certeza que deseja sair do time?';
-                    if (!window.confirm(msg)) return;
-                    try {
-                      await leaveClan(user.id, myClan.id);
-                      toast({ title: 'Você saiu do time.' });
-                      setTick((v) => v + 1);
-                    } catch (err: any) {
-                      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-                    }
-                  }}
-                >
-                  Sair do Time
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  {canViewMyTeamMembers && myClan && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => openClanMembersDialog(myClan)}>
+                      Membros do Time
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={async () => {
+                      if (!myClan) return;
+                      const msg = isCaptain
+                        ? 'Você é o capitão! Se sair, o time ficará sem líder. Deseja continuar?'
+                        : 'Tem certeza que deseja sair do time?';
+                      if (!window.confirm(msg)) return;
+                      try {
+                        await leaveClan(user.id, myClan.id);
+                        toast({ title: 'Você saiu do time.' });
+                        setTick((v) => v + 1);
+                      } catch (err: any) {
+                        toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Sair do Time
+                  </Button>
+                </div>
               )}
             </>
           ) : (
@@ -297,7 +320,12 @@ const Clans = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {leaderboard.map((entry, index) => (
-              <div key={entry.clan.id} className="space-y-1 rounded-lg border p-3">
+              <button
+                key={entry.clan.id}
+                type="button"
+                className="space-y-1 rounded-lg border p-3 text-left w-full hover:border-primary/40 transition-colors"
+                onClick={() => openClanMembersDialog(entry.clan)}
+              >
                 <div className="flex items-center justify-between text-sm">
                   <p className="font-semibold">#{index + 1} {entry.clan.banner} {entry.clan.name}</p>
                   <p>{entry.energy} energia</p>
@@ -306,7 +334,7 @@ const Clans = () => {
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Users className="h-3 w-3" /> {entry.members.length} membros • nível médio {entry.avgLevel.toFixed(1)}
                 </p>
-              </div>
+              </button>
             ))}
           </CardContent>
         </Card>
@@ -389,6 +417,32 @@ const Clans = () => {
           ))}
         </CardContent>
       </Card>
+
+      <Dialog open={viewMembersOpen} onOpenChange={setViewMembersOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedClanForView ? `${selectedClanForView.banner} ${selectedClanForView.name}` : 'Time'} — Membros
+            </DialogTitle>
+            <DialogDescription>Visualização somente leitura dos membros aprovados.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {selectedClanMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum membro aprovado.</p>
+            ) : (
+              selectedClanMembers.map((member) => {
+                const profile = allUsers.find((u) => u.id === member.userId);
+                return (
+                  <div key={`view-${member.userId}`} className="rounded-lg border p-3">
+                    <p className="font-medium">{profile?.name || 'Atleta'} {member.role === 'captain' ? '👑' : ''}</p>
+                    <p className="text-xs text-muted-foreground">{member.role}</p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
