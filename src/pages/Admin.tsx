@@ -226,6 +226,8 @@ const Admin = () => {
       <BoxLogoSection />
 
       <BoxSettingsSection />
+
+      <AdminTeamsSection />
     </div>
   );
 };
