@@ -165,9 +165,19 @@ export const DominationEnergyButton = ({
       }
 
       const clan = await getUserClan(userId);
-      const { dayKey } = getSaoPauloDayRangeUtc();
+      const { dayKey, dayStart, dayEnd } = getSaoPauloDayRangeUtc();
       const battleId = dayKey;
       const clanEnergy = clan ? energy + clanEnergyBonus : 0;
+
+      // Ensure territory_battles row exists for today
+      await supabase.from('territory_battles').upsert({
+        id: battleId,
+        territory_id: 'default',
+        period: 'daily',
+        starts_at: dayStart,
+        ends_at: dayEnd,
+        energy_by_clan: {},
+      }, { onConflict: 'id', ignoreDuplicates: true });
 
       // Record domination event in Supabase
       if (clan) {
