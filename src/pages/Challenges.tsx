@@ -238,9 +238,7 @@ const Challenges = () => {
       let challengeCoins = 0;
       if (wasNewCompletion) {
         const economy = await getAvatarEconomySettings();
-        challengeCoins = economy?.is_active && economy?.coins_per_challenge_completion_enabled
-          ? economy?.coins_per_challenge_completion || 0
-          : 0;
+        challengeCoins = economy?.coins_per_challenge_completion_enabled ? economy?.coins_per_challenge_completion || 0 : 0;
         grantedCoins = challengeCoins > 0
           ? await grantAvatarReward(user.id, 'challenge_completion', challenge.id, challengeCoins)
           : false;

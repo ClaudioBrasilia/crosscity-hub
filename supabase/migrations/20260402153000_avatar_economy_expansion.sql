@@ -56,21 +56,6 @@ begin
   values (new.user_id)
   on conflict (user_id) do nothing;
 
-  _week_start := date_trunc('week', (new.check_date::timestamp at time zone 'America/Sao_Paulo'))::date;
-
-  select count(*)::integer
-    into _weekly_checkins
-  from public.checkins
-  where user_id = new.user_id
-    and check_date >= _week_start
-    and check_date < (_week_start + interval '7 days')::date;
-
-  update public.user_avatars
-  set weekly_checkins = _weekly_checkins,
-      weekly_streak = greatest(weekly_streak, _weekly_checkins),
-      last_checkin_at = now()
-  where user_id = new.user_id;
-
   select
     coalesce(coins_per_checkin, 10),
     coalesce(weekly_bonus_3, 30),
@@ -98,9 +83,20 @@ begin
   order by created_at desc
   limit 1;
 
-  if not found then
-    return new;
-  end if;
+  _week_start := date_trunc('week', new.check_date::timestamp)::date;
+
+  select count(*)::integer
+    into _weekly_checkins
+  from public.checkins
+  where user_id = new.user_id
+    and check_date >= _week_start
+    and check_date < (_week_start + interval '7 days')::date;
+
+  update public.user_avatars
+  set weekly_checkins = _weekly_checkins,
+      weekly_streak = greatest(weekly_streak, _weekly_checkins),
+      last_checkin_at = now()
+  where user_id = new.user_id;
 
   if _coins_per_checkin_enabled and _coins_per_checkin > 0 then
     perform public.grant_avatar_reward(
@@ -184,10 +180,6 @@ begin
   where is_active = true
   order by created_at desc
   limit 1;
-
-  if not found then
-    return new;
-  end if;
 
   if not _level_up_bonus_enabled or _level_up_bonus <= 0 then
     return new;
