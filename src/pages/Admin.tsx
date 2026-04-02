@@ -501,7 +501,7 @@ const BoxSettingsSection = () => {
             latitude: loc.latitude,
             longitude: loc.longitude,
             tv_layout_model: loc.tv_layout_model === 'new' ? 'new' : 'old',
-            tv_right_top_block_mode: loc.tv_right_top_block_mode === 'avatar' ? 'avatar' : 'checkins',
+            tv_right_top_block_mode: loc.tv_right_top_block_mode === 'avatar' || loc.tv_right_top_block_mode === 'avatars' ? 'avatar' : 'checkins',
           });
         }
         setLoading(false);
@@ -616,7 +616,7 @@ const BoxSettingsSection = () => {
               Modelo TV: {location.tv_layout_model === 'new' ? 'Novo' : 'Antigo'}
             </p>
             <p className="text-sm text-muted-foreground">
-              Bloco direito superior da TV: {location.tv_right_top_block_mode === 'avatar' ? 'Avatar' : 'Check-ins'}
+              Bloco direito superior da TV: {location.tv_right_top_block_mode === 'avatar' || location.tv_right_top_block_mode === 'avatars' ? 'Avatar' : 'Check-ins'}
             </p>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
           </div>
