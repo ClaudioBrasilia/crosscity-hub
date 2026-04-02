@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Flame, Calendar, Trophy, Gift, Plus, Trash2, ChevronUp, Camera, ImageIcon, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import * as dbService from '@/lib/supabaseData';
+import { getAvatarEconomySettings, grantAvatarReward } from '@/lib/avatar-economy';
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
@@ -233,9 +234,15 @@ const Challenges = () => {
     if (!user) return;
     try {
       const wasNewCompletion = await dbService.markChallengeComplete(user.id, challenge.id);
-      const grantedCoins = wasNewCompletion
-        ? await dbService.grantChallengeCompletionCoins(user.id, challenge.id, challenge.xpReward)
-        : false;
+      let grantedCoins = false;
+      let challengeCoins = 0;
+      if (wasNewCompletion) {
+        const economy = await getAvatarEconomySettings();
+        challengeCoins = economy?.coins_per_challenge_completion_enabled ? economy?.coins_per_challenge_completion || 0 : 0;
+        grantedCoins = challengeCoins > 0
+          ? await grantAvatarReward(user.id, 'challenge_completion', challenge.id, challengeCoins)
+          : false;
+      }
 
       if (wasNewCompletion) {
         const newXp = (user.xp || 0) + challenge.xpReward;
@@ -247,7 +254,7 @@ const Challenges = () => {
         description: !wasNewCompletion
           ? 'Recompensa já resgatada anteriormente.'
           : grantedCoins
-          ? `+${challenge.xpReward} XP e +${challenge.xpReward} BrazaCoin no avatar.`
+          ? `+${challenge.xpReward} XP e +${challengeCoins} BrazaCoin no avatar.`
           : `+${challenge.xpReward} XP.`,
       });
       setTick(t => t + 1);
