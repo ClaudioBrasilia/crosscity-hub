@@ -17,9 +17,9 @@ import { getAvatarEconomySettings, grantAvatarReward } from '@/lib/avatar-econom
 
 const ICONS = ['🔥', '💪', '🏃', '🎯', '⚡', '🏋️', '🫀', '⚔️', '👑', '✅', '🔗', '🥇'];
 
-const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete, progress: initialProgress, isClaimed: initialClaimed }: {
+const ChallengeCard = ({ challenge, userId, isCoach, onClaim, onIncrement, onDelete, progress: initialProgress, isClaimed: initialClaimed, isDoneToday }: {
   challenge: dbService.ChallengeData; userId: string; isCoach: boolean;
-  progress: number; isClaimed: boolean;
+  progress: number; isClaimed: boolean; isDoneToday: boolean;
   onClaim: (c: dbService.ChallengeData) => void;
   onIncrement: (c: dbService.ChallengeData) => void;
   onDelete: (id: string) => void;
