@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
-import { Shield, Users, Loader2, MapPin, Settings, Upload, ImageIcon } from 'lucide-react';
+import { Shield, Users, Loader2, MapPin, Settings, Upload, ImageIcon, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { supabase } from '@/integrations/supabase/client';
 import AdminCheckinHistory from '@/components/AdminCheckinHistory';
 import { getAvatarEconomySettings, updateAvatarEconomySettings, type AvatarEconomySettings } from '@/lib/avatar-economy';
@@ -360,10 +361,35 @@ const AvatarEconomySection = () => {
   const [settings, setSettings] = useState<AvatarEconomySettings | null>(null);
   const [form, setForm] = useState({
     coins_per_checkin: 10,
+    coins_per_challenge_completion: 20,
+    coins_per_wod_completion: 15,
+    coins_per_duel_participation: 10,
+    coins_per_duel_win: 25,
+    coins_per_pr: 30,
+    level_up_bonus: 25,
     weekly_bonus_3: 30,
     weekly_bonus_4: 45,
     weekly_bonus_5: 60,
-    level_up_bonus: 25,
+    weekly_bonus_6: 75,
+    monthly_ranking_bonus: 100,
+    special_event_bonus: 50,
+    daily_mission_bonus: 20,
+    milestone_bonus: 40,
+    coins_per_checkin_enabled: true,
+    coins_per_challenge_completion_enabled: true,
+    coins_per_wod_completion_enabled: true,
+    coins_per_duel_participation_enabled: true,
+    coins_per_duel_win_enabled: true,
+    coins_per_pr_enabled: true,
+    level_up_bonus_enabled: true,
+    weekly_bonus_3_enabled: true,
+    weekly_bonus_4_enabled: true,
+    weekly_bonus_5_enabled: true,
+    weekly_bonus_6_enabled: true,
+    monthly_ranking_bonus_enabled: true,
+    special_event_bonus_enabled: true,
+    daily_mission_bonus_enabled: true,
+    milestone_bonus_enabled: true,
     is_active: true,
   });
 
@@ -373,10 +399,35 @@ const AvatarEconomySection = () => {
         setSettings(data);
         setForm({
           coins_per_checkin: data.coins_per_checkin,
+          coins_per_challenge_completion: data.coins_per_challenge_completion,
+          coins_per_wod_completion: data.coins_per_wod_completion,
+          coins_per_duel_participation: data.coins_per_duel_participation,
+          coins_per_duel_win: data.coins_per_duel_win,
+          coins_per_pr: data.coins_per_pr,
+          level_up_bonus: data.level_up_bonus,
           weekly_bonus_3: data.weekly_bonus_3,
           weekly_bonus_4: data.weekly_bonus_4,
           weekly_bonus_5: data.weekly_bonus_5,
-          level_up_bonus: data.level_up_bonus,
+          weekly_bonus_6: data.weekly_bonus_6,
+          monthly_ranking_bonus: data.monthly_ranking_bonus,
+          special_event_bonus: data.special_event_bonus,
+          daily_mission_bonus: data.daily_mission_bonus,
+          milestone_bonus: data.milestone_bonus,
+          coins_per_checkin_enabled: data.coins_per_checkin_enabled,
+          coins_per_challenge_completion_enabled: data.coins_per_challenge_completion_enabled,
+          coins_per_wod_completion_enabled: data.coins_per_wod_completion_enabled,
+          coins_per_duel_participation_enabled: data.coins_per_duel_participation_enabled,
+          coins_per_duel_win_enabled: data.coins_per_duel_win_enabled,
+          coins_per_pr_enabled: data.coins_per_pr_enabled,
+          level_up_bonus_enabled: data.level_up_bonus_enabled,
+          weekly_bonus_3_enabled: data.weekly_bonus_3_enabled,
+          weekly_bonus_4_enabled: data.weekly_bonus_4_enabled,
+          weekly_bonus_5_enabled: data.weekly_bonus_5_enabled,
+          weekly_bonus_6_enabled: data.weekly_bonus_6_enabled,
+          monthly_ranking_bonus_enabled: data.monthly_ranking_bonus_enabled,
+          special_event_bonus_enabled: data.special_event_bonus_enabled,
+          daily_mission_bonus_enabled: data.daily_mission_bonus_enabled,
+          milestone_bonus_enabled: data.milestone_bonus_enabled,
           is_active: data.is_active,
         });
       }
@@ -388,12 +439,7 @@ const AvatarEconomySection = () => {
     setSaving(true);
 
     const { data, error } = await updateAvatarEconomySettings(settings?.id || null, {
-      coins_per_checkin: form.coins_per_checkin,
-      weekly_bonus_3: form.weekly_bonus_3,
-      weekly_bonus_4: form.weekly_bonus_4,
-      weekly_bonus_5: form.weekly_bonus_5,
-      level_up_bonus: form.level_up_bonus,
-      is_active: form.is_active,
+      ...form,
     });
 
     if (error) {
@@ -412,9 +458,66 @@ const AvatarEconomySection = () => {
     setSaving(false);
   };
 
+  const renderRuleInput = (label: string, valueKey: keyof typeof form, enabledKey: keyof typeof form) => (
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+      <div>
+        <label className="text-sm font-medium">{label}</label>
+        <Input
+          type="number"
+          value={Number(form[valueKey]) || 0}
+          onChange={(e) => setForm({ ...form, [valueKey]: parseInt(e.target.value) || 0 })}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm font-medium pb-2">
+        <input
+          type="checkbox"
+          checked={Boolean(form[enabledKey])}
+          onChange={(e) => setForm({ ...form, [enabledKey]: e.target.checked })}
+        />
+        Ativo
+      </label>
+    </div>
+  );
+
+  const handleResetDefaults = () => {
+    setForm({
+      coins_per_checkin: 10,
+      coins_per_challenge_completion: 20,
+      coins_per_wod_completion: 15,
+      coins_per_duel_participation: 10,
+      coins_per_duel_win: 25,
+      coins_per_pr: 30,
+      level_up_bonus: 25,
+      weekly_bonus_3: 30,
+      weekly_bonus_4: 45,
+      weekly_bonus_5: 60,
+      weekly_bonus_6: 75,
+      monthly_ranking_bonus: 100,
+      special_event_bonus: 50,
+      daily_mission_bonus: 20,
+      milestone_bonus: 40,
+      coins_per_checkin_enabled: true,
+      coins_per_challenge_completion_enabled: true,
+      coins_per_wod_completion_enabled: true,
+      coins_per_duel_participation_enabled: true,
+      coins_per_duel_win_enabled: true,
+      coins_per_pr_enabled: true,
+      level_up_bonus_enabled: true,
+      weekly_bonus_3_enabled: true,
+      weekly_bonus_4_enabled: true,
+      weekly_bonus_5_enabled: true,
+      weekly_bonus_6_enabled: true,
+      monthly_ranking_bonus_enabled: true,
+      special_event_bonus_enabled: true,
+      daily_mission_bonus_enabled: true,
+      milestone_bonus_enabled: true,
+      is_active: true,
+    });
+  };
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5" />
           Economia do Avatar
@@ -426,44 +529,72 @@ const AvatarEconomySection = () => {
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium">BrazaCoin por check-in</label>
-                <Input type="number" value={form.coins_per_checkin} onChange={(e) => setForm({ ...form, coins_per_checkin: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Bônus semanal 3x</label>
-                <Input type="number" value={form.weekly_bonus_3} onChange={(e) => setForm({ ...form, weekly_bonus_3: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Bônus semanal 4x</label>
-                <Input type="number" value={form.weekly_bonus_4} onChange={(e) => setForm({ ...form, weekly_bonus_4: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Bônus semanal 5x</label>
-                <Input type="number" value={form.weekly_bonus_5} onChange={(e) => setForm({ ...form, weekly_bonus_5: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Bônus por level up</label>
-                <Input type="number" value={form.level_up_bonus} onChange={(e) => setForm({ ...form, level_up_bonus: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input
-                    type="checkbox"
-                    checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  />
-                  Configuração ativa
-                </label>
-              </div>
-            </div>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="avatar-economy" className="border rounded-md px-4">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <ChevronDown className="h-4 w-4" />
+                  Configurar Economia do Avatar
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Ganhos por ação</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {renderRuleInput('BrazaCoin por check-in', 'coins_per_checkin', 'coins_per_checkin_enabled')}
+                      {renderRuleInput('BrazaCoin por concluir desafio', 'coins_per_challenge_completion', 'coins_per_challenge_completion_enabled')}
+                      {renderRuleInput('BrazaCoin por registrar WOD', 'coins_per_wod_completion', 'coins_per_wod_completion_enabled')}
+                      {renderRuleInput('BrazaCoin por participar de duelo', 'coins_per_duel_participation', 'coins_per_duel_participation_enabled')}
+                      {renderRuleInput('BrazaCoin por vencer duelo', 'coins_per_duel_win', 'coins_per_duel_win_enabled')}
+                      {renderRuleInput('BrazaCoin por bater PR', 'coins_per_pr', 'coins_per_pr_enabled')}
+                      {renderRuleInput('Bônus por level up', 'level_up_bonus', 'level_up_bonus_enabled')}
+                    </div>
+                  </div>
 
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Bônus de consistência</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {renderRuleInput('Bônus semanal 3x', 'weekly_bonus_3', 'weekly_bonus_3_enabled')}
+                      {renderRuleInput('Bônus semanal 4x', 'weekly_bonus_4', 'weekly_bonus_4_enabled')}
+                      {renderRuleInput('Bônus semanal 5x', 'weekly_bonus_5', 'weekly_bonus_5_enabled')}
+                      {renderRuleInput('Bônus semanal 6x', 'weekly_bonus_6', 'weekly_bonus_6_enabled')}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Bônus especiais</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {renderRuleInput('Bônus por ranking mensal', 'monthly_ranking_bonus', 'monthly_ranking_bonus_enabled')}
+                      {renderRuleInput('Bônus por evento especial', 'special_event_bonus', 'special_event_bonus_enabled')}
+                      {renderRuleInput('Bônus por missões diárias', 'daily_mission_bonus', 'daily_mission_bonus_enabled')}
+                      {renderRuleInput('Bônus por marcos/conquistas', 'milestone_bonus', 'milestone_bonus_enabled')}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Controle geral</h4>
+                    <div className="flex flex-wrap gap-4 items-center">
+                      <label className="flex items-center gap-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          checked={form.is_active}
+                          onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                        />
+                        Configuração ativa
+                      </label>
+                      <Button type="button" variant="outline" onClick={handleResetDefaults}>
+                        Restaurar padrão
+                      </Button>
+                      <Button onClick={handleSave} disabled={saving}>
+                        {saving ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
       </CardContent>
     </Card>

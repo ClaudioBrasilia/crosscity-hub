@@ -14,6 +14,7 @@ import type { DailyWod, Duel, WodCategory } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import { normalizeDuel, checkAllResultsSubmitted } from '@/lib/duelLogic';
+import { grantConfiguredAvatarReward } from '@/lib/avatar-economy';
 import {
   getDuels,
   createDuel as createDuelApi,
@@ -363,6 +364,11 @@ const Battle = () => {
         } else {
           toast({ title: 'Duelo finalizado', description: `${winner?.name || 'Outro atleta'} venceu.` });
         }
+
+        for (const participantId of allParticipants) {
+          await grantConfiguredAvatarReward(participantId, 'coins_per_duel_participation', 'duel_participation', duel.id);
+        }
+        await grantConfiguredAvatarReward(winnerId, 'coins_per_duel_win', 'duel_win', duel.id);
 
         // Feed post
         try {
