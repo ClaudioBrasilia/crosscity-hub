@@ -3,7 +3,7 @@ import { Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserClan, type ClanData } from '@/lib/supabaseData';
+import { getUserClan } from '@/lib/supabaseData';
 
 interface ActivityEnergyClaim {
   activityType: 'checkin' | 'wod' | 'challenge' | 'event';
