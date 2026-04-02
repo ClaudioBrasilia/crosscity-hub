@@ -22,6 +22,7 @@ import {
   getTerritoryBattle,
   type ClanData,
   type ClanMembershipData,
+  leaveClan,
 } from '@/lib/supabaseData';
 
 const Clans = () => {
