@@ -394,6 +394,33 @@ export type Database = {
           },
         ]
       }
+      class_schedules: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          label: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          start_time?: string
+        }
+        Relationships: []
+      }
       domination_events: {
         Row: {
           battle_id: string

@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDurationInput, getDurationValidationError, toDurationSeconds } from '@/lib/timeScore';
 import type { WodCategory, WodScoreUnit } from '@/lib/mockData';
 import * as db from '@/lib/supabaseData';
+import { grantConfiguredAvatarReward } from '@/lib/avatar-economy';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -157,6 +158,7 @@ const WOD = () => {
         const xpGained = 50 + xpBonus;
         const newXp = (user.xp || 0) + xpGained;
         await updateUser({ xp: newXp, level: Math.floor(newXp / 500) + 1, streak: (user.streak || 0) + 1 });
+        await grantConfiguredAvatarReward(user.id, 'coins_per_wod_completion', 'wod_completion', dailyWod.id);
 
         // Create feed post
         await db.createFeedPost({

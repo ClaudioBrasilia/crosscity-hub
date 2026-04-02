@@ -1,37 +1,49 @@
 
 
-## Plan: Fix "domination_events_battle_id_fkey" Error
+## Plan: Create `class_schedules` Table
 
 ### Root Cause
-The `domination_events` table has a foreign key (`battle_id`) referencing `territory_battles(id)`. The code sets `battle_id` to the current day key (e.g., "2026-04-02"), but no matching row exists in `territory_battles` for that day. The insert fails with a FK violation.
+The `class_schedules` table does not exist in the database. The Admin page and TV mode both reference it, causing errors when trying to add, list, or filter by class schedules.
 
 ### Fix
 
-**File: `src/components/DominationEnergyButton.tsx`** — Before inserting into `domination_events`, ensure a `territory_battles` row exists for today:
+**Database Migration** -- Create the `class_schedules` table with RLS policies:
 
-1. After computing `battleId = dayKey`, query `territory_battles` for that ID.
-2. If no row exists, insert one with the day's territory info (using `upsert` or insert with `ON CONFLICT DO NOTHING`).
-3. Then proceed with the `domination_events` insert as before.
+```sql
+CREATE TABLE public.class_schedules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  label text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-The upsert will create a battle record like:
-```ts
-await supabase.from('territory_battles').upsert({
-  id: battleId,
-  territory_id: 'default',
-  period: 'daily',
-  starts_at: dayStart,
-  ends_at: dayEnd,
-  energy_by_clan: {},
-}, { onConflict: 'id' });
+ALTER TABLE public.class_schedules ENABLE ROW LEVEL SECURITY;
+
+-- Anyone authenticated can view schedules
+CREATE POLICY "Anyone can view schedules"
+  ON public.class_schedules FOR SELECT
+  TO authenticated USING (true);
+
+-- Admins can manage schedules (insert, update, delete)
+CREATE POLICY "Admins can manage schedules"
+  ON public.class_schedules FOR ALL
+  TO authenticated
+  USING (has_role(auth.uid(), 'admin'::app_role))
+  WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+
+-- Anon can view (for TV mode which uses anon key)
+CREATE POLICY "Anon can view schedules"
+  ON public.class_schedules FOR SELECT
+  TO anon USING (true);
 ```
 
-This also fixes the duplicate energy issue — the existing code already checks for `23505` (unique violation), but the FK error was thrown first, masking it.
+### No code changes needed
+The existing code in `Admin.tsx` and `TvMode.tsx` already uses the correct column names (`start_time`, `end_time`, `label`, `is_active`). Once the table exists, everything will work.
 
 ### Files changed
 | File | Change |
 |------|--------|
-| `DominationEnergyButton.tsx` | Add upsert of `territory_battles` row before inserting energy event |
-
-### What stays untouched
-TV, check-in, WOD, ranking, duels, challenges — no changes.
+| Migration SQL | Create `class_schedules` table with RLS |
 
