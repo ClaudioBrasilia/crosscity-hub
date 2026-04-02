@@ -306,7 +306,7 @@ export default function TvMode() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: scheds } = await supabase.from('class_schedules').select('*').eq('is_active', true);
+        const { data: scheds } = await (supabase as any).from('class_schedules').select('*').eq('is_active', true);
         const currentScheds = scheds || [];
         setSchedules(currentScheds);
 
@@ -331,6 +331,8 @@ export default function TvMode() {
       }
       setNow(new Date());
     };
+
+    load();
 
     const channels = [
       supabase
@@ -367,7 +369,7 @@ export default function TvMode() {
         supabase.removeChannel(channel);
       });
     };
-  }, [loadTvData]);
+  }, [loadTvData, refreshFromRealtime]);
 
   const dateLabel = useMemo(
     () =>
