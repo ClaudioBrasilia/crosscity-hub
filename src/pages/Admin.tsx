@@ -552,7 +552,8 @@ const AvatarEconomySection = () => {
     if (!form) return;
     setSaving(true);
     try {
-      await updateAvatarEconomySettings(form);
+      const { id, rule_labels, rule_notes, created_at, ...payload } = form;
+      await updateAvatarEconomySettings(id, payload);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
