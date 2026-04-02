@@ -37,8 +37,8 @@ export const DominationEnergyButton = ({
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [generated, setGenerated] = useState(false);
   const [gainFeedback, setGainFeedback] = useState<string | null>(null);
-  const [hasValidatedPresenceToday, setHasValidatedPresenceToday] = useState(false);
-  const [presenceMessage, setPresenceMessage] = useState<string | null>(null);
+  const [isLocationValidated, setIsLocationValidated] = useState(false);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   const getSaoPauloDayKey = useCallback(
     (date = new Date()) =>
@@ -58,28 +58,71 @@ export const DominationEnergyButton = ({
     return { dayKey, dayStart, dayEnd };
   }, [getSaoPauloDayKey]);
 
-  const validatePresenceToday = useCallback(async (): Promise<boolean> => {
-    const dayKey = getSaoPauloDayKey();
-    const { data } = await supabase
-      .from('checkins')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('check_date', dayKey)
-      .limit(1);
-    const hasPresence = !!(data && data.length > 0);
-    setHasValidatedPresenceToday(hasPresence);
-    setPresenceMessage(hasPresence ? 'Presença validada hoje' : 'Faça check-in presencial para gerar energia');
-    return hasPresence;
-  }, [getSaoPauloDayKey, userId]);
+  const calculateDistanceMeters = useCallback((
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ) => {
+    const earthRadiusMeters = 6371000;
+    const dLat = ((toLat - fromLat) * Math.PI) / 180;
+    const dLng = ((toLng - fromLng) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((fromLat * Math.PI) / 180) * Math.cos((toLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }, []);
 
-  const isBlocked = !participationValid || !hasValidatedPresenceToday || isBootstrapping;
+  const validateLocation = useCallback(async (): Promise<boolean> => {
+    const { data: activeLocation } = await supabase
+      .from('training_locations')
+      .select('latitude, longitude, radius_meters')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (!activeLocation) {
+      setLocationMessage('Local de treino indisponível');
+      setIsLocationValidated(false);
+      return false;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationMessage('Localização indisponível');
+      setIsLocationValidated(false);
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          const distance = calculateDistanceMeters(
+            Number(activeLocation.latitude),
+            Number(activeLocation.longitude),
+            coords.latitude,
+            coords.longitude,
+          );
+          const inside = distance <= Number(activeLocation.radius_meters);
+          setLocationMessage(inside ? 'Localização validada' : 'Fora da área permitida');
+          setIsLocationValidated(inside);
+          resolve(inside);
+        },
+        () => {
+          setLocationMessage('Permissão de localização necessária');
+          setIsLocationValidated(false);
+          resolve(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      );
+    });
+  }, [calculateDistanceMeters]);
+
+  const isBlocked = !participationValid || !isLocationValidated || isBootstrapping;
 
   // Check if energy was already generated for this activity on São Paulo day (from Supabase)
   useEffect(() => {
     const check = async () => {
       setIsBootstrapping(true);
       const { dayStart, dayEnd } = getSaoPauloDayRangeUtc();
-      const [eventResult, hasPresenceToday] = await Promise.all([
+      const [eventResult, insideArea] = await Promise.all([
         supabase
           .from('domination_events')
           .select('id')
@@ -88,15 +131,15 @@ export const DominationEnergyButton = ({
           .gte('created_at', dayStart)
           .lte('created_at', dayEnd)
           .limit(1),
-        validatePresenceToday(),
+        validateLocation(),
       ]);
 
       if (eventResult.data && eventResult.data.length > 0) setGenerated(true);
-      setHasValidatedPresenceToday(hasPresenceToday);
+      setIsLocationValidated(insideArea);
       setIsBootstrapping(false);
     };
     check();
-  }, [userId, activityId, activityType, getSaoPauloDayRangeUtc, validatePresenceToday]);
+  }, [userId, activityId, activityType, getSaoPauloDayRangeUtc, validateLocation]);
 
   const buttonLabel = useMemo(() => {
     if (isBootstrapping) return 'Verificando...';
@@ -111,11 +154,11 @@ export const DominationEnergyButton = ({
     setIsLoading(true);
 
     try {
-      const hasPresenceToday = await validatePresenceToday();
-      if (!hasPresenceToday) {
+      const insideArea = await validateLocation();
+      if (!insideArea) {
         toast({
-          title: 'Energia bloqueada',
-          description: 'Faça o check-in presencial de hoje para gerar energia do time.',
+          title: 'Check-in não autorizado',
+          description: 'Valide sua localização dentro da área permitida para gerar energia.',
           variant: 'destructive',
         });
         return;
@@ -203,8 +246,8 @@ export const DominationEnergyButton = ({
         {buttonLabel}
       </Button>
       {gainFeedback && <p className="text-xs text-emerald-600 font-medium animate-in fade-in-0">{gainFeedback}</p>}
-      {presenceMessage && !generated && (
-        <p className="text-xs text-muted-foreground">{presenceMessage}</p>
+      {locationMessage && !generated && (
+        <p className="text-xs text-muted-foreground">{locationMessage}</p>
       )}
     </div>
   );
