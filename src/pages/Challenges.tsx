@@ -207,6 +207,7 @@ const Challenges = () => {
   const [challenges, setChallenges] = useState<dbService.ChallengeData[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [doneToday, setDoneToday] = useState<Record<string, boolean>>({});
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -218,10 +219,15 @@ const Challenges = () => {
     setCompletedIds(completed);
 
     const pm: Record<string, number> = {};
+    const dt: Record<string, boolean> = {};
+    const today = new Date().toDateString();
     for (const c of challs) {
       pm[c.id] = await dbService.getChallengeProgress(c.id, user.id);
+      const updatedAt = await dbService.getChallengeProgressUpdatedAt(c.id, user.id);
+      dt[c.id] = updatedAt ? new Date(updatedAt).toDateString() === today : false;
     }
     setProgressMap(pm);
+    setDoneToday(dt);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData, tick]);
