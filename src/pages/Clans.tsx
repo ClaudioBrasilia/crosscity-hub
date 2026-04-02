@@ -15,9 +15,13 @@ import {
   getClanMemberships,
   joinClan,
   getUserClan as getUserClanApi,
+  getUserClanMembership,
+  getClanMembers,
+  approveMember,
+  removeMember,
   getTerritoryBattle,
-  upsertTerritoryBattle,
   type ClanData,
+  type ClanMembershipData,
 } from '@/lib/supabaseData';
 
 const Clans = () => {
@@ -29,6 +33,8 @@ const Clans = () => {
   const [clans, setClans] = useState<ClanData[]>([]);
   const [memberships, setMemberships] = useState<Record<string, string>>({});
   const [myClan, setMyClan] = useState<ClanData | null>(null);
+  const [myMembership, setMyMembership] = useState<ClanMembershipData | null>(null);
+  const [managedMembers, setManagedMembers] = useState<ClanMembershipData[]>([]);
   const [territoryState, setTerritoryState] = useState<any>(null);
 
   const dayKey = new Date().toISOString().split('T')[0];
@@ -48,8 +54,19 @@ const Clans = () => {
       setTerritoryState(battle);
 
       if (user) {
-        const userClan = await getUserClanApi(user.id);
+        const [userClan, userMembership] = await Promise.all([
+          getUserClanApi(user.id),
+          getUserClanMembership(user.id),
+        ]);
         setMyClan(userClan);
+        setMyMembership(userMembership);
+
+        if (userMembership?.clanId) {
+          const clanMembers = await getClanMembers(userMembership.clanId);
+          setManagedMembers(clanMembers);
+        } else {
+          setManagedMembers([]);
+        }
       }
     };
     load();
@@ -89,8 +106,6 @@ const Clans = () => {
         banner: '🛡️',
         createdBy: user.id,
       });
-
-      await joinClan(user.id, newClan.id);
       toast({ title: 'Time criado com sucesso!', description: `Você agora lidera ${newClan.name}.` });
       setTick((v) => v + 1);
     } catch (err: any) {
@@ -98,17 +113,50 @@ const Clans = () => {
     }
   };
 
-  const handleJoinClan = async (clanId: string, clanName: string) => {
+  const handleJoinClan = async (clanId: string) => {
     if (!user) return;
     try {
       await joinClan(user.id, clanId);
-      toast({ title: 'Você entrou no time!', description: `Agora você faz parte de ${clanName}.` });
+      toast({ title: 'Solicitação enviada!', description: 'Aguarde aprovação do capitão.' });
       setJoinDialogOpen(false);
       setTick((v) => v + 1);
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message || 'Falha ao entrar no time.', variant: 'destructive' });
     }
   };
+
+  const handleApproveMember = async (memberId: string) => {
+    if (!myMembership?.clanId) return;
+    try {
+      await approveMember(memberId, myMembership.clanId);
+      toast({ title: 'Membro aprovado!', description: 'Agora ele já pode somar energia para o time.' });
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao aprovar membro.', variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!myMembership?.clanId) return;
+    try {
+      await removeMember(memberId, myMembership.clanId);
+      toast({ title: 'Membro removido', description: 'A solicitação/membro foi removida do time.' });
+      setTick((v) => v + 1);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao remover membro.', variant: 'destructive' });
+    }
+  };
+
+  const pendingMembers = useMemo(
+    () => managedMembers.filter((member) => member.status === 'pending'),
+    [managedMembers],
+  );
+  const approvedMembers = useMemo(
+    () => managedMembers.filter((member) => member.status === 'approved'),
+    [managedMembers],
+  );
+  const isCaptain = myMembership?.role === 'captain' && myMembership?.status === 'approved';
+  const canContributeEnergy = myMembership?.status === 'approved' && !!myClan;
 
   return (
     <div className="space-y-6">
@@ -129,7 +177,7 @@ const Clans = () => {
                 <p className="text-2xl font-bold">{myClan.banner} {myClan.name}</p>
                 <p className="text-sm text-muted-foreground">{myClan.motto}</p>
               </div>
-              {user && (
+              {user && canContributeEnergy && (
                 <DominationEnergyButton
                   userId={user.id}
                   activityId={`territory:${dayKey}`}
@@ -139,6 +187,9 @@ const Clans = () => {
                   className="w-full sm:w-auto"
                   onSuccess={() => setTick((value) => value + 1)}
                 />
+              )}
+              {myMembership?.status === 'pending' && (
+                <Badge variant="secondary">Solicitação pendente de aprovação do capitão</Badge>
               )}
             </>
           ) : (
@@ -175,7 +226,7 @@ const Clans = () => {
                               <Users className="h-3 w-3" /> {memberCount} membros
                             </p>
                           </div>
-                          <Button size="sm" onClick={() => handleJoinClan(clan.id, clan.name)}>
+                          <Button size="sm" onClick={() => handleJoinClan(clan.id)}>
                             Entrar
                           </Button>
                         </div>
@@ -235,6 +286,68 @@ const Clans = () => {
           </CardContent>
         </Card>
       </div>
+
+      {isCaptain && myClan && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Gerenciar Time</CardTitle>
+            <CardDescription>Aprove pedidos pendentes e remova membros do seu time.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Solicitações pendentes</p>
+              {pendingMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
+              ) : (
+                pendingMembers.map((member) => {
+                  const profile = allUsers.find((u) => u.id === member.userId);
+                  return (
+                    <div key={`pending-${member.userId}`} className="flex items-center justify-between rounded-lg border p-3 gap-3">
+                      <div>
+                        <p className="font-medium">{profile?.name || 'Atleta'}</p>
+                        <p className="text-xs text-muted-foreground">{member.userId}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => handleApproveMember(member.userId)}>
+                          Aprovar
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRemoveMember(member.userId)}>
+                          Recusar
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Membros aprovados</p>
+              {approvedMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum membro aprovado ainda.</p>
+              ) : (
+                approvedMembers.map((member) => {
+                  const profile = allUsers.find((u) => u.id === member.userId);
+                  const isCurrentUser = member.userId === user?.id;
+                  return (
+                    <div key={`approved-${member.userId}`} className="flex items-center justify-between rounded-lg border p-3 gap-3">
+                      <div>
+                        <p className="font-medium">{profile?.name || 'Atleta'} {member.role === 'captain' ? '👑' : ''}</p>
+                        <p className="text-xs text-muted-foreground">{member.role}</p>
+                      </div>
+                      {!isCurrentUser && (
+                        <Button size="sm" variant="outline" onClick={() => handleRemoveMember(member.userId)}>
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

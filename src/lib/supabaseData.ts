@@ -747,6 +747,13 @@ export interface ClanData {
   createdBy: string | null;
 }
 
+export interface ClanMembershipData {
+  userId: string;
+  clanId: string;
+  role: string;
+  status: 'pending' | 'approved';
+}
+
 export async function getClans(): Promise<ClanData[]> {
   const { data, error } = await supabase
     .from('app_clans')
@@ -780,13 +787,26 @@ export async function createClan(clan: { name: string; motto: string; banner: st
     console.error('Error creating clan:', error);
     throw new Error('Falha ao criar time.');
   }
+
+  const { error: membershipError } = await supabase.from('clan_memberships').upsert({
+    user_id: clan.createdBy,
+    clan_id: id,
+    role: 'captain',
+    status: 'approved',
+  } as any, { onConflict: 'user_id' });
+  if (membershipError) {
+    console.error('Error creating captain membership:', membershipError);
+    throw new Error('Falha ao criar liderança do time.');
+  }
+
   return { id, ...clan, createdBy: clan.createdBy };
 }
 
 export async function getClanMemberships(): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from('clan_memberships')
-    .select('user_id, clan_id');
+    .select('user_id, clan_id')
+    .eq('status', 'approved');
   if (error) return {};
   const result: Record<string, string> = {};
   (data || []).forEach((r: any) => { result[r.user_id] = r.clan_id; });
@@ -798,11 +818,86 @@ export async function joinClan(userId: string, clanId: string): Promise<void> {
     user_id: userId,
     clan_id: clanId,
     role: 'member',
+    status: 'pending',
   } as any, { onConflict: 'user_id' });
   if (error) {
     console.error('Error joining clan:', error);
     throw new Error('Falha ao entrar no time.');
   }
+}
+
+export async function getUserClanMembership(userId: string): Promise<ClanMembershipData | null> {
+  const { data, error } = await supabase
+    .from('clan_memberships')
+    .select('user_id, clan_id, role, status')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    userId: data.user_id,
+    clanId: data.clan_id,
+    role: data.role,
+    status: data.status,
+  };
+}
+
+const ensureCurrentUserIsCaptain = async (clanId: string): Promise<void> => {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('Usuário não autenticado.');
+  const { data, error } = await supabase
+    .from('clan_memberships')
+    .select('role')
+    .eq('clan_id', clanId)
+    .eq('user_id', authData.user.id)
+    .eq('status', 'approved')
+    .maybeSingle();
+  if (error || data?.role !== 'captain') {
+    throw new Error('Apenas capitães podem gerenciar membros.');
+  }
+};
+
+export async function approveMember(userId: string, clanId: string): Promise<void> {
+  await ensureCurrentUserIsCaptain(clanId);
+  const { error } = await supabase
+    .from('clan_memberships')
+    .update({ status: 'approved' } as any)
+    .eq('user_id', userId)
+    .eq('clan_id', clanId);
+  if (error) {
+    console.error('Error approving clan member:', error);
+    throw new Error('Falha ao aprovar membro.');
+  }
+}
+
+export async function removeMember(userId: string, clanId: string): Promise<void> {
+  await ensureCurrentUserIsCaptain(clanId);
+  const { error } = await supabase
+    .from('clan_memberships')
+    .delete()
+    .eq('user_id', userId)
+    .eq('clan_id', clanId);
+  if (error) {
+    console.error('Error removing clan member:', error);
+    throw new Error('Falha ao remover membro.');
+  }
+}
+
+export async function getClanMembers(clanId: string): Promise<ClanMembershipData[]> {
+  const { data, error } = await supabase
+    .from('clan_memberships')
+    .select('user_id, clan_id, role, status')
+    .eq('clan_id', clanId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error('Error fetching clan members:', error);
+    return [];
+  }
+  return (data || []).map((row: any) => ({
+    userId: row.user_id,
+    clanId: row.clan_id,
+    role: row.role,
+    status: row.status,
+  }));
 }
 
 export async function getUserClan(userId: string): Promise<ClanData | null> {
