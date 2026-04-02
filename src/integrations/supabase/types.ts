@@ -656,6 +656,7 @@ export type Database = {
           name: string
           radius_meters: number
           tv_layout_model: string | null
+          tv_right_top_block_mode: string
           updated_at: string
         }
         Insert: {
@@ -669,6 +670,7 @@ export type Database = {
           name: string
           radius_meters?: number
           tv_layout_model?: string | null
+          tv_right_top_block_mode?: string
           updated_at?: string
         }
         Update: {
@@ -682,6 +684,7 @@ export type Database = {
           name?: string
           radius_meters?: number
           tv_layout_model?: string | null
+          tv_right_top_block_mode?: string
           updated_at?: string
         }
         Relationships: []

@@ -24,7 +24,7 @@ export const getTvRightTopBlockMode = async (): Promise<TvRightTopBlockMode> => 
     .maybeSingle();
 
   if (error) return 'checkins';
-  return data?.tv_right_top_block_mode === 'avatar' ? 'avatar' : 'checkins';
+  return data?.tv_right_top_block_mode === 'avatar' || data?.tv_right_top_block_mode === 'avatars' ? 'avatar' : 'checkins';
 };
 
 export const updateTvLayoutModel = async (locationId: string, model: TvLayoutModel) => {
