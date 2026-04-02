@@ -887,7 +887,7 @@ export async function getClanMembers(clanId: string): Promise<ClanMembershipData
     .from('clan_memberships')
     .select('user_id, clan_id, role, status')
     .eq('clan_id', clanId)
-    .order('created_at', { ascending: true });
+    .order('joined_at', { ascending: true });
   if (error) {
     console.error('Error fetching clan members:', error);
     return [];
