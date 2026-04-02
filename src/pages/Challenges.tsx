@@ -335,7 +335,7 @@ const Challenges = () => {
           </TabsList>
           <TabsContent value="weekly" className="space-y-3 mt-4">
             {weekly.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nenhum desafio semanal.</p> : weekly.map(c => (
-              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
+              <ChallengeCard key={c.id} challenge={c} userId={user?.id || ''} isCoach={isCoach} progress={progressMap[c.id] || 0} isClaimed={completedIds.includes(c.id)} isDoneToday={!!doneToday[c.id]} onClaim={handleClaim} onIncrement={handleIncrement} onDelete={handleDelete} />
             ))}
           </TabsContent>
           <TabsContent value="monthly" className="space-y-3 mt-4">
