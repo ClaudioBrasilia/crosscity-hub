@@ -827,9 +827,9 @@ export async function joinClan(userId: string, clanId: string): Promise<void> {
 }
 
 export async function getUserClanMembership(userId: string): Promise<ClanMembershipData | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase
     .from('clan_memberships')
-    .select('user_id, clan_id, role, status')
+    .select('user_id, clan_id, role, status') as any)
     .eq('user_id', userId)
     .maybeSingle();
   if (error || !data) return null;
