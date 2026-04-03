@@ -1,471 +1,642 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { getActiveChallenges } from '@/lib/supabaseData';
-import type { ChallengeData } from '@/lib/supabaseData';
-import TvLayoutOld from '@/components/tv/TvLayoutOld';
-import TvLayoutNew from '@/components/tv/TvLayoutNew';
-import type { DailyWod, TvCheckin, TvDuel, TvMonthlyXp } from '@/components/tv/types';
-import {
-  getTvLayoutModel,
-  getTvRightTopBlockMode,
-  type TvLayoutModel,
-  type TvRightTopBlockMode,
-} from '@/lib/tv-layout';
+import { useState, useEffect } from 'react';
+import { 
+  Activity, 
+  Bolt, 
+  Dumbbell, 
+  Timer, 
+  UserRound, 
+  Swords,
+  ChevronRight,
+  Zap
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const GYM_TIMEZONE = 'America/Sao_Paulo';
-const TABS = ['Warm-up', 'Skill', 'WOD'] as const;
-type TabKey = typeof TABS[number];
+// --- Types ---
+interface Athlete {
+  id: string;
+  name: string;
+  role: string;
+  hr: number;
+  reps: number;
+  image: string;
+  progress: number; // Percentage 0-100
+  hasWatch: boolean;
+}
 
-const getZonedDateParts = (date: Date) => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: GYM_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date);
+interface WodResult {
+  time: string;
+  athletes: Athlete[];
+  date: string;
+}
 
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return {
-    year: Number(map.year),
-    month: Number(map.month),
-    day: Number(map.day),
-    hour: Number(map.hour),
-    minute: Number(map.minute),
-  };
-};
-
-const getCurrentClass = (schedules: any[]): { start: string; end: string } | undefined => {
-  const now = getZonedDateParts(new Date());
-  const currentMinutes = now.hour * 60 + now.minute;
-  
-  const formattedSchedules = schedules.map(s => ({
-    start: s.start_time.substring(0, 5),
-    end: s.end_time.substring(0, 5)
-  }));
-
-  return formattedSchedules.find((cls) => {
-    const [startH, startM] = cls.start.split(':').map(Number);
-    const [endH, endM] = cls.end.split(':').map(Number);
-    return currentMinutes >= startH * 60 + startM && currentMinutes < endH * 60 + endM;
-  });
-};
-
-const formatDatePartsToIso = ({ year, month, day }: { year: number; month: number; day: number }) =>
-  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-const getTodayISO = () => formatDatePartsToIso(getZonedDateParts(new Date()));
-
-const normalizeWodDateToGymIso = (value: string) => {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
-
-  return formatDatePartsToIso(getZonedDateParts(parsed));
-};
-
-const getCurrentWeekBounds = () => {
-  const now = new Date();
-  const start = new Date(now);
-  const day = start.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diffToMonday);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  end.setHours(23, 59, 59, 999);
-  return { startMs: start.getTime(), endMs: end.getTime() };
-};
-
-const isInCurrentWeek = (timestamp?: number | null) => {
-  if (!timestamp || Number.isNaN(timestamp)) return false;
-  const { startMs, endMs } = getCurrentWeekBounds();
-  return timestamp >= startMs && timestamp <= endMs;
-};
-
-const fetchDailyWod = async (): Promise<DailyWod | null> => {
-  try {
-    const todayIso = getTodayISO();
-
-    const { data, error } = await supabase
-      .from('wods')
-      .select('id, date, name, type, warmup, skill, versions')
-      .eq('date', todayIso)
-      .limit(1)
-      .maybeSingle();
-
-    let wodRow = !error && data ? data : null;
-
-    if (!wodRow) {
-      const { data: fallbackRows, error: fallbackError } = await supabase
-        .from('wods')
-        .select('id, date, name, type, warmup, skill, versions')
-        .order('date', { ascending: false })
-        .limit(30);
-
-      if (!fallbackError && fallbackRows?.length) {
-        wodRow = fallbackRows.find((row) => normalizeWodDateToGymIso(row.date) === todayIso) ?? null;
-      }
-    }
-
-    if (!wodRow) return null;
-
-    const versions = (wodRow.versions || {}) as any;
-    if (!versions.rx?.description) return null;
-
-    return {
-      id: wodRow.id,
-      date: wodRow.date,
-      name: wodRow.name,
-      type: wodRow.type as DailyWod['type'],
-      warmup: wodRow.warmup ?? undefined,
-      skill: wodRow.skill ?? undefined,
-      versions: {
-        rx: versions.rx || { description: '' },
-        scaled: versions.scaled || { description: '' },
-        beginner: versions.beginner || { description: '' },
-      },
-    };
-  } catch {
-    return null;
+// --- Mock Data ---
+const INITIAL_ATHLETES: Athlete[] = [
+  {
+    id: '1',
+    name: 'MARCUS R.',
+    role: 'ELITE MEMBER',
+    hr: 164,
+    reps: 142,
+    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop',
+    progress: 0,
+    hasWatch: true
+  },
+  {
+    id: '2',
+    name: 'SARAH V.',
+    role: 'PRO MEMBER',
+    hr: 158,
+    reps: 138,
+    image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1000&auto=format&fit=crop',
+    progress: 0,
+    hasWatch: true
+  },
+  {
+    id: '3',
+    name: 'LUCAS V.',
+    role: 'ELITE MEMBER',
+    hr: 152,
+    reps: 120,
+    image: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=1000&auto=format&fit=crop',
+    progress: 0,
+    hasWatch: false
+  },
+  {
+    id: '4',
+    name: 'JULIA M.',
+    role: 'PRO MEMBER',
+    hr: 145,
+    reps: 110,
+    image: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=1000&auto=format&fit=crop',
+    progress: 0,
+    hasWatch: true
   }
-};
+];
 
-const fetchTvCheckins = async (schedules: any[]): Promise<TvCheckin[]> => {
-  const currentClass = getCurrentClass(schedules);
-  if (!currentClass) return [];
-
-  try {
-    const today = getTodayISO();
-    const { data, error } = await supabase
-      .from('checkins')
-      .select('id, user_id, created_at')
-      .eq('check_date', today);
-    if (error || !data || data.length === 0) return [];
-
-    const [startH, startM] = currentClass.start.split(':').map(Number);
-    const [endH, endM] = currentClass.end.split(':').map(Number);
-    const classStartMin = startH * 60 + startM;
-    const classEndMin = endH * 60 + endM;
-
-    const filtered = data.filter((item) => {
-      if (!item.created_at) return false;
-      const d = new Date(item.created_at);
-      if (Number.isNaN(d.getTime())) return false;
-      const zoned = getZonedDateParts(d);
-      const checkinMin = zoned.hour * 60 + zoned.minute;
-      return checkinMin >= classStartMin && checkinMin < classEndMin;
-    });
-
-    if (filtered.length === 0) return [];
-
-    const userIds = [...new Set(filtered.map((c) => c.user_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name, avatar, avatar_url')
-      .in('id', userIds);
-    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-    return filtered.slice(0, 12).map((item) => ({
-      id: item.user_id,
-      name: profileMap.get(item.user_id)?.name || 'Atleta',
-      avatar: profileMap.get(item.user_id)?.avatar || '👤',
-      avatarUrl: profileMap.get(item.user_id)?.avatar_url || undefined,
-      time: item.created_at || '',
-    }));
-  } catch {
-    return [];
-  }
-};
-
-const fetchTvDuels = async (): Promise<TvDuel[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('app_duels')
-      .select('id, challenger_id, opponent_ids, status, winner_id, bet_settled_at, bet_canceled_at, created_at')
-      .in('status', ['pending', 'active', 'finished'])
-      .neq('status', 'canceled')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (error || !data || data.length === 0) return [];
-
-    const filteredDuels = data.filter((duel) => {
-      if (duel.status === 'canceled') return false;
-      if (duel.status === 'pending' || duel.status === 'active') return true;
-      if (duel.status !== 'finished') return false;
-      const finishedAt = duel.bet_settled_at ?? duel.bet_canceled_at ?? duel.created_at;
-      return isInCurrentWeek(finishedAt);
-    }).slice(0, 8);
-
-    if (filteredDuels.length === 0) return [];
-
-    const allUserIds = new Set<string>();
-    filteredDuels.forEach((d) => {
-      allUserIds.add(d.challenger_id);
-      (d.opponent_ids || []).forEach((id: string) => allUserIds.add(id));
-      if (d.winner_id) allUserIds.add(d.winner_id);
-    });
-
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .in('id', [...allUserIds]);
-    const nameMap = new Map((profiles || []).map((p) => [p.id, p.name]));
-
-    return filteredDuels.map((duel) => ({
-      id: duel.id,
-      challengerName: nameMap.get(duel.challenger_id) || 'Atleta 1',
-      challengedNames:
-        duel.opponent_ids && duel.opponent_ids.length > 0
-          ? duel.opponent_ids.map((opponentId: string) => nameMap.get(opponentId) || 'Atleta').join(', ')
-          : 'Atleta 2',
-      status: duel.status || 'Ativo',
-      winnerName: duel.winner_id ? nameMap.get(duel.winner_id) || 'Atleta' : undefined,
-      isFinished: duel.status === 'finished',
-    }));
-  } catch {
-    return [];
-  }
-};
-
-const fetchMonthlyXpRanking = async (): Promise<TvMonthlyXp[]> => {
-  try {
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const { data, error } = await supabase
-      .from('monthly_xp')
-      .select('user_id, xp')
-      .eq('month_key', monthKey)
-      .order('xp', { ascending: false })
-      .limit(10);
-
-    if (error || !data || data.length === 0) return [];
-
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name, avatar, avatar_url')
-      .in('id', data.map((item) => item.user_id));
-    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-    return data.map((item) => ({
-      userId: item.user_id,
-      name: profileMap.get(item.user_id)?.name || 'Atleta',
-      avatar: profileMap.get(item.user_id)?.avatar || '👤',
-      avatarUrl: profileMap.get(item.user_id)?.avatar_url || undefined,
-      xp: item.xp || 0,
-    }));
-  } catch {
-    return [];
-  }
-};
+const RANKING = [
+  { rank: '01', name: 'SARAH V.', pts: '2,450 PTS', active: true },
+  { rank: '02', name: 'LUCAS V.', pts: '2,210 PTS', active: false },
+];
 
 export default function TvMode() {
-  const [dailyWod, setDailyWod] = useState<DailyWod | null>(null);
-  const [checkins, setCheckins] = useState<TvCheckin[]>([]);
-  const [duels, setDuels] = useState<TvDuel[]>([]);
-  const [monthlyXpRanking, setMonthlyXpRanking] = useState<TvMonthlyXp[]>([]);
-  const [, setActiveChallenges] = useState<ChallengeData[]>([]);
-  const [now, setNow] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<TabKey>('WOD');
-  const [layoutModel, setLayoutModel] = useState<TvLayoutModel>('old');
-  const [rightTopBlockMode, setRightTopBlockMode] = useState<TvRightTopBlockMode>('checkins');
-  const [schedules, setSchedules] = useState<any[]>([]);
-
-  const loadTvData = useCallback(async (currentScheds?: any[]) => {
-    try {
-      const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
-        fetchDailyWod(),
-        fetchTvCheckins(currentScheds),
-        fetchTvDuels(),
-        getActiveChallenges(),
-        fetchMonthlyXpRanking(),
-        getTvLayoutModel(),
-        getTvRightTopBlockMode(),
-      ]);
-      setDailyWod(wod);
-      setCheckins(ci);
-      setDuels(du);
-      setActiveChallenges(activeChallenges);
-      setMonthlyXpRanking(ranking);
-      setLayoutModel(model);
-      setRightTopBlockMode(blockMode);
-    } catch {
-      // silently ignore network errors to keep TV stable
-    }
-    setNow(new Date());
-  }, []);
-
-  const refreshFromRealtime = useCallback(() => {
-    loadTvData(schedules);
-  }, [loadTvData, schedules]);
-
-  const loadTvDataRef = useRef<() => Promise<void>>(async () => {});
-
-  const loadTvData = useCallback(async () => {
-    try {
-      const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
-        fetchDailyWod(),
-        fetchTvCheckins(),
-        fetchTvDuels(),
-        getActiveChallenges(),
-        fetchMonthlyXpRanking(),
-        getTvLayoutModel(),
-        getTvRightTopBlockMode(),
-      ]);
-      setDailyWod(wod);
-      setCheckins(ci);
-      setDuels(du);
-      setActiveChallenges(activeChallenges);
-      setMonthlyXpRanking(ranking);
-      setLayoutModel(model);
-      setRightTopBlockMode(blockMode);
-    } catch {
-      // silently ignore network errors to keep TV stable
-    }
-    setNow(new Date());
-  }, []);
+  const [time, setTime] = useState(new Date());
+  const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
+  const [isWodActive, setIsWodActive] = useState(false);
+  const [wodSeconds, setWodSeconds] = useState(0);
+  const [athletes, setAthletes] = useState<Athlete[]>(INITIAL_ATHLETES);
+  const [lastWodResult, setLastWodResult] = useState<WodResult | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const { data: scheds } = await (supabase as any).from('class_schedules').select('*').eq('is_active', true);
-        const currentScheds = scheds || [];
-        setSchedules(currentScheds);
-
-        const [wod, ci, du, activeChallenges, ranking, model, blockMode] = await Promise.all([
-          fetchDailyWod(),
-          fetchTvCheckins(currentScheds),
-          fetchTvDuels(),
-          getActiveChallenges(),
-          fetchMonthlyXpRanking(),
-          getTvLayoutModel(),
-          getTvRightTopBlockMode(),
-        ]);
-        setDailyWod(wod);
-        setCheckins(ci);
-        setDuels(du);
-        setActiveChallenges(activeChallenges);
-        setMonthlyXpRanking(ranking);
-        setLayoutModel(model);
-        setRightTopBlockMode(blockMode);
-      } catch {
-        // silently ignore network errors to keep TV stable
-      }
-      setNow(new Date());
-    };
-
-    load();
-
-    const channels = [
-      supabase
-        .channel('tv-checkins-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, refreshFromRealtime)
-        .subscribe(),
-      supabase
-        .channel('tv-duels-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'app_duels' }, refreshFromRealtime)
-        .subscribe(),
-      supabase
-        .channel('tv-wods-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'wods' }, refreshFromRealtime)
-        .subscribe(),
-      supabase
-        .channel('tv-challenges-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, refreshFromRealtime)
-        .subscribe(),
-      supabase
-        .channel('tv-monthly-xp-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_xp' }, refreshFromRealtime)
-        .subscribe(),
-      supabase
-        .channel('tv-training-locations-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'training_locations' }, refreshFromRealtime)
-        .subscribe(),
-    ];
-
-    const clockInterval = window.setInterval(() => setNow(new Date()), 30000);
-
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    const athleteTimer = setInterval(() => {
+      setCurrentAthleteIndex((prev) => (prev + 1) % athletes.length);
+    }, 8000);
     return () => {
-      window.clearInterval(clockInterval);
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel);
-      });
+      clearInterval(timer);
+      clearInterval(athleteTimer);
     };
-  }, [loadTvData, refreshFromRealtime]);
+  }, [athletes.length]);
 
-  const dateLabel = useMemo(
-    () =>
-      now.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-      }),
-    [now]
-  );
-
-  const timeLabel = useMemo(
-    () =>
-      now.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    [now]
-  );
-
-  const currentClass = getCurrentClass(schedules);
-  const classLabel = currentClass
-    ? `Aula atual: ${currentClass.start} – ${currentClass.end}`
-    : 'Sem aula no momento';
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
-      return;
+  // WOD Timer and Progress Simulation
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isWodActive) {
+      interval = setInterval(() => {
+        setWodSeconds((prev) => prev + 1);
+        
+        // Simulate progress
+        setAthletes((prev) => prev.map(athlete => ({
+          ...athlete,
+          progress: Math.min(100, athlete.progress + Math.random() * 2),
+          hr: athlete.hasWatch ? (140 + Math.floor(Math.random() * 40)) : 0
+        })));
+      }, 1000);
     }
-    document.exitFullscreen?.();
+    return () => clearInterval(interval);
+  }, [isWodActive]);
+
+  const formattedTime = time.toLocaleTimeString('en-GB', { hour12: false });
+  const formatWodTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const goTab = (direction: -1 | 1) => {
-    const currentIndex = TABS.indexOf(activeTab);
-    const nextIndex = (currentIndex + direction + TABS.length) % TABS.length;
-    setActiveTab(TABS[nextIndex]);
-  };
+  const currentAthlete = athletes[currentAthleteIndex];
 
-  if (layoutModel === 'new') {
-    return (
-      <TvLayoutNew
-        dailyWod={dailyWod}
-        checkins={checkins}
-        duels={duels}
-        monthlyXpRanking={monthlyXpRanking}
-        dateLabel={dateLabel}
-        timeLabel={timeLabel}
-        classLabel={classLabel}
-        activeTab={activeTab}
-        onPrevTab={() => goTab(-1)}
-        onNextTab={() => goTab(1)}
-        onToggleFullscreen={toggleFullscreen}
-        rightTopBlockMode={rightTopBlockMode}
-      />
-    );
-  }
+  const handleStartWod = () => {
+    if (isWodActive) {
+      // Saving results before stopping
+      const result: WodResult = {
+        time: formatWodTime(wodSeconds),
+        athletes: [...athletes].sort((a, b) => b.progress - a.progress),
+        date: new Date().toLocaleString('pt-BR')
+      };
+      setLastWodResult(result);
+      setIsWodActive(false);
+      setWodSeconds(0);
+      setAthletes(INITIAL_ATHLETES);
+      setShowHistory(true); // Auto-show results when stopped
+    } else {
+      setIsWodActive(true);
+      setShowHistory(false);
+    }
+  };
 
   return (
-    <TvLayoutOld
-      dailyWod={dailyWod}
-      checkins={checkins}
-      duels={duels}
-      dateLabel={dateLabel}
-      timeLabel={timeLabel}
-      classLabel={classLabel}
-      currentClass={currentClass}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      onToggleFullscreen={toggleFullscreen}
-    />
+    <div className="bg-[#0e0e0e] text-white font-sans overflow-hidden h-screen w-screen selection:bg-[#cafd00] selection:text-[#0e0e0e]">
+      {/* Top Navigation Bar */}
+      <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-12 py-6 bg-[#0e0e0e]/80 backdrop-blur-xl shadow-[0_0_20px_rgba(202,253,0,0.1)]">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4">
+            <div className="bg-[#cafd00] p-2 rounded-xl rotate-3 shadow-[0_0_15px_rgba(202,253,0,0.3)]">
+              <Zap className="w-6 h-6 text-[#0e0e0e] fill-current" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-3xl font-black text-white tracking-tighter uppercase italic leading-none">
+                CROSSCITY <span className="text-[#cafd00]">HUB</span>
+              </span>
+              <span className="font-bold text-[#cafd00] tracking-[0.3em] text-[10px] uppercase opacity-80">
+                CROSSFIT ELITE
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-8">
+          <span className="font-bold text-4xl text-white">{isWodActive ? formatWodTime(wodSeconds) : formattedTime}</span>
+          <button 
+            onClick={handleStartWod}
+            className={`${isWodActive ? 'bg-[#ff7439] text-white' : 'bg-[#cafd00] text-[#3a4a00]'} font-bold px-10 py-4 text-xl rounded-xl transition-all hover:scale-95 duration-150 ease-in-out cursor-pointer shadow-[0_0_20px_rgba(202,253,0,0.3)]`}
+          >
+            {isWodActive ? 'STOP WOD' : 'START WOD'}
+          </button>
+        </div>
+      </header>
+
+      {/* Side Navigation Bar */}
+      <aside className="fixed left-0 top-0 h-full flex flex-col items-center py-24 gap-8 bg-[#131313] w-24 border-r border-[#201f1f] z-40">
+        <button 
+          onClick={() => setShowHistory(!showHistory)}
+          className={`flex flex-col items-center gap-1 mb-8 p-3 rounded-xl transition-all ${showHistory ? 'bg-[#cafd00] text-[#0e0e0e]' : 'text-[#cafd00] hover:bg-white/5'}`}
+        >
+          <Activity className="w-8 h-8" />
+          <span className="text-[10px] font-bold">HISTORY</span>
+        </button>
+        <div className="flex flex-col gap-10 w-full items-center">
+          <div className="group relative flex flex-col items-center gap-2 text-[#adaaaa] hover:text-[#cafd00] transition-transform duration-300 cursor-pointer">
+            <Dumbbell className="w-6 h-6" />
+            <span className="text-[10px] font-bold">WARM-UP</span>
+          </div>
+          <div className="group relative flex flex-col items-center gap-2 text-[#adaaaa] hover:text-[#cafd00] transition-transform duration-300 cursor-pointer">
+            <Bolt className="w-6 h-6" />
+            <span className="text-[10px] font-bold">SKILL</span>
+          </div>
+          <div className="group relative flex flex-col items-center gap-2 bg-[#cafd00] text-[#0e0e0e] py-4 w-full shadow-[4px_0_15px_rgba(202,253,0,0.3)] rounded-r-xl cursor-pointer">
+            <Timer className="w-6 h-6" />
+            <span className="text-[10px] font-bold">WOD</span>
+          </div>
+          <div className="group relative flex flex-col items-center gap-2 text-[#adaaaa] hover:text-[#cafd00] transition-transform duration-300 cursor-pointer">
+            <UserRound className="w-6 h-6" />
+            <span className="text-[10px] font-bold">COOL-DOWN</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="pl-24 pt-28 pb-12 pr-4 h-full grid grid-cols-12 gap-6">
+        <AnimatePresence mode="wait">
+          {!isWodActive ? (
+            <motion.div 
+              key="dashboard"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              className="col-span-12 grid grid-cols-12 gap-6 h-full"
+            >
+              {/* Left Section: Workout Flow */}
+              <section className="col-span-8 flex flex-col gap-6">
+                <div className="grid grid-cols-2 gap-6 h-[40%]">
+                  {/* Warm-up Card */}
+                  <div className="bg-[#131313] rounded-xl p-6 border-l-4 border-[#cafd00]/30 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <h2 className="text-3xl font-black tracking-tighter text-white">WARM-UP</h2>
+                        <span className="bg-[#262626] px-3 py-1 rounded text-[10px] font-bold text-[#adaaaa] uppercase">08:00 MIN</span>
+                      </div>
+                      <ul className="space-y-4">
+                        <li className="flex items-center gap-4 text-xl text-[#cafd00]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#cafd00]"></span>
+                          400M RUN <span className="text-[#adaaaa] text-sm ml-auto">STEADY PACE</span>
+                        </li>
+                        <li className="flex items-center gap-4 text-xl text-white">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#494847]"></span>
+                          20 AIR SQUATS
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Skill Card */}
+                  <div className="bg-[#131313] rounded-xl p-6 border-l-4 border-[#edd13a]/30">
+                    <div className="flex justify-between items-start mb-4">
+                      <h2 className="text-3xl font-black tracking-tighter text-white">SKILL</h2>
+                      <span className="bg-[#fce047]/10 text-[#fce047] px-3 py-1 rounded text-[10px] font-bold uppercase">TECHNIQUE</span>
+                    </div>
+                    <div className="space-y-4">
+                      <h3 className="text-2xl font-bold text-[#fce047]">SNATCH FOCUS</h3>
+                      <div className="flex gap-4">
+                        <div className="bg-[#262626] p-3 rounded-lg flex-1">
+                          <span className="block text-[10px] text-[#adaaaa] uppercase">Reps</span>
+                          <span className="text-xl font-bold">3 x 2</span>
+                        </div>
+                        <div className="bg-[#262626] p-3 rounded-lg flex-1">
+                          <span className="block text-[10px] text-[#adaaaa] uppercase">Load</span>
+                          <span className="text-xl font-bold">75% 1RM</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* The WOD Card */}
+                <div className="bg-[#201f1f] rounded-xl p-8 flex-grow relative overflow-hidden border border-[#cafd00]/10" style={{boxShadow: '0 0 25px rgba(202, 253, 0, 0.15)'}}>
+                  <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Timer className="w-48 h-48" />
+                  </div>
+                  <div className="relative z-10 flex flex-col h-full">
+                    <div className="flex justify-between items-end mb-8">
+                      <div>
+                        <span className="text-[#ff7439] font-bold tracking-[0.3em] text-sm block mb-1">MAIN EVENT</span>
+                        <h1 className="text-7xl font-black tracking-tighter text-[#cafd00] italic uppercase">THE WOD</h1>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-6xl font-black text-white block tracking-tighter">AMRAP 20</span>
+                        <div className="flex gap-2 mt-2 justify-end">
+                          <span className="bg-[#ff7439]/20 text-[#ff7439] border border-[#ff7439]/30 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">RX</span>
+                          <span className="bg-[#262626] text-[#adaaaa] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">SCALED</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-center flex-grow space-y-12 max-w-2xl">
+                      <motion.div 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-10 group cursor-pointer"
+                      >
+                        <span className="text-[#beee00] text-5xl font-light opacity-50">01</span>
+                        <span className="text-6xl font-bold text-white group-hover:translate-x-4 transition-transform duration-300 uppercase">15 PULLUPS</span>
+                      </motion.div>
+                      <motion.div 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="flex items-center gap-10 group cursor-pointer"
+                      >
+                        <span className="text-[#beee00] text-5xl font-light opacity-50">02</span>
+                        <span className="text-6xl font-bold text-white group-hover:translate-x-4 transition-transform duration-300 uppercase">30 PUSHUPS</span>
+                      </motion.div>
+                      <motion.div 
+                        initial={{ x: -20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.6 }}
+                        className="flex items-center gap-10 group cursor-pointer"
+                      >
+                        <span className="text-[#beee00] text-5xl font-light opacity-50">03</span>
+                        <span className="text-6xl font-bold text-white group-hover:translate-x-4 transition-transform duration-300 uppercase">45 SQUATS</span>
+                      </motion.div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Right Section: Check-In & Ranking */}
+              <section className="col-span-4 flex flex-col gap-6">
+                {/* Athlete Check-In Carousel */}
+                <div className="bg-[#131313] rounded-xl p-6 h-auto flex flex-col overflow-hidden relative">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-xl font-bold uppercase tracking-widest text-[#cafd00] flex items-center gap-2">
+                        <UserRound className="w-5 h-5" />
+                        CHECK-IN <span className="text-[#adaaaa] font-normal text-sm ml-2">14/20</span>
+                      </h2>
+                      <span className="text-[#ff7439] font-bold text-sm tracking-widest">CLASS TIME: 09:00 AM</span>
+                    </div>
+                    <div className="flex gap-1">
+                      {athletes.map((_, i) => (
+                        <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === currentAthleteIndex ? 'bg-[#cafd00]' : 'bg-[#494847]'}`}></div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="relative flex-grow h-[420px]">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentAthlete.id}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -20, opacity: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="absolute inset-0 flex flex-col bg-[#201f1f]/40 rounded-2xl border border-[#cafd00]/20 overflow-hidden group"
+                      >
+                        <div className="relative h-3/5 overflow-hidden">
+                          <img 
+                            src={currentAthlete.image} 
+                            alt={currentAthlete.name}
+                            className="w-full h-full object-cover object-top filter grayscale hover:grayscale-0 transition-all duration-500"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-transparent to-transparent"></div>
+                          <div className="absolute bottom-4 left-6">
+                            <span className="bg-[#cafd00] text-[#0e0e0e] px-3 py-1 text-[10px] font-black tracking-[0.2em] uppercase rounded-sm mb-2 inline-block shadow-[0_0_15px_rgba(202,253,0,0.4)]">
+                              {currentAthlete.role}
+                            </span>
+                            <h3 className="text-4xl font-black text-white tracking-tighter uppercase italic">{currentAthlete.name}</h3>
+                          </div>
+                        </div>
+                        <div className="p-6 flex-grow flex flex-col justify-between">
+                          <div className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] text-[#adaaaa] font-bold tracking-widest uppercase mb-1">Current Performance</span>
+                              <div className="flex items-center gap-4">
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-[#cafd00]/70 font-bold uppercase">HR</span>
+                                  <span className="text-2xl font-bold text-white leading-tight">{currentAthlete.hr}</span>
+                                </div>
+                                <div className="h-8 w-px bg-[#494847]/30"></div>
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-[#cafd00]/70 font-bold uppercase">REPS</span>
+                                  <span className="text-2xl font-bold text-white leading-tight">{currentAthlete.reps}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-[#adaaaa] font-bold tracking-widest uppercase mb-1">Next Up</span>
+                              <div className="flex items-center gap-1 text-[#cafd00] animate-pulse cursor-pointer">
+                                <span className="text-xs font-bold">SARAH V.</span>
+                                <ChevronRight className="w-4 h-4" />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 mt-4">
+                            <div className="h-1 flex-grow rounded-full bg-[#cafd00]"></div>
+                            <div className="h-1 flex-grow rounded-full bg-[#262626]"></div>
+                            <div className="h-1 flex-grow rounded-full bg-[#262626]"></div>
+                            <div className="h-1 flex-grow rounded-full bg-[#262626]"></div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Box Ranking */}
+                <div className="flex-grow flex flex-col gap-6">
+                  <div className="bg-[#131313] rounded-xl p-6 flex flex-col gap-4 border-t-2 border-[#cafd00]/20">
+                    <h2 className="text-lg font-bold uppercase tracking-widest text-white">BOX RANKING</h2>
+                    <div className="flex flex-col gap-3">
+                      {RANKING.map((item) => (
+                        <div 
+                          key={item.rank}
+                          className={`flex items-center justify-between p-4 rounded-lg ${item.active ? 'bg-[#cafd00] text-[#3a4a00]' : 'bg-[#262626] opacity-70'}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="font-black text-2xl">{item.rank}</span>
+                            <span className="font-bold text-lg">{item.name}</span>
+                          </div>
+                          <span className="font-black">{item.pts}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="active-wod"
+              initial={{ opacity: 0, scale: 1.02 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="col-span-12 grid grid-cols-12 gap-6 h-full"
+            >
+              {/* Left: WOD Details */}
+              <div className="col-span-4 flex flex-col gap-6">
+                <div className="bg-[#201f1f] rounded-xl p-8 border-l-8 border-[#cafd00] h-full" style={{boxShadow: '0 0 25px rgba(202, 253, 0, 0.15)'}}>
+                  <span className="text-[#ff7439] font-bold tracking-[0.3em] text-sm block mb-2">ACTIVE WOD</span>
+                  <h1 className="text-6xl font-black text-[#cafd00] italic uppercase mb-8">AMRAP 20</h1>
+             
+                  <div className="space-y-10">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[#beee00] text-2xl opacity-50">01</span>
+                      <span className="text-4xl font-bold text-white uppercase">15 PULLUPS</span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[#beee00] text-2xl opacity-50">02</span>
+                      <span className="text-4xl font-bold text-white uppercase">30 PUSHUPS</span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[#beee00] text-2xl opacity-50">03</span>
+                      <span className="text-4xl font-bold text-white uppercase">45 SQUATS</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-12 p-6 bg-[#262626] rounded-xl border border-[#494847]/30">
+                    <span className="text-xs font-bold text-[#adaaaa] uppercase tracking-widest block mb-2">Coach Notes</span>
+                    <p className="text-white text-lg leading-relaxed">
+                      Maintain a steady pace. Focus on full range of motion for pushups. Break squats into sets of 15 if needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Competition Progress */}
+              <div className="col-span-8 flex flex-col gap-6">
+                <div className="bg-[#131313] rounded-xl p-8 flex-grow flex flex-col">
+                  <div className="flex justify-between items-center mb-10">
+                    <h2 className="text-3xl font-black uppercase tracking-widest text-white flex items-center gap-4">
+                      <Swords className="w-8 h-8 text-[#ff7439]" />
+                      LIVE COMPETITION
+                    </h2>
+                    <div className="flex items-center gap-4">
+                      <span className="bg-[#262626] px-4 py-2 rounded-lg font-bold text-[#adaaaa]">
+                        {athletes.length} ATHLETES CONNECTED
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-grow space-y-8">
+                    {athletes.sort((a, b) => b.progress - a.progress).map((athlete, index) => (
+                      <div key={athlete.id} className="flex flex-col gap-3">
+                        <div className="flex justify-between items-end">
+                          <div className="flex items-center gap-4">
+                            <span className={`font-black text-2xl ${index === 0 ? 'text-[#cafd00]' : 'text-[#adaaaa]'}`}>
+                              {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                            </span>
+                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#cafd00]/30">
+                              <img src={athlete.image} alt={athlete.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-xl text-white">{athlete.name}</span>
+                              <span className="text-[10px] text-[#adaaaa] font-bold tracking-widest uppercase">{athlete.role}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-[#cafd00]/70 font-bold uppercase">HEART RATE</span>
+                              <span className="text-xl font-bold text-white">
+                                {athlete.hasWatch ? (
+                                  <>{athlete.hr} <span className="text-xs opacity-50">BPM</span></>
+                                ) : (
+                                  <span className="text-xs opacity-30 italic">NOT CONNECTED</span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-[#ff7439] font-bold uppercase">PROGRESS</span>
+                              <span className="text-xl font-bold text-white">{Math.floor(athlete.progress)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="h-4 w-full bg-[#262626] rounded-full overflow-hidden relative">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${athlete.progress}%` }}
+                            className={`h-full rounded-full ${index === 0 ? 'bg-[#cafd00] shadow-[0_0_15px_rgba(202,253,0,0.5)]' : 'bg-[#cafd00]/40'}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Footer Marquee */}
+      <footer className="fixed bottom-0 left-0 w-full z-50 flex items-center bg-[#0e0e0e] h-12 overflow-hidden border-t-2 border-[#ff7439]/30 shadow-[0_-10px_30px_rgba(255,116,57,0.15)]">
+        <div className="animate-marquee flex items-center gap-12 text-[#ff7439] text-sm tracking-[0.2em] font-bold">
+          <span className="flex items-center gap-2"><Swords className="w-4 h-4" /> DUEL ACTIVE: MARCUS R. VS SARAH V.</span>
+          <span className="text-white opacity-20">||</span>
+          <span>LEADERBOARD UPDATING IN REAL-TIME</span>
+          <span className="text-white opacity-20">||</span>
+          <span>BOX FREQUENCY: 92% OPTIMAL</span>
+          <span className="text-white opacity-20">||</span>
+          <span className="text-[#cafd00]">NEW BOX RECORD: JULIA M. (156 REPS)</span>
+          <span className="text-white opacity-20">||</span>
+          <span>UPCOMING: HYPERTROPHY STRENGTH @ 18:00</span>
+          <span className="text-white opacity-20">||</span>
+          <span className="flex items-center gap-2"><Swords className="w-4 h-4" /> DUEL ACTIVE: MARCUS R. VS SARAH V.</span>
+          <span className="text-white opacity-20">||</span>
+          <span>LEADERBOARD UPDATING IN REAL-TIME</span>
+        </div>
+      </footer>
+
+      {/* History / Results Modal */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-12"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#131313] w-full max-w-5xl rounded-3xl border border-[#cafd00]/20 overflow-hidden shadow-[0_0_50px_rgba(202,253,0,0.15)]"
+            >
+              <div className="p-10 border-b border-[#494847]/30 flex justify-between items-center bg-[#201f1f]">
+                <div>
+                  <h2 className="text-5xl font-black text-[#cafd00] italic uppercase tracking-tighter">WOD RESULTS</h2>
+                  <p className="text-[#adaaaa] font-bold tracking-widest mt-2">
+                    {lastWodResult ? `COMPLETED AT: ${lastWodResult.date}` : 'NO RECENT RESULTS'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowHistory(false)}
+                  className="bg-[#262626] p-4 rounded-full hover:bg-[#cafd00] hover:text-[#0e0e0e] transition-all"
+                >
+                  <ChevronRight className="w-8 h-8 rotate-180" />
+                </button>
+              </div>
+
+              <div className="p-10 max-h-[60vh] overflow-y-auto">
+                {lastWodResult ? (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center mb-8 bg-[#cafd00]/5 p-6 rounded-2xl border border-[#cafd00]/10">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-[#cafd00] uppercase tracking-widest">TOTAL TIME</span>
+                        <span className="text-6xl font-black text-white">{lastWodResult.time}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-[#ff7439] uppercase tracking-widest">WOD TYPE</span>
+                        <span className="text-4xl font-black text-white block">AMRAP 20</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {lastWodResult.athletes.map((athlete, index) => (
+                        <div key={athlete.id} className="flex items-center justify-between p-6 bg-[#201f1f] rounded-2xl border border-[#494847]/20">
+                          <div className="flex items-center gap-6">
+                            <span className={`text-3xl font-black ${index === 0 ? 'text-[#cafd00]' : 'text-[#adaaaa]'}`}>
+                              {index + 1 < 10 ? `0${index + 1}` : index + 1}
+                            </span>
+                            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#cafd00]/20">
+                              <img src={athlete.image} alt={athlete.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-2xl font-bold text-white">{athlete.name}</span>
+                              <span className="text-xs text-[#adaaaa] font-bold tracking-widest uppercase">{athlete.role}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-12">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-[#adaaaa] font-bold uppercase">SCORE</span>
+                              <span className="text-3xl font-black text-[#cafd00]">{Math.floor(athlete.progress)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-[#adaaaa]">
+                    <Timer className="w-20 h-20 opacity-20 mb-4" />
+                    <p className="text-2xl font-bold uppercase tracking-widest">Start a WOD to record results</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-8 bg-[#201f1f] border-t border-[#494847]/30 flex justify-center">
+                <button 
+                  onClick={() => setShowHistory(false)}
+                  className="bg-[#cafd00] text-[#3a4a00] font-bold px-12 py-4 rounded-2xl text-xl hover:scale-95 transition-all"
+                >
+                  CLOSE RESULTS
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 30s linear infinite;
+        }
+      `}</style>
+    </div>
   );
 }
