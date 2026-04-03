@@ -1,49 +1,29 @@
 
 
-## Plan: Create `class_schedules` Table
+## Plan: Fix TvMode.tsx Build Errors
 
-### Root Cause
-The `class_schedules` table does not exist in the database. The Admin page and TV mode both reference it, causing errors when trying to add, list, or filter by class schedules.
+### Problem
+The file has duplicate declarations from a previous incomplete merge — two copies of `timeParts`, two copies of `loadTvData`, an unused `useRef`, and unused modular load functions.
 
 ### Fix
 
-**Database Migration** -- Create the `class_schedules` table with RLS policies:
+**File: `src/pages/TvMode.tsx`**
 
-```sql
-CREATE TABLE public.class_schedules (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  start_time time NOT NULL,
-  end_time time NOT NULL,
-  label text,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+1. **Remove lines 185-352** — This block contains:
+   - `refreshTimersRef` (uses `useRef` but is never consumed)
+   - First `timeParts` declaration (duplicate of line 354)
+   - Modular load functions (`loadHeaderAndWorkout`, `loadChallenges`, `loadCheckins`, `loadMonthlyAndFrequency`, `loadDuels`, `loadResults`) — all dead code, superseded by the monolithic `loadTvData` at line 356
+   - First `loadTvData` (lines 327-341) — duplicate of line 356
+   - `scheduleRefresh` — never called anywhere
 
-ALTER TABLE public.class_schedules ENABLE ROW LEVEL SECURITY;
+2. The second `timeParts` (line 354) and second `loadTvData` (line 356) remain as the working versions.
 
--- Anyone authenticated can view schedules
-CREATE POLICY "Anyone can view schedules"
-  ON public.class_schedules FOR SELECT
-  TO authenticated USING (true);
+3. No import changes needed — `useRef` was only used by the removed code.
 
--- Admins can manage schedules (insert, update, delete)
-CREATE POLICY "Admins can manage schedules"
-  ON public.class_schedules FOR ALL
-  TO authenticated
-  USING (has_role(auth.uid(), 'admin'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+### Result
+All 5 build errors resolved. No functionality changes — the kept code is identical to what was actually running.
 
--- Anon can view (for TV mode which uses anon key)
-CREATE POLICY "Anon can view schedules"
-  ON public.class_schedules FOR SELECT
-  TO anon USING (true);
-```
-
-### No code changes needed
-The existing code in `Admin.tsx` and `TvMode.tsx` already uses the correct column names (`start_time`, `end_time`, `label`, `is_active`). Once the table exists, everything will work.
-
-### Files changed
 | File | Change |
 |------|--------|
-| Migration SQL | Create `class_schedules` table with RLS |
+| `src/pages/TvMode.tsx` | Remove duplicate/dead code block (lines 185-352) |
 
