@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   Bolt,
@@ -351,6 +351,138 @@ export default function TvMode() {
     }, delay);
   }, []);
 
+  const timeParts = useMemo(() => getSaoPauloParts(), [clockTick]);
+
+  const loadTvData = useCallback(async () => {
+    try {
+      const [{ data: location }, { data: scheduleRows }, wod, activeChallenges] = await Promise.all([
+        (supabase as any)
+          .from('training_locations')
+          .select('name, logo_url, tv_right_top_block_mode')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle(),
+        (supabase as any)
+          .from('class_schedules')
+          .select('id, start_time, end_time, label, is_active')
+          .eq('is_active', true)
+          .order('start_time', { ascending: true }),
+        db.getDailyWod(),
+        db.getActiveChallenges(),
+      ]);
+
+      if (location) {
+        setBoxConfig({
+          name: location.name || 'BoxLink',
+          logoUrl: location.logo_url || null,
+          tvRightTopBlockMode:
+            location.tv_right_top_block_mode === 'avatar' || location.tv_right_top_block_mode === 'avatars' ? 'avatar' : 'checkins',
+        });
+      }
+
+      setSchedules((scheduleRows || []) as ClassSchedule[]);
+      setDailyWod(wod);
+      setChallenges((activeChallenges || []).slice(0, 8).map((item) => ({
+        id: item.id,
+        name: item.name,
+        target: item.target,
+        unit: item.unit,
+        xpReward: item.xpReward,
+        type: item.type,
+      })));
+
+      const today = getSaoPauloParts().dateKey;
+
+      const [{ data: checkinsRows }, { data: monthlyXpRows }, { data: profilesRows }, { data: duelsRows }] = await Promise.all([
+        (supabase as any)
+          .from('checkins')
+          .select('id, user_id, check_date, created_at, profiles(name, avatar, avatar_url)')
+          .eq('check_date', today)
+          .order('created_at', { ascending: false }),
+        (supabase as any)
+          .from('monthly_xp')
+          .select('user_id, xp')
+          .eq('month_key', today.slice(0, 7))
+          .order('xp', { ascending: false })
+          .limit(20),
+        (supabase as any)
+          .from('profiles')
+          .select('id, name, avatar, avatar_url, checkins, xp')
+          .order('checkins', { ascending: false })
+          .limit(20),
+        (supabase as any)
+          .from('app_duels')
+          .select('id, challenger_id, opponent_ids, status, winner_id, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+
+      const checkinsMapped: TvCheckin[] = (checkinsRows || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        checkDate: row.check_date,
+        createdAt: row.created_at,
+        name: row.profiles?.name || 'Atleta',
+        avatar: row.profiles?.avatar || '👤',
+        avatarUrl: row.profiles?.avatar_url || null,
+      }));
+      setTodayCheckins(checkinsMapped);
+
+      const monthlyRows = (monthlyXpRows || []) as Array<{ user_id: string; xp: number }>;
+      const monthlyIds = monthlyRows.map((item) => item.user_id);
+      const profileMap = new Map<string, any>();
+
+      if (monthlyIds.length) {
+        const { data: rankingProfiles } = await (supabase as any)
+          .from('profiles')
+          .select('id, name, avatar, avatar_url')
+          .in('id', monthlyIds);
+        (rankingProfiles || []).forEach((item: any) => profileMap.set(item.id, item));
+      }
+
+      setMonthlyXpRanking(
+        monthlyRows.slice(0, 10).map((item) => ({
+          userId: item.user_id,
+          name: profileMap.get(item.user_id)?.name || 'Atleta',
+          avatar: profileMap.get(item.user_id)?.avatar || '👤',
+          avatarUrl: profileMap.get(item.user_id)?.avatar_url || null,
+          xp: item.xp || 0,
+        })),
+      );
+
+      setFrequencyRanking(
+        (profilesRows || []).slice(0, 10).map((item: any) => ({
+          userId: item.id,
+          name: item.name || 'Atleta',
+          checkins: Number(item.checkins) || 0,
+        })),
+      );
+
+      setDuels(
+        ((duelsRows || []) as any[])
+          .filter((row) => String(row.status).toLowerCase() !== 'canceled')
+          .map((row) => ({
+            id: row.id,
+            challengerId: row.challenger_id,
+            opponentIds: row.opponent_ids || [],
+            status: row.status || 'active',
+            winnerId: row.winner_id || null,
+            createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
+          }))
+          .slice(0, 15),
+      );
+
+      if (wod?.id) {
+        const results = await db.getWodResults(wod.id);
+        setAllResults(results);
+      } else {
+        setAllResults([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadTvData();
   }, [loadTvData]);
@@ -373,39 +505,20 @@ export default function TvMode() {
       loadTvData();
     }, 30000);
 
-    const refreshTodayScoped = () => {
-      const today = getSaoPauloParts().dateKey;
-      loadCheckins(today);
-      loadMonthlyAndFrequency(today);
-    };
-
     const channel = supabase
       .channel('tv-mode-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, () => {
-        scheduleRefresh('checkins', refreshTodayScoped, 450);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wod_results' }, () => {
-        scheduleRefresh('results', () => loadResults(dailyWod?.id), 450);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_duels' }, () => {
-        scheduleRefresh('duels', loadDuels, 500);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_xp' }, () => {
-        scheduleRefresh('monthly', () => loadMonthlyAndFrequency(getSaoPauloParts().dateKey), 600);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, () => {
-        scheduleRefresh('challenges', loadChallenges, 650);
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins' }, loadTvData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wod_results' }, loadTvData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_duels' }, loadTvData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'monthly_xp' }, loadTvData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, loadTvData)
       .subscribe();
 
     return () => {
       window.clearInterval(poll);
       supabase.removeChannel(channel);
-      Object.values(refreshTimersRef.current).forEach((timerId) => {
-        if (timerId) window.clearTimeout(timerId);
-      });
     };
-  }, [dailyWod?.id, loadChallenges, loadCheckins, loadDuels, loadMonthlyAndFrequency, loadResults, loadTvData, scheduleRefresh]);
+  }, [loadTvData]);
 
   const currentClass = useMemo(() => getCurrentClass(schedules, timeParts.secondsNow), [schedules, timeParts.secondsNow]);
   const classLabel = currentClass
